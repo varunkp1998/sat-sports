@@ -9,6 +9,7 @@ import {
   Stack,
   Chip,
 } from "@mui/material";
+import API_BASE from "./api";
 
 import EventIcon from "@mui/icons-material/Event";
 import ScheduleIcon from "@mui/icons-material/Schedule";
@@ -67,7 +68,7 @@ function PlayerDashboard() {
   useEffect(() => {
     if (!userId) return;
 
-    fetch(`http://localhost:4000/api/player/overview/${userId}`)
+    fetch(`${API_BASE}/api/player/overview/${userId}`)
       .then((res) => res.json())
       .then(setData);
   }, [userId]);

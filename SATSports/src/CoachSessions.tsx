@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Table, TableBody, TableCell, TableHead, TableRow, Alert, Paper } from "@mui/material";
+import API_BASE from "./api";
 
 type Session = {
   id: number;
@@ -22,7 +23,7 @@ function CoachSessions() {
   useEffect(() => {
     if (!coachId) return;
 
-    fetch(`http://localhost:4000/api/coach/sessions/${coachId}`)
+    fetch(`${API_BASE}/api/coach/sessions/${coachId}`)
       .then(res => res.json())
       .then(data => setSessions(data));
   }, [coachId]);
@@ -32,7 +33,7 @@ function CoachSessions() {
     if (!coachId || sessions.length === 0) return;
 
     sessions.forEach((s) => {
-      fetch(`http://localhost:4000/api/coach/checkin/status?coachId=${coachId}&sessionId=${s.id}`)
+      fetch(`${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${s.id}`)
         .then(res => res.json())
         .then(data => {
           setCheckedInMap(prev => ({
@@ -44,7 +45,7 @@ function CoachSessions() {
   }, [coachId, sessions]);
 
   const handleCheckIn = async (sessionId: number, locationId: number) => {
-    await fetch("http://localhost:4000/api/coach/checkin", {
+    await fetch(`${API_BASE}/api/coach/checkin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -56,7 +57,7 @@ function CoachSessions() {
 
     // Refresh status for this session
     const res = await fetch(
-      `http://localhost:4000/api/coach/checkin/status?coachId=${coachId}&sessionId=${sessionId}`
+      `${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${sessionId}`
     );
     const data = await res.json();
 
@@ -66,7 +67,7 @@ function CoachSessions() {
     }));
   };
   const handleCheckOut = async (sessionId: number) => {
-    await fetch("http://localhost:4000/api/coach/checkout", {
+    await fetch(`${API_BASE}/api/coach/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -1,11 +1,11 @@
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableRow, Paper, TableContainer } from "@mui/material";
-
+import API_BASE from "./api";
 function AdminLivePresence() {
   const [coaches, setCoaches] = React.useState<any[]>([]);
 
   const load = () => {
-    fetch("http://localhost:4000/api/admin/live-coaches")
+    fetch(`${API_BASE}/api/admin/live-coaches`)
       .then(res => res.json())
       .then(setCoaches);
   };

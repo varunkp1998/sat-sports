@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Table, TableHead, TableRow, TableCell, TableBody, Button, Paper, Chip } from "@mui/material";
-
+import API_BASE from "./api";
 export default function AdminApplications() {
   const [rows, setRows] = useState<any[]>([]);
 
   const load = () => {
-    fetch("http://localhost:4000/api/admin/applications")
+    fetch(`${API_BASE}/api/admin/applications`)
       .then(res => res.json())
       .then(setRows);
   };
@@ -15,12 +15,12 @@ export default function AdminApplications() {
   }, []);
 
   const approve = async (id: number) => {
-    await fetch(`http://localhost:4000/api/admin/applications/${id}/approve`, { method: "POST" });
+    await fetch(`${API_BASE}/api/admin/applications/${id}/approve`, { method: "POST" });
     load();
   };
 
   const reject = async (id: number) => {
-    await fetch(`http://localhost:4000/api/admin/applications/${id}/reject`, { method: "POST" });
+    await fetch(`${API_BASE}/api/admin/applications/${id}/reject`, { method: "POST" });
     load();
   };
 

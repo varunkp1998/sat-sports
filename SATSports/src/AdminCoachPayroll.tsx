@@ -19,7 +19,7 @@ import {
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-
+import API_BASE from "./api";
 type PayrollRow = {
   coachId: number;
   coachName: string;
@@ -44,8 +44,8 @@ function AdminCoachPayroll() {
 
     const url =
       mode === "daily"
-        ? `http://localhost:4000/api/admin/reports/coach-daily-hours?date=${date}`
-        : `http://localhost:4000/api/admin/reports/coach-monthly-hours?month=${month}`;
+        ? `${API_BASE}/api/admin/reports/coach-daily-hours?date=${date}`
+        : `${API_BASE}/api/admin/reports/coach-monthly-hours?month=${month}`;
 
     fetch(url)
       .then((res) => res.json())

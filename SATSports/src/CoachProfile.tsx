@@ -10,6 +10,7 @@ import {
   Divider,
   Box,
 } from "@mui/material";
+import API_BASE from "./api";
 
 function CoachProfile() {
   const userId = localStorage.getItem("userId");
@@ -23,7 +24,7 @@ function CoachProfile() {
   useEffect(() => {
     if (!userId) return;
 
-    fetch(`http://localhost:4000/api/coach/profile/${userId}`)
+    fetch(`${API_BASE}/api/coach/profile/${userId}`)
       .then((res) => res.json())
       .then((data) => {
         setProfile(data);
@@ -35,7 +36,7 @@ function CoachProfile() {
 
   const saveProfile = async () => {
     setSaving(true);
-    await fetch("http://localhost:4000/api/coach/profile", {
+    await fetch(`${API_BASE}/api/coach/profile`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -53,7 +54,7 @@ function CoachProfile() {
       return;
     }
 
-    const res = await fetch("http://localhost:4000/api/coach/change-password", {
+    const res = await fetch(`${API_BASE}/api/coach/change-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

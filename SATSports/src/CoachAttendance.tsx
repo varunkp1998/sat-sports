@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button, Checkbox, Table, TableBody, TableCell, TableHead, TableRow, Paper, Alert } from "@mui/material";
-
+import API_BASE from "./api";
 type Player = {
   id: number;
   name: string;
@@ -17,7 +17,7 @@ function CoachAttendance() {
   useEffect(() => {
     if (!sessionId) return;
 
-    fetch(`http://localhost:4000/api/coach/sessions/${sessionId}/players`)
+    fetch(`${API_BASE}/api/coach/sessions/${sessionId}/players`)
       .then(res => res.json())
       .then(data => {
         setPlayers(data);
@@ -52,7 +52,7 @@ function CoachAttendance() {
       })),
     };
 
-    await fetch(`http://localhost:4000/api/coach/sessions/${sessionId}/attendance`, {
+    await fetch(`${API_BASE}/api/coach/sessions/${sessionId}/attendance`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

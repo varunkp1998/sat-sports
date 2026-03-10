@@ -7,7 +7,7 @@ import {
   Box,
   Divider,
 } from "@mui/material";
-
+import API_BASE from "./api";
 import EventIcon from "@mui/icons-material/Event";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
@@ -67,7 +67,7 @@ function CoachDashboard() {
   useEffect(() => {
     if (!userId) return;
 
-    fetch(`http://localhost:4000/api/coach/overview/${userId}`)
+    fetch(`${API_BASE}/api/coach/overview/${userId}`)
       .then((res) => res.json())
       .then((res) =>
         setData({

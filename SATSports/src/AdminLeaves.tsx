@@ -16,12 +16,12 @@ import {
   Card,
   CardContent,
 } from "@mui/material";
-
+import API_BASE from "./api";
 function AdminLeaves() {
   const [leaves, setLeaves] = React.useState<any[]>([]);
 
   const loadLeaves = () => {
-    fetch("http://localhost:4000/api/admin/leaves")
+    fetch(`${API_BASE}/api/admin/leaves`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setLeaves(data);
@@ -34,7 +34,7 @@ function AdminLeaves() {
   }, []);
 
   const updateStatus = (id: number, status: string) => {
-    fetch(`http://localhost:4000/api/admin/leaves/${id}`, {
+    fetch(`${API_BASE}/api/admin/leaves/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),

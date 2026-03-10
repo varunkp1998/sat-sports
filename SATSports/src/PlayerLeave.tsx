@@ -1,5 +1,6 @@
 import React from "react";
 import { Card, CardContent, TextField, Button, Stack } from "@mui/material";
+import API_BASE from "./api";
 
 function PlayerLeave() {
   const [startDate, setStartDate] = React.useState("");
@@ -14,7 +15,7 @@ function PlayerLeave() {
       return;
     }
 
-    fetch("http://localhost:4000/api/player/leaves", {
+    fetch(`${API_BASE}/api/player/leaves`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

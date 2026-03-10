@@ -17,7 +17,7 @@ import {
   Box,
   Divider,
 } from "@mui/material";
-
+import API_BASE from "./api";
 type Leave = {
   id: number;
   start_date: string;
@@ -37,7 +37,7 @@ function CoachLeave() {
   const loadLeaves = () => {
     if (!coachId) return;
 
-    fetch(`http://localhost:4000/api/coach/leaves/${coachId}`)
+    fetch(`${API_BASE}/api/coach/leaves/${coachId}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -58,7 +58,7 @@ function CoachLeave() {
       return;
     }
 
-    fetch("http://localhost:4000/api/coach/leaves", {
+    fetch(`${API_BASE}/api/coach/leaves`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

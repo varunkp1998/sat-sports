@@ -1,6 +1,7 @@
 // RegisterPlayer.tsx
 import { useState } from "react";
 import { Card, CardContent, TextField, Button, Stack, Typography } from "@mui/material";
+import API_BASE from "./api";
 
 export default function RegisterPlayer() {
   const [form, setForm] = useState({
@@ -22,7 +23,7 @@ export default function RegisterPlayer() {
       return;
     }
 
-    await fetch("http://localhost:4000/api/applications", {
+    await fetch(`${API_BASE}/api/applications`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),

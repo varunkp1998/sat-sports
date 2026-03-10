@@ -9,12 +9,12 @@ import {
   Paper,
   Typography,
 } from "@mui/material";
-
+import API_BASE from "./api";
 export default function AdminCourtBookings() {
   const [rows, setRows] = useState<any[]>([]);
 
   const load = () => {
-    fetch("http://localhost:4000/api/admin/court-bookings")
+    fetch(`${API_BASE}/api/admin/court-bookings`)
       .then(res => res.json())
       .then(data => {
         console.log("Admin bookings:", data); // 👈 debug
@@ -34,7 +34,7 @@ export default function AdminCourtBookings() {
   const cancel = async (id: number) => {
     if (!window.confirm("Cancel this booking?")) return;
 
-    await fetch(`http://localhost:4000/api/admin/court-bookings/${id}`, {
+    await fetch(`${API_BASE}/api/admin/court-bookings/${id}`, {
       method: "DELETE",
     });
 

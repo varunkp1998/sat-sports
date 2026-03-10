@@ -3,7 +3,7 @@ import {
   } from "@mui/material";
   import { QRCodeSVG } from "qrcode.react";
   import React from "react";
-  
+  import API_BASE from "./api";
   function AdminLocations() {
     const [locations, setLocations] = React.useState<any[]>([]);
     const [showQR, setShowQR] = React.useState<{
@@ -13,7 +13,7 @@ import {
       } | null>(null);
       
     const loadLocations = () => {
-      fetch("http://localhost:4000/api/admin/locations")
+      fetch(`${API_BASE}/api/admin/locations`)
         .then(res => res.json())
         .then(setLocations);
     };
@@ -24,7 +24,7 @@ import {
   
     const generateNewQR = async (location: any) => {
         const res = await fetch(
-          `http://localhost:4000/api/admin/locations/${location.id}/qr`,
+          `${API_BASE}/api/admin/locations/${location.id}/qr`,
           { method: "POST" }
         );
         const data = await res.json();

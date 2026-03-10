@@ -14,6 +14,8 @@ import PublicCourtBooking from "./PublicCourtBooking.tsx";
 import RegisterPlayer from "./RegisterPlayer.tsx";
 import AdminApplications from "./AdminApplications.tsx";
 import AdminCoachPayroll from "./AdminCoachPayroll";
+import API_BASE from "./api";
+
 import {
   Card,
   CardContent,
@@ -266,7 +268,7 @@ function ProgramsPage() {
   const [items, setItems] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:4000/api/programs")
+    fetch(`${API_BASE}/api/programs`)
       .then((res) => res.json())
       .then(setItems)
       .catch((err) => console.error("Failed to load programs", err));
@@ -365,7 +367,7 @@ function ProgramsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const loadPrograms = () => {
-    fetch("http://localhost:4000/api/admin/programs")
+    fetch(`${API_BASE}/api/admin/programs`)
       .then((res) => res.json())
       .then((data) => setPrograms(Array.isArray(data) ? data : []));
   };
@@ -388,7 +390,7 @@ function ProgramsPage() {
     };
 
     if (editingId) {
-      fetch(`http://localhost:4000/api/programs/${editingId}`, {
+      fetch(`${API_BASE}/api/programs/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -397,7 +399,7 @@ function ProgramsPage() {
         loadPrograms();
       });
     } else {
-      fetch("http://localhost:4000/api/programs", {
+      fetch(`${API_BASE}/api/programs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -418,7 +420,7 @@ function ProgramsPage() {
 
   const deleteProgram = (id: number) => {
     if (!window.confirm("Delete this program?")) return;
-    fetch(`http://localhost:4000/api/programs/${id}`, { method: "DELETE" }).then(
+    fetch(`${API_BASE}/api/programs/${id}`, { method: "DELETE" }).then(
       () => loadPrograms()
     );
   };
@@ -590,7 +592,7 @@ function AdminNews() {
   const [editingId, setEditingId] = React.useState<number | null>(null);
 
   const loadNews = () => {
-    fetch("http://localhost:4000/api/admin/news")
+    fetch(`${API_BASE}/api/admin/news`)
       .then(res => res.json())
       .then(setItems);
   };
@@ -603,7 +605,7 @@ function AdminNews() {
     const payload = { title, body, category, isPublished };
 
     if (editingId) {
-      fetch(`http://localhost:4000/api/news/${editingId}`, {
+      fetch(`${API_BASE}/api/news/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -612,7 +614,7 @@ function AdminNews() {
         loadNews();
       });
     } else {
-      fetch("http://localhost:4000/api/news", {
+      fetch(`${API_BASE}/api/news`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -633,7 +635,7 @@ function AdminNews() {
 
   const deleteItem = (id: number) => {
     if (!window.confirm("Delete this item?")) return;
-    fetch(`http://localhost:4000/api/news/${id}`, {
+    fetch(`${API_BASE}/api/news/${id}`, {
       method: "DELETE",
     }).then(() => loadNews());
   };
@@ -729,7 +731,7 @@ function Login() {
     setError("");
     setLoading(true);
 
-    fetch("http://localhost:4000/api/login", {
+    fetch(`${API_BASE}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -880,7 +882,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
   const [authorized, setAuthorized] = React.useState<boolean | null>(null);
 
   React.useEffect(() => {
-    fetch("http://localhost:4000/api/admin/programs")
+    fetch(`${API_BASE}/api/admin/programs`)
       .then(res => {
         if (res.status === 401) {
           window.location.href = "/login";
@@ -900,7 +902,7 @@ function NewsPage() {
   const [news, setNews] = React.useState<any[]>([]);
 
   React.useEffect(() => {
-    fetch("http://localhost:4000/api/news")
+    fetch(`${API_BASE}/api/news`)
       .then(res => res.json())
       .then(setNews);
   }, []);
@@ -926,7 +928,7 @@ function TournamentsPage() {
   const [tournaments, setTournaments] = React.useState<any[]>([]);
 
   React.useEffect(() => {
-    fetch("http://localhost:4000/api/tournaments")
+    fetch(`${API_BASE}/api/tournaments`)
       .then(res => res.json())
       .then(setTournaments);
   }, []);
@@ -983,7 +985,7 @@ function AdminAttendance() {
 
   // Load player attendance by date
   const loadPlayers = () => {
-    fetch(`http://localhost:4000/api/admin/attendance?date=${selectedDate}`)
+    fetch(`${API_BASE}/api/admin/attendance?date=${selectedDate}`)
       .then(res => res.json())
       .then(setPlayerRows)
       .catch(err => console.error("Failed to load player attendance", err));
@@ -991,7 +993,7 @@ function AdminAttendance() {
 
   // Load coach check-ins by date
   const loadCoaches = () => {
-    fetch(`http://localhost:4000/api/admin/coach-checkins?date=${selectedDate}`)
+    fetch(`${API_BASE}/api/admin/coach-checkins?date=${selectedDate}`)
       .then(res => res.json())
       .then(setCoachRows)
       .catch(err => console.error("Failed to load coach check-ins", err));
@@ -1159,7 +1161,7 @@ function AdminTournaments() {
   const [editingId, setEditingId] = React.useState<number | null>(null);
 
   const loadItems = () => {
-    fetch("http://localhost:4000/api/admin/tournaments")
+    fetch(`${API_BASE}/api/admin/tournaments`)
       .then(res => res.json())
       .then(setItems);
   };
@@ -1172,7 +1174,7 @@ function AdminTournaments() {
     const payload = { name, date, location, status, isPublished };
 
     if (editingId) {
-      fetch(`http://localhost:4000/api/tournaments/${editingId}`, {
+      fetch(`${API_BASE}/api/tournaments/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1181,7 +1183,7 @@ function AdminTournaments() {
         loadItems();
       });
     } else {
-      fetch("http://localhost:4000/api/tournaments", {
+      fetch(`${API_BASE}/api/tournaments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1203,7 +1205,7 @@ function AdminTournaments() {
 
   const deleteItem = (id: number) => {
     if (!window.confirm("Delete this tournament?")) return;
-    fetch(`http://localhost:4000/api/tournaments/${id}`, {
+    fetch(`${API_BASE}/api/tournaments/${id}`, {
       method: "DELETE",
     }).then(() => loadItems());
   };
@@ -1294,7 +1296,7 @@ function AdminPlayers() {
   const [file, setFile] = useState<File | null>(null);
 
   const loadPlayers = () => {
-    fetch("http://localhost:4000/api/admin/players")
+    fetch(`${API_BASE}/api/admin/players`)
       .then(res => res.json())
       .then(setPlayers);
   };
@@ -1309,7 +1311,7 @@ function AdminPlayers() {
     const fd = new FormData();
     fd.append("file", file);
 
-    await fetch("http://localhost:4000/api/admin/players/import", {
+    await fetch(`${API_BASE}/api/admin/players/import`, {
       method: "POST",
       body: fd
     });
@@ -1323,7 +1325,7 @@ function AdminPlayers() {
     const newProgram = prompt("Enter new program ID:");
     if (!newProgram) return;
 
-    await fetch(`http://localhost:4000/api/admin/players/${p.id}`, {
+    await fetch(`${API_BASE}/api/admin/players/${p.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ program_id: newProgram, sub_category: p.sub_category, age: p.age })
@@ -1404,7 +1406,7 @@ function PlayerProfile() {
 
   React.useEffect(() => {
     // Load player
-    fetch("http://localhost:4000/api/admin/players")
+    fetch(`${API_BASE}/api/admin/players`)
       .then(res => res.json())
       .then(data => {
         const found = data.find((p: any) => p.id == playerId);
@@ -1412,16 +1414,16 @@ function PlayerProfile() {
       });
 
     // Load attendance history
-    fetch(`http://localhost:4000/api/admin/attendance/player/${playerId}`)
+    fetch(`${API_BASE}/api/admin/attendance/player/${playerId}`)
       .then(res => res.json())
       .then(setAttendance);
 
     // Load programs & coaches for labels
-    fetch("http://localhost:4000/api/admin/programs")
+    fetch(`${API_BASE}/api/admin/programs`)
       .then(res => res.json())
       .then(setPrograms);
 
-    fetch("http://localhost:4000/api/admin/coaches")
+    fetch(`${API_BASE}/api/admin/coaches`)
       .then(res => res.json())
       .then(setCoaches);
   }, [playerId]);
@@ -1506,19 +1508,19 @@ function AdminRevenue() {
   const [editingId, setEditingId] = React.useState<number | null>(null);
 
   const loadItems = () => {
-    fetch("http://localhost:4000/api/admin/revenue")
+    fetch(`${API_BASE}/api/admin/revenue`)
       .then(res => res.json())
       .then(setItems);
   };
 
   const loadPlayers = () => {
-    fetch("http://localhost:4000/api/admin/players")
+    fetch(`${API_BASE}/api/admin/players`)
       .then(res => res.json())
       .then(setPlayers);
   };
 
   const loadPrograms = () => {
-    fetch("http://localhost:4000/api/admin/programs")
+    fetch(`${API_BASE}/api/admin/programs`)
       .then(res => res.json())
       .then(setPrograms);
   };
@@ -1545,7 +1547,7 @@ function AdminRevenue() {
     };
 
     if (editingId) {
-      fetch(`http://localhost:4000/api/revenue/${editingId}`, {
+      fetch(`${API_BASE}/api/revenue/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1554,7 +1556,7 @@ function AdminRevenue() {
         loadItems();
       });
     } else {
-      fetch("http://localhost:4000/api/revenue", {
+      fetch(`${API_BASE}/api/revenue`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1577,7 +1579,7 @@ function AdminRevenue() {
 
   const deleteItem = (id: number) => {
     if (!window.confirm("Delete this transaction?")) return;
-    fetch(`http://localhost:4000/api/revenue/${id}`, {
+    fetch(`${API_BASE}/api/revenue/${id}`, {
       method: "DELETE",
     }).then(() => loadItems());
   };
@@ -1735,19 +1737,19 @@ function AdminDashboard() {
   const [attendance, setAttendance] = React.useState<any[]>([]);
 
   React.useEffect(() => {
-    fetch("http://localhost:4000/api/admin/programs")
+    fetch(`${API_BASE}/api/admin/programs`)
       .then(res => res.json())
       .then(setPrograms);
 
-    fetch("http://localhost:4000/api/admin/news")
+    fetch(`${API_BASE}/api/admin/news`)
       .then(res => res.json())
       .then(setNews);
 
-    fetch("http://localhost:4000/api/admin/tournaments")
+    fetch(`${API_BASE}/api/admin/tournaments`)
       .then(res => res.json())
       .then(setTournaments);
 
-    fetch("http://localhost:4000/api/admin/attendance")
+    fetch(`${API_BASE}/api/admin/attendance`)
       .then(res => res.json())
       .then(setAttendance);
   }, []);
@@ -1822,12 +1824,12 @@ function AdminReports() {
   const loadReports = () => {
     const query = `?from=${from}&to=${to}`;
 
-    fetch("http://localhost:4000/api/admin/reports/attendance" + query)
+    fetch(`${API_BASE}/api/admin/reports/attendance` + query)
       .then(res => res.json())
       .then(setAttendance)
       .catch(err => console.error("Attendance report error", err));
 
-    fetch("http://localhost:4000/api/admin/reports/revenue" + query)
+    fetch(`${API_BASE}/api/admin/reports/revenue` + query)
       .then(res => res.json())
       .then(setRevenue)
       .catch(err => console.error("Revenue report error", err));
@@ -2033,18 +2035,18 @@ function PlayerPortal() {
   const [revenue, setRevenue] = React.useState<any[]>([]);
 
   React.useEffect(() => {
-    fetch("http://localhost:4000/api/player/profile")
+    fetch(`${API_BASE}/api/player/profile`)
       .then(res => {
         if (!res.ok) throw new Error("Unauthorized");
         return res.json();
       })
       .then(setPlayer);
 
-    fetch("http://localhost:4000/api/player/attendance")
+    fetch(`${API_BASE}/api/player/attendance`)
       .then(res => res.json())
       .then(setAttendance);
 
-    fetch("http://localhost:4000/api/player/revenue")
+    fetch(`${API_BASE}/api/player/revenue`)
       .then(res => res.json())
       .then(setRevenue);
   }, []);
@@ -2142,7 +2144,7 @@ function AdminCoaches() {
   const [editingId, setEditingId] = React.useState<number | null>(null);
 
   const loadCoaches = () => {
-    fetch("http://localhost:4000/api/admin/coaches")
+    fetch(`${API_BASE}/api/admin/coaches`)
       .then(res => res.json())
       .then(setCoaches);
   };
@@ -2167,7 +2169,7 @@ function AdminCoaches() {
     const payload = { name, email, phone };
 
     if (editingId) {
-      fetch(`http://localhost:4000/api/admin/coaches/${editingId}`, {
+      fetch(`${API_BASE}/api/admin/coaches/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2176,7 +2178,7 @@ function AdminCoaches() {
         loadCoaches();
       });
     } else {
-      fetch("http://localhost:4000/api/admin/coaches", {
+      fetch(`${API_BASE}/api/admin/coaches`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2197,7 +2199,7 @@ function AdminCoaches() {
   const deleteCoach = (id: number) => {
     if (!window.confirm("Delete this coach?")) return;
   
-    fetch(`http://localhost:4000/api/admin/coaches/${id}`, { method: "DELETE" })
+    fetch(`${API_BASE}/api/admin/coaches/${id}`, { method: "DELETE" })
       .then(async (res) => {
         if (!res.ok) {
           // Try to read the error message from backend
@@ -2364,31 +2366,31 @@ function AdminSessions() {
   const [selectedPlayers, setSelectedPlayers] = React.useState<number[]>([]);
 
   const loadSessions = () => {
-    fetch("http://localhost:4000/api/admin/sessions")
+    fetch(`${API_BASE}/api/admin/sessions`)
       .then(res => res.json())
       .then(setSessions);
   };
 
   const loadLocations = () => {
-    fetch("http://localhost:4000/api/admin/locations")
+    fetch(`${API_BASE}/api/admin/locations`)
       .then(res => res.json())
       .then(setLocations);
   };
 
   const loadCoaches = () => {
-    fetch("http://localhost:4000/api/admin/coaches")
+    fetch(`${API_BASE}/api/admin/coaches`)
       .then(res => res.json())
       .then(setCoaches);
   };
 
   const loadPrograms = () => {
-    fetch("http://localhost:4000/api/admin/programs")
+    fetch(`${API_BASE}/api/admin/programs`)
       .then(res => res.json())
       .then(setPrograms);
   };
 
   const loadPlayersByProgram = (pid: string) => {
-    fetch(`http://localhost:4000/api/admin/players/program/${pid}`)
+    fetch(`${API_BASE}/api/admin/players/program/${pid}`)
       .then(res => res.json())
       .then(setPlayers);
   };
@@ -2436,7 +2438,7 @@ function AdminSessions() {
     };
 
     if (editingId) {
-      fetch(`http://localhost:4000/api/admin/sessions/${editingId}`, {
+      fetch(`${API_BASE}/api/admin/sessions/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2445,7 +2447,7 @@ function AdminSessions() {
         loadSessions();
       });
     } else {
-      fetch("http://localhost:4000/api/admin/sessions", {
+      fetch(`${API_BASE}/api/admin/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2475,7 +2477,7 @@ function AdminSessions() {
   const deleteSession = (id: number) => {
     if (!window.confirm("Delete this session?")) return;
 
-    fetch(`http://localhost:4000/api/admin/sessions/${id}`, { method: "DELETE" })
+    fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" })
       .then(async res => {
         if (!res.ok) {
           let msg = "Failed to delete session";

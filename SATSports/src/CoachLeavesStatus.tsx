@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableRow, Paper, Alert } from "@mui/material";
-
+import API_BASE from "./api";
 function CoachLeavesStatus() {
   const coachId = localStorage.getItem("userId");
   const [leaves, setLeaves] = useState<any[]>([]);
@@ -8,7 +8,7 @@ function CoachLeavesStatus() {
   useEffect(() => {
     if (!coachId) return;
 
-    fetch(`http://localhost:4000/api/coach/leaves/${coachId}`)
+    fetch(`${API_BASE}/api/coach/leaves/${coachId}`)
       .then(res => res.json())
       .then(setLeaves);
   }, [coachId]);
