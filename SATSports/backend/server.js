@@ -1044,29 +1044,22 @@ app.get("/api/coach/profile/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const [rows] = await db.query(
-      `SELECT 
-        u.id,
-        u.username,
-        u.role,
-        c.name
+    const [[row]] = await db.query(
+      `SELECT u.email, u.role, c.name
        FROM users u
-       LEFT JOIN coaches c ON c.user_id = u.id
+       JOIN coaches c ON c.user_id = u.id
        WHERE u.id = ?`,
       [userId]
     );
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!row) return res.status(404).json({ message: "Profile not found" });
 
-    res.json(rows[0]);
+    res.json(row);
   } catch (err) {
     console.error("COACH PROFILE ERROR:", err);
     res.status(500).json({ message: "Failed to load profile" });
   }
-});
-app.get("/api/coach/overview/:userId", async (req, res) => {
+});app.get("/api/coach/overview/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
