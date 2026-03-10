@@ -90,7 +90,7 @@ function CoachProfile() {
               </Avatar>
 
               <Typography variant="h6" fontWeight={700}>
-                {profile.username}
+              {profile.email}
               </Typography>
 
               <Divider flexItem />
