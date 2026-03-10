@@ -1194,7 +1194,7 @@ app.get("/api/coach/profile/:userId", async (req, res) => {
 
   try {
     const [[row]] = await db.query(
-      `SELECT u.username, u.role, c.name
+      `SELECT u.email, u.role, c.name
        FROM users u
        JOIN coaches c ON c.user_id = u.id
        WHERE u.id = ?`,
@@ -1205,7 +1205,7 @@ app.get("/api/coach/profile/:userId", async (req, res) => {
 
     res.json(row);
   } catch (err) {
-    console.error(err);
+    console.error("COACH PROFILE ERROR:", err);
     res.status(500).json({ message: "Failed to load profile" });
   }
 });
@@ -1229,24 +1229,24 @@ app.post("/api/coach/change-password", async (req, res) => {
 
   try {
     const [[user]] = await db.query(
-      "SELECT password_hash FROM users WHERE id = ?",
+      "SELECT password FROM users WHERE id = ?",
       [userId]
     );
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (user.password_hash !== oldPassword) {
+    if (user.password !== oldPassword) {
       return res.status(400).json({ message: "Old password is incorrect" });
     }
 
     await db.query(
-      "UPDATE users SET password_hash = ? WHERE id = ?",
+      "UPDATE users SET password = ? WHERE id = ?",
       [newPassword, userId]
     );
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("CHANGE PASSWORD ERROR:", err);
     res.status(500).json({ message: "Failed to change password" });
   }
 });
