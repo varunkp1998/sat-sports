@@ -1,17 +1,20 @@
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
+
 const xlsx = require("xlsx");
 const express = require("express");
 const cors = require("cors");
+const mysql = require("mysql2");
 
 const app = express();
+
 app.use(cors({
-  origin: "https://sat-sports.vercel.app/"
+  origin: "https://sat-sports.vercel.app"
 }));
 
 app.use(express.json());
+
 let isAuthenticated = false;
-const mysql = require("mysql2");
 
 const connection = mysql.createPool({
   host: process.env.DB_HOST,
@@ -21,10 +24,9 @@ const connection = mysql.createPool({
   port: process.env.DB_PORT
 });
 
-module.exports = connection.promise();
+const db = connection.promise();   // ✅ create db variable
 
 let sessions = [];
-
 // LOGIN
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
