@@ -1,0 +1,125 @@
+
+-- SAT Sports PVT LTD
+-- Clean MySQL 8+ Compatible Schema
+-- All PKs & FKs use BIGINT UNSIGNED
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS attendance;
+DROP TABLE IF EXISTS session_players;
+DROP TABLE IF EXISTS training_sessions;
+DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS coaches;
+DROP TABLE IF EXISTS revenue;
+DROP TABLE IF EXISTS news;
+DROP TABLE IF EXISTS programs;
+DROP TABLE IF EXISTS locations;
+DROP TABLE IF EXISTS users;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE users (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role ENUM('admin','coach','player') NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE locations (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  address TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE programs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(100) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE coaches (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_coach_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE players (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  age INT,
+  category VARCHAR(50),
+  program_id BIGINT UNSIGNED,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_player_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_player_program
+    FOREIGN KEY (program_id) REFERENCES programs(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE training_sessions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  session_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  location_id BIGINT UNSIGNED NOT NULL,
+  coach_id BIGINT UNSIGNED NOT NULL,
+  program_id BIGINT UNSIGNED,
+  category VARCHAR(50),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_session_location
+    FOREIGN KEY (location_id) REFERENCES locations(id),
+  CONSTRAINT fk_session_coach
+    FOREIGN KEY (coach_id) REFERENCES coaches(id),
+  CONSTRAINT fk_session_program
+    FOREIGN KEY (program_id) REFERENCES programs(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE session_players (
+  session_id BIGINT UNSIGNED NOT NULL,
+  player_id BIGINT UNSIGNED NOT NULL,
+  PRIMARY KEY (session_id, player_id),
+  CONSTRAINT fk_sp_session
+    FOREIGN KEY (session_id) REFERENCES training_sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_sp_player
+    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE attendance (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  session_id BIGINT UNSIGNED NOT NULL,
+  player_id BIGINT UNSIGNED NOT NULL,
+  status ENUM('Present','Absent') NOT NULL,
+  marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_att_session
+    FOREIGN KEY (session_id) REFERENCES training_sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_att_player
+    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE revenue (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  entry_date DATE NOT NULL,
+  description TEXT,
+  amount DECIMAL(10,2) NOT NULL,
+  type ENUM('CR','DR') NOT NULL,
+  location_id BIGINT UNSIGNED,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_revenue_location
+    FOREIGN KEY (location_id) REFERENCES locations(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE news (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
