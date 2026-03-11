@@ -1756,7 +1756,14 @@ app.post("/api/signup", async (req, res) => {
 
   try {
     const password = crypto.randomBytes(4).toString("hex");
-
+    const [existing] = await db.query(
+      "SELECT id FROM users WHERE email = ?",
+      [email]
+    );
+    
+    if (existing.length) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
     const [result] = await db.query(
       "INSERT INTO users (email, password, role) VALUES (?, ?, ?)",
       [email, password, role]
@@ -1780,13 +1787,16 @@ app.post("/api/signup", async (req, res) => {
 
     // Send email
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      family: 4, // forces IPv4 instead of IPv6
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
     });
-
+    
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
