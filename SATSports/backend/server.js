@@ -1012,59 +1012,62 @@ app.get("/api/coach/overview/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // 1️⃣ Get coach
     const [coachRows] = await db.query(
       "SELECT id, name FROM coaches WHERE user_id = ?",
       [userId]
     );
 
-    if (coachRows.length === 0) {
+    if (!coachRows.length) {
       return res.status(404).json({ message: "Coach not found" });
     }
 
-    const coach = coachRows[0];
+    const coachId = coachRows[0].id;
 
-    // 2️⃣ Today's sessions
     const [[todaySessions]] = await db.query(
       `SELECT COUNT(*) as cnt
        FROM training_sessions
        WHERE coach_id = ? AND session_date = CURDATE()`,
-      [coach.id]
+      [coachId]
     );
 
-    // 3️⃣ Next session
-    const [nextSessionRows] = await db.query(
-      `SELECT start_time, end_time
+    const [todaySessionList] = await db.query(
+      `SELECT id, start_time, end_time
+       FROM training_sessions
+       WHERE coach_id = ? AND session_date = CURDATE()
+       ORDER BY start_time`,
+      [coachId]
+    );
+
+    const [upcoming] = await db.query(
+      `SELECT session_date, start_time, end_time
        FROM training_sessions
        WHERE coach_id = ? AND session_date >= CURDATE()
-       ORDER BY session_date, start_time
-       LIMIT 1`,
-      [coach.id]
+       ORDER BY session_date
+       LIMIT 5`,
+      [coachId]
     );
 
-    // 4️⃣ Pending leaves
-    const [[pendingLeaves]] = await db.query(
-      `SELECT COUNT(*) as cnt
-       FROM coach_leaves
-       WHERE coach_id = ? AND status = 'pending'`,
-      [coach.id]
+    const [weekly] = await db.query(
+      `SELECT DAYOFWEEK(session_date) as d, COUNT(*) as cnt
+       FROM training_sessions
+       WHERE coach_id = ?
+       AND session_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+       GROUP BY d`,
+      [coachId]
     );
 
     res.json({
-      coachName: coach.name,
+      coachName: coachRows[0].name,
       todaySessionCount: todaySessions.cnt,
-      checkedInToday: false,
-      pendingLeaves: pendingLeaves.cnt,
-      nextSession: nextSessionRows[0] || null,
-      weeklySessions: [],
-      recentActivities: [],
-      lastSessions: [],
-      lastLeaves: []
+      todaySessionList,
+      upcoming,
+      weekly,
+      checkedInToday: false
     });
 
   } catch (err) {
-    console.error("COACH OVERVIEW ERROR:", err);
-    res.status(500).json({ message: "Failed to load overview" });
+    console.error(err);
+    res.status(500).json({ message: "Overview failed" });
   }
 });
 app.get("/api/coach/profile/:userId", async (req, res) => {
