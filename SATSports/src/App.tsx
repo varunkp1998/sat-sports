@@ -84,7 +84,7 @@ type Program = {
 
 export default function App() {
   const [programs, setPrograms] = useState<Program[]>([]);
-
+  const navigate = useNavigate();
   useEffect(() => {
     setPrograms([
       { id: 1, name: "Junior Program", desc: "Foundations for young players" },
@@ -110,6 +110,7 @@ export default function App() {
             <Route path="/register-player" element={<RegisterPlayer />} />
 
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="/portal" element={<PlayerPortal />} />
             <Route path="/coach" element={<CoachLayout />}>
   <Route index element={<CoachDashboard />} />
@@ -862,7 +863,14 @@ function Login() {
           >
             {loading ? "Logging in..." : "Login"}
           </Button>
-
+          <Button
+  fullWidth
+  variant="outlined"
+  sx={{ mt: 2, borderRadius: 3 }}
+  onClick={() => Navigate("/signup")}
+>
+  Create New Account
+</Button>
           {/* Footer */}
           <Typography
             variant="body2"
