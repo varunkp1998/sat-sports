@@ -1786,17 +1786,21 @@ app.post("/api/signup", async (req, res) => {
     }
 
     // Send email
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      family: 4, // forces IPv4 instead of IPv6
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const { Resend } = require("resend");
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
     
+    await resend.emails.send({
+      from: "SAT Sports <onboarding@resend.dev>",
+      to: email,
+      subject: "SAT Sports Account Created",
+      html: `
+        <h3>Your account has been created</h3>
+        <p>Email: ${email}</p>
+        <p>Password: ${password}</p>
+        <p>You can change your password after login.</p>
+      `,
+    });    
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
