@@ -816,7 +816,6 @@ app.post("/api/attendance", (req, res) => {
   );
 });
 // Generate or rotate QR token for a location
-const crypto = require("crypto");
 
 // Generate or rotate QR token for a location
 app.post("/api/admin/locations/:id/qr", (req, res) => {
