@@ -1751,19 +1751,25 @@ ORDER BY cc.checkin_date DESC, c.name ASC
     res.status(500).json({ message: "Failed to fetch daily coach hours" });
   }
 });
+const { Resend } = require("resend");
+
 app.post("/api/signup", async (req, res) => {
   const { name, email, role } = req.body;
 
   try {
     const password = crypto.randomBytes(4).toString("hex");
+
+    // check existing email
     const [existing] = await db.query(
       "SELECT id FROM users WHERE email = ?",
       [email]
     );
-    
+
     if (existing.length) {
       return res.status(400).json({ message: "Email already registered" });
     }
+
+    // insert user
     const [result] = await db.query(
       "INSERT INTO users (email, password, role) VALUES (?, ?, ?)",
       [email, password, role]
@@ -1771,6 +1777,7 @@ app.post("/api/signup", async (req, res) => {
 
     const userId = result.insertId;
 
+    // create role record
     if (role === "coach") {
       await db.query(
         "INSERT INTO coaches (user_id, name) VALUES (?, ?)",
@@ -1785,24 +1792,11 @@ app.post("/api/signup", async (req, res) => {
       );
     }
 
-    // Send email
-    const { Resend } = require("resend");
-
+    // send email
     const resend = new Resend(process.env.RESEND_API_KEY);
-    
+
     await resend.emails.send({
       from: "SAT Sports <onboarding@resend.dev>",
-      to: email,
-      subject: "SAT Sports Account Created",
-      html: `
-        <h3>Your account has been created</h3>
-        <p>Email: ${email}</p>
-        <p>Password: ${password}</p>
-        <p>You can change your password after login.</p>
-      `,
-    });    
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
       to: email,
       subject: "SAT Sports Account Created",
       html: `
