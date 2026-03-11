@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link,Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import "./index.css";
 import * as XLSX from "xlsx";
@@ -99,6 +99,7 @@ export default function App() {
         <Header />
         <main className="container">
           <Routes>
+          <Route path="/" element={<Navigate to="/login" />} />
             <Route path="/" element={<Home programs={programs} />} />
             <Route path="/about" element={<About />} />
             <Route path="/programs" element={<ProgramsPage items={programs} />} />
