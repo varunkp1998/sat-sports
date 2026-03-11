@@ -867,7 +867,7 @@ function Login() {
   fullWidth
   variant="outlined"
   sx={{ mt: 2, borderRadius: 3 }}
-  onClick={() => Navigate("/signup")}
+  onClick={() => navigate("/signup")}
 >
   Create New Account
 </Button>
