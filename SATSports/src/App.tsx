@@ -15,7 +15,7 @@ import RegisterPlayer from "./RegisterPlayer.tsx";
 import AdminApplications from "./AdminApplications.tsx";
 import AdminCoachPayroll from "./AdminCoachPayroll";
 import API_BASE from "./api";
-
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -728,7 +728,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const navigate = useNavigate();
   const handleLogin = () => {
     setError("");
     setLoading(true);

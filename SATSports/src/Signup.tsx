@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Box, Card, CardContent, TextField, Button, MenuItem, Typography } from "@mui/material";
 import API_BASE from "./api";
-
 function Signup() {
   const [role, setRole] = useState("player");
   const [name, setName] = useState("");
