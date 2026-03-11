@@ -1012,29 +1012,56 @@ app.get("/api/coach/overview/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // Count today's sessions
-    const [sessions] = await db.query(
-      `SELECT COUNT(*) as cnt
-       FROM training_sessions
-       WHERE coach_id = (
-         SELECT id FROM coaches WHERE user_id = ?
-       )
-       AND session_date = CURDATE()`,
+    // 1️⃣ Get coach
+    const [coachRows] = await db.query(
+      "SELECT id, name FROM coaches WHERE user_id = ?",
       [userId]
     );
 
-    // Count pending leaves
-    const [leaves] = await db.query(
+    if (coachRows.length === 0) {
+      return res.status(404).json({ message: "Coach not found" });
+    }
+
+    const coach = coachRows[0];
+
+    // 2️⃣ Today's sessions
+    const [[todaySessions]] = await db.query(
+      `SELECT COUNT(*) as cnt
+       FROM training_sessions
+       WHERE coach_id = ? AND session_date = CURDATE()`,
+      [coach.id]
+    );
+
+    // 3️⃣ Next session
+    const [nextSessionRows] = await db.query(
+      `SELECT start_time, end_time
+       FROM training_sessions
+       WHERE coach_id = ? AND session_date >= CURDATE()
+       ORDER BY session_date, start_time
+       LIMIT 1`,
+      [coach.id]
+    );
+
+    // 4️⃣ Pending leaves
+    const [[pendingLeaves]] = await db.query(
       `SELECT COUNT(*) as cnt
        FROM coach_leaves
-       WHERE coach_id = ? AND status = 'Pending'`,
-      [userId]
+       WHERE coach_id = ? AND status = 'pending'`,
+      [coach.id]
     );
 
     res.json({
-      sessionsToday: sessions[0].cnt,
-      pendingLeaves: leaves[0].cnt,
+      coachName: coach.name,
+      todaySessionCount: todaySessions.cnt,
+      checkedInToday: false,
+      pendingLeaves: pendingLeaves.cnt,
+      nextSession: nextSessionRows[0] || null,
+      weeklySessions: [],
+      recentActivities: [],
+      lastSessions: [],
+      lastLeaves: []
     });
+
   } catch (err) {
     console.error("COACH OVERVIEW ERROR:", err);
     res.status(500).json({ message: "Failed to load overview" });
