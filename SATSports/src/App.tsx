@@ -16,6 +16,7 @@ import AdminApplications from "./AdminApplications.tsx";
 import AdminCoachPayroll from "./AdminCoachPayroll";
 import API_BASE from "./api";
 import { useNavigate } from "react-router-dom";
+import Signup from "./Signup.tsx";
 import {
   Card,
   CardContent,
