@@ -2,235 +2,261 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   Grid,
-  Button
+  Card,
+  CardContent
 } from "@mui/material";
 
 import EventIcon from "@mui/icons-material/Event";
+import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   Tooltip
 } from "recharts";
 
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
+
+import { motion } from "framer-motion";
+
 import API_BASE from "./api";
 
-type Overview = {
-  coachName: string;
-  todaySessionCount: number;
-  todaySessionList?: any[];
-  upcoming?: any[];
-  weekly?: any[];
-  pendingLeaves?: number;
-  nextSession?: any;
-};
-
-function StatCard({ title, value, icon, color }: any) {
+function GlassCard({ children }: any) {
   return (
     <Card
       sx={{
+        backdropFilter: "blur(12px)",
+        background: "rgba(255,255,255,0.7)",
         borderRadius: 4,
-        color: "#fff",
-        background: color,
-        boxShadow: "0 10px 25px rgba(0,0,0,0.15)"
+        boxShadow: "0 8px 25px rgba(0,0,0,0.15)"
       }}
     >
-      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Box sx={{ fontSize: 40 }}>{icon}</Box>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
 
+function Stat({ icon, title, value }: any) {
+  return (
+    <GlassCard>
+      <Box display="flex" alignItems="center" gap={2}>
+        {icon}
         <Box>
           <Typography variant="body2">{title}</Typography>
           <Typography variant="h4" fontWeight={700}>
             {value}
           </Typography>
         </Box>
-      </CardContent>
-    </Card>
+      </Box>
+    </GlassCard>
   );
 }
 
-function CoachDashboard() {
+export default function CoachDashboard() {
+
   const userId = localStorage.getItem("userId");
-  const [data, setData] = useState<Overview | null>(null);
+
+  const [data, setData] = useState<any>({
+    weekly: [],
+    todaySessionList: [],
+    upcoming: []
+  });
+
+  const [date, setDate] = useState(new Date());
 
   useEffect(() => {
-    if (!userId) return;
-
     fetch(`${API_BASE}/api/coach/overview/${userId}`)
       .then(res => res.json())
-      .then(res => {
-        setData({
-          todaySessionList: [],
-          upcoming: [],
-          weekly: [],
-          ...res
-        });
-      });
-  }, [userId]);
-
-  if (!data) return <p>Loading dashboard...</p>;
+      .then(res => setData({
+        weekly: [],
+        todaySessionList: [],
+        upcoming: [],
+        ...res
+      }));
+  }, []);
 
   return (
-    <Box sx={{ p: 3 }}>
+
+    <Box
+      sx={{
+        p: 4,
+        background:
+          "linear-gradient(135deg,#1f2937,#111827)",
+        minHeight: "100vh",
+        color: "white"
+      }}
+    >
 
       {/* Header */}
-      <Typography variant="h4" fontWeight={800} mb={3}>
-        Welcome {data.coachName || "Coach"} 👋
+
+      <Typography variant="h3" fontWeight={800} mb={4}>
+        🎾 Welcome {data.coachName || "Coach"}
       </Typography>
 
-      {/* Stat Cards */}
-      <Grid container spacing={3} mb={3}>
+      {/* Stats */}
+
+      <Grid container spacing={3} mb={4}>
 
         <Grid item xs={12} md={3}>
-          <StatCard
+          <Stat
+            icon={<EventIcon />}
             title="Today's Sessions"
             value={data.todaySessionCount || 0}
-            icon={<EventIcon fontSize="inherit" />}
-            color="linear-gradient(135deg,#667eea,#764ba2)"
           />
         </Grid>
 
         <Grid item xs={12} md={3}>
-          <StatCard
-            title="Check In"
-            value={<Button variant="contained">CHECK IN</Button>}
-            icon={<CheckCircleIcon fontSize="inherit" />}
-            color="linear-gradient(135deg,#43cea2,#185a9d)"
+          <Stat
+            icon={<SportsTennisIcon />}
+            title="Active Players"
+            value="12"
           />
         </Grid>
 
         <Grid item xs={12} md={3}>
-          <StatCard
-            title="Pending Leaves"
-            value={data.pendingLeaves || 0}
-            icon={<HourglassEmptyIcon fontSize="inherit" />}
-            color="linear-gradient(135deg,#ff9966,#ff5e62)"
+          <Stat
+            icon={<CheckCircleIcon />}
+            title="Check-ins Today"
+            value="9"
           />
         </Grid>
 
         <Grid item xs={12} md={3}>
-          <StatCard
+          <Stat
+            icon={<ScheduleIcon />}
             title="Next Session"
-            value={
-              data.nextSession
-                ? `${data.nextSession.start_time}`
-                : "None"
-            }
-            icon={<ScheduleIcon fontSize="inherit" />}
-            color="linear-gradient(135deg,#56ab2f,#a8e063)"
+            value={data.nextSession?.start_time || "None"}
           />
         </Grid>
 
       </Grid>
 
-      {/* Weekly Sessions Chart */}
-      <Card sx={{ mb: 3, borderRadius: 3 }}>
-        <CardContent>
+      {/* Chart + Calendar */}
 
-          <Typography variant="h6" fontWeight={700} mb={2}>
-            Sessions This Week
-          </Typography>
+      <Grid container spacing={3} mb={4}>
 
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={data.weekly}>
-              <XAxis dataKey="d" />
-              <Tooltip />
-              <Bar dataKey="cnt" fill="#667eea" />
-            </BarChart>
-          </ResponsiveContainer>
+        {/* Weekly Chart */}
 
-        </CardContent>
-      </Card>
+        <Grid item xs={12} md={8}>
 
-      {/* Today's Sessions */}
-      <Card sx={{ mb: 3, borderRadius: 3 }}>
-        <CardContent>
+          <GlassCard>
 
-          <Typography variant="h6" fontWeight={700} mb={2}>
-            Today's Sessions
-          </Typography>
-
-          {(data.todaySessionList || []).length === 0 && (
-            <Typography color="text.secondary">
-              No sessions scheduled
+            <Typography variant="h6" mb={2}>
+              Weekly Training Sessions
             </Typography>
-          )}
 
-          {(data.todaySessionList || []).map((s: any) => (
-            <Box
-              key={s.id}
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                p: 1,
-                borderBottom: "1px solid #eee"
-              }}
-            >
-              <span>
-                {s.start_time} - {s.end_time}
-              </span>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={data.weekly}>
+                <XAxis dataKey="d"/>
+                <Tooltip />
+                <Area
+                  dataKey="cnt"
+                  stroke="#4ade80"
+                  fill="#4ade80"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
 
-              <Button size="small" variant="contained">
-                Start
-              </Button>
-            </Box>
-          ))}
+          </GlassCard>
 
-        </CardContent>
-      </Card>
+        </Grid>
 
-      {/* Upcoming Sessions */}
-      <Card sx={{ mb: 3, borderRadius: 3 }}>
-        <CardContent>
+        {/* Calendar */}
 
-          <Typography variant="h6" fontWeight={700} mb={2}>
-            Upcoming Sessions
-          </Typography>
+        <Grid item xs={12} md={4}>
 
-          {(data.upcoming || []).length === 0 && (
-            <Typography color="text.secondary">
-              No upcoming sessions
+          <GlassCard>
+
+            <Typography variant="h6" mb={2}>
+              Session Calendar
             </Typography>
-          )}
 
-          {(data.upcoming || []).map((s: any, i: number) => (
-            <Typography key={i} sx={{ p: 1 }}>
-              {s.session_date} | {s.start_time} - {s.end_time}
+            <Calendar
+              value={date}
+              onChange={setDate}
+            />
+
+          </GlassCard>
+
+        </Grid>
+
+      </Grid>
+
+      {/* Sessions */}
+
+      <Grid container spacing={3}>
+
+        {/* Today's Sessions */}
+
+        <Grid item xs={12} md={6}>
+
+          <GlassCard>
+
+            <Typography variant="h6" mb={2}>
+              Today's Sessions
             </Typography>
-          ))}
 
-        </CardContent>
-      </Card>
+            {(data.todaySessionList || []).map((s:any)=>(
+              <Box
+                key={s.id}
+                sx={{
+                  display:"flex",
+                  justifyContent:"space-between",
+                  p:1,
+                  borderBottom:"1px solid #ddd"
+                }}
+              >
+                <span>
+                  {s.start_time} - {s.end_time}
+                </span>
 
-      {/* Activity */}
-      <Card sx={{ borderRadius: 3 }}>
-        <CardContent>
+                <motion.button
+                  whileHover={{scale:1.05}}
+                  style={{
+                    background:"#4ade80",
+                    border:"none",
+                    padding:"6px 12px",
+                    borderRadius:8
+                  }}
+                >
+                  Start
+                </motion.button>
 
-          <Typography variant="h6" fontWeight={700} mb={2}>
-            Recent Activity
-          </Typography>
+              </Box>
+            ))}
 
-          <Typography variant="body2">
-            ✔ Checked in today
-          </Typography>
+          </GlassCard>
 
-          <Typography variant="body2">
-            🎾 Completed training session
-          </Typography>
+        </Grid>
 
-        </CardContent>
-      </Card>
+        {/* Upcoming */}
+
+        <Grid item xs={12} md={6}>
+
+          <GlassCard>
+
+            <Typography variant="h6" mb={2}>
+              Upcoming Sessions
+            </Typography>
+
+            {(data.upcoming || []).map((s:any,i:number)=>(
+              <Typography key={i}>
+                {s.session_date} | {s.start_time}
+              </Typography>
+            ))}
+
+          </GlassCard>
+
+        </Grid>
+
+      </Grid>
 
     </Box>
   );
 }
-
-export default CoachDashboard;
