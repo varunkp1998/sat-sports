@@ -5,7 +5,8 @@ const xlsx = require("xlsx");
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
-
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 const app = express();
 
 app.use(cors({
@@ -1749,5 +1750,60 @@ ORDER BY cc.checkin_date DESC, c.name ASC
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch daily coach hours" });
+  }
+});
+app.post("/api/signup", async (req, res) => {
+  const { name, email, role } = req.body;
+
+  try {
+    const password = crypto.randomBytes(4).toString("hex");
+
+    const [result] = await db.query(
+      "INSERT INTO users (email, password, role) VALUES (?, ?, ?)",
+      [email, password, role]
+    );
+
+    const userId = result.insertId;
+
+    if (role === "coach") {
+      await db.query(
+        "INSERT INTO coaches (user_id, name) VALUES (?, ?)",
+        [userId, name]
+      );
+    }
+
+    if (role === "player") {
+      await db.query(
+        "INSERT INTO players (user_id, name) VALUES (?, ?)",
+        [userId, name]
+      );
+    }
+
+    // Send email
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "SAT Sports Account Created",
+      html: `
+        <h3>Your account has been created</h3>
+        <p>Email: ${email}</p>
+        <p>Password: ${password}</p>
+        <p>You can change your password after login.</p>
+      `,
+    });
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("SIGNUP ERROR:", err);
+    res.status(500).json({ message: "Signup failed" });
   }
 });
