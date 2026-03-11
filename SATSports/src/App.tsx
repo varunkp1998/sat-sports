@@ -84,7 +84,6 @@ type Program = {
 
 export default function App() {
   const [programs, setPrograms] = useState<Program[]>([]);
-  const navigate = useNavigate();
   useEffect(() => {
     setPrograms([
       { id: 1, name: "Junior Program", desc: "Foundations for young players" },
