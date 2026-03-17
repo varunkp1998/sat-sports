@@ -1,3 +1,5 @@
+app.use(express.json());
+
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
 
@@ -15,7 +17,6 @@ app.use(cors({
   origin: "https://sat-sports.vercel.app"
 }));
 
-app.use(express.json());
 
 let isAuthenticated = false;
 
