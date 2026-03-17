@@ -2188,33 +2188,27 @@ function AdminReports() {
 function PlayerPortal() {
   const userId = localStorage.getItem("userId");
 
-  const [player, setPlayer] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [revenue, setRevenue] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
 
-    Promise.all([
-      fetch(`${API_BASE}/api/player/profile/${userId}`).then(r => r.json()),
-      fetch(`${API_BASE}/api/player/attendance/${userId}`).then(r => r.json()),
-      fetch(`${API_BASE}/api/player/revenue/${userId}`).then(r => r.json())
-    ])
-      .then(([profile, att, rev]) => {
-        setPlayer(profile);
-        setAttendance(att);
-        setRevenue(rev);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+    fetch(`${API_BASE}/api/player/profile/${userId}`)
+      .then(res => res.json())
+      .then(setProfile);
+
+    fetch(`${API_BASE}/api/player/attendance/${userId}`)
+      .then(res => res.json())
+      .then(setAttendance);
+
+    fetch(`${API_BASE}/api/player/revenue/${userId}`)
+      .then(res => res.json())
+      .then(setRevenue);
   }, [userId]);
 
-  if (loading) return <p>Loading your portal...</p>;
-  if (!player) return <p>No data found</p>;
+  if (!profile) return <p>Loading your portal...</p>;
 
   const totalSessions = attendance.length;
   const totalPresent = attendance.filter(a => a.status === "present").length;
@@ -2235,75 +2229,120 @@ function PlayerPortal() {
   const balance = totalPaid - totalDue;
 
   return (
-    <Box sx={{ p: 2 }}>
+    <section style={{ background: "#f5f7fb", minHeight: "100vh", padding: 16 }}>
 
-      {/* PROFILE */}
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Typography variant="h6">{player.name}</Typography>
-          <Typography>Age: {player.age || "-"}</Typography>
-          <Typography>Program: {player.programTitle || "-"}</Typography>
-        </CardContent>
-      </Card>
+      <Typography variant="h4" fontWeight={800} mb={3}>
+        🎾 Player Portal
+      </Typography>
 
-      {/* KPIs */}
-      <Grid container spacing={2} mb={2}>
-        <Grid item xs={6}>
-          <Card><CardContent>
-            <Typography>Total Sessions</Typography>
-            <Typography variant="h5">{totalSessions}</Typography>
-          </CardContent></Card>
-        </Grid>
+      <Box sx={{ maxWidth: 500, margin: "auto" }}>
 
-        <Grid item xs={6}>
-          <Card><CardContent>
-            <Typography>Attendance %</Typography>
-            <Typography variant="h5">{attendanceRate}%</Typography>
-          </CardContent></Card>
-        </Grid>
-
-        <Grid item xs={6}>
-          <Card><CardContent>
-            <Typography>Total Paid</Typography>
-            <Typography variant="h5">₹{totalPaid}</Typography>
-          </CardContent></Card>
-        </Grid>
-
-        <Grid item xs={6}>
-          <Card><CardContent>
-            <Typography>Balance</Typography>
-            <Typography variant="h5">₹{balance}</Typography>
-          </CardContent></Card>
-        </Grid>
-      </Grid>
-
-      {/* ATTENDANCE */}
-      <Typography variant="h6" mb={1}>📅 Attendance</Typography>
-      {attendance.map((a: any) => (
-        <Card key={a.id} sx={{ mb: 1 }}>
+        {/* PROFILE CARD */}
+        <Card sx={{ borderRadius: 3, mb: 2, boxShadow: "0 6px 16px rgba(0,0,0,0.08)" }}>
           <CardContent>
-            <Typography>{a.date}</Typography>
-            <Chip
-              label={a.status}
-              color={a.status === "present" ? "success" : "error"}
-            />
+            <Stack spacing={2} alignItems="center">
+
+              <Avatar sx={{ width: 80, height: 80, bgcolor: "primary.main" }}>
+                {profile.name?.[0] || "P"}
+              </Avatar>
+
+              <Typography fontWeight={700}>
+                {profile.name}
+              </Typography>
+
+              <Typography color="text.secondary">
+                {profile.email}
+              </Typography>
+
+              <Typography fontSize={14}>
+                Program: {profile.programTitle || "-"}
+              </Typography>
+
+            </Stack>
           </CardContent>
         </Card>
-      ))}
 
-      {/* PAYMENTS */}
-      <Typography variant="h6" mt={2} mb={1}>💰 Payments</Typography>
-      {revenue.map((r: any) => (
-        <Card key={r.id} sx={{ mb: 1 }}>
+        {/* KPI CARDS */}
+        <Grid container spacing={2} mb={2}>
+          <Grid item xs={6}>
+            <Card sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography>Total Sessions</Typography>
+                <Typography variant="h6">{totalSessions}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={6}>
+            <Card sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography>Attendance</Typography>
+                <Typography variant="h6">{attendanceRate}%</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={6}>
+            <Card sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography>Paid</Typography>
+                <Typography variant="h6">₹{totalPaid}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={6}>
+            <Card sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography>Balance</Typography>
+                <Typography variant="h6">₹{balance}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* ATTENDANCE */}
+        <Card sx={{ borderRadius: 3, mb: 2 }}>
           <CardContent>
-            <Typography>{r.date}</Typography>
-            <Typography>{r.description}</Typography>
-            <Typography>₹{r.amount}</Typography>
+            <Typography fontWeight={700} mb={1}>
+              📅 Attendance
+            </Typography>
+
+            <Stack spacing={1}>
+              {attendance.map((a: any) => (
+                <Box key={a.id} display="flex" justifyContent="space-between">
+                  <Typography>{a.date}</Typography>
+                  <Chip
+                    label={a.status}
+                    color={a.status === "present" ? "success" : "error"}
+                    size="small"
+                  />
+                </Box>
+              ))}
+            </Stack>
           </CardContent>
         </Card>
-      ))}
 
-    </Box>
+        {/* PAYMENTS */}
+        <Card sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography fontWeight={700} mb={1}>
+              💰 Payments
+            </Typography>
+
+            <Stack spacing={1}>
+              {revenue.map((r: any) => (
+                <Box key={r.id} display="flex" justifyContent="space-between">
+                  <Typography>{r.date}</Typography>
+                  <Typography>₹{r.amount}</Typography>
+                </Box>
+              ))}
+            </Stack>
+          </CardContent>
+        </Card>
+
+      </Box>
+    </section>
   );
 }
 
