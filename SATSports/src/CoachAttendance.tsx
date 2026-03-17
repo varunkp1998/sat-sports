@@ -3,37 +3,28 @@ import { useParams } from "react-router-dom";
 import {
   Box,
   Typography,
+  Grid,
   Card,
   CardContent,
-  Button
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Button,
+  Stack,
+  Chip
 } from "@mui/material";
 
 import API_BASE from "./api";
-
-function GlassCard({ children }: any) {
-  return (
-    <Card
-      sx={{
-        backdropFilter: "blur(12px)",
-        background: "rgba(255,255,255,0.08)",
-        borderRadius: 4,
-        boxShadow: "0 8px 25px rgba(0,0,0,0.4)",
-        color: "white",
-        mb: 2
-      }}
-    >
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
 
 export default function CoachAttendance() {
   const { sessionId } = useParams();
 
   const [players, setPlayers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // ✅ Load players for session
+  // LOAD PLAYERS
   useEffect(() => {
     fetch(`${API_BASE}/api/session/${sessionId}/players`)
       .then(res => res.json())
@@ -41,117 +32,168 @@ export default function CoachAttendance() {
         setPlayers(
           data.map((p: any) => ({
             ...p,
-            present: true,   // default present
-            remark: ""       // 👈 NEW
+            present: true,
+            remark: ""
           }))
         );
-        setLoading(false);
       });
   }, [sessionId]);
 
-  // ✅ Toggle present/absent
-  const toggle = (id: number) => {
+  // UPDATE PLAYER
+  const updatePlayer = (id: number, field: string, value: any) => {
     setPlayers(prev =>
       prev.map(p =>
-        p.id === id ? { ...p, present: !p.present } : p
+        p.id === id ? { ...p, [field]: value } : p
       )
     );
   };
 
-  // ✅ Update remark
-  const updateRemark = (id: number, value: string) => {
+  // AUTO SAVE (debounced)
+  useEffect(() => {
+    if (players.length === 0) return;
+
+    const timeout = setTimeout(async () => {
+      setSaving(true);
+
+      await fetch(`${API_BASE}/api/coach/sessions/${sessionId}/attendance`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          attendance: players.map(p => ({
+            playerId: p.id,
+            present: p.present,
+            remark: p.remark
+          }))
+        })
+      });
+
+      setSaving(false);
+      setLastSaved(new Date());
+    }, 800); // debounce
+
+    return () => clearTimeout(timeout);
+  }, [players]);
+
+  // MARK ALL
+  const markAll = (val: boolean) => {
     setPlayers(prev =>
-      prev.map(p =>
-        p.id === id ? { ...p, remark: value } : p
-      )
+      prev.map(p => ({ ...p, present: val }))
     );
   };
 
-  // ✅ Save attendance + remarks
-  const saveAttendance = async () => {
-    await fetch(`${API_BASE}/api/coach/sessions/${sessionId}/attendance`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        attendance: players.map(p => ({
-          playerId: p.id,
-          present: p.present,
-          remark: p.remark
-        }))
-      })
-    });
-
-    alert("✅ Attendance + feedback saved");
-  };
-
-  if (loading) return <p>Loading...</p>;
+  // FILTER
+  const filtered = players.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <Box
-      sx={{
-        p: 4,
-        background: "linear-gradient(135deg,#1f2937,#111827)",
-        minHeight: "100vh",
-        color: "white"
-      }}
-    >
-      <Typography variant="h4" fontWeight={800} mb={3}>
-        📋 Session Attendance
-      </Typography>
+    <Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
 
-      {players.map(p => (
-        <GlassCard key={p.id}>
+      {/* HEADER */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" fontWeight={800}>
+          📝 Session Attendance
+        </Typography>
 
-          {/* Player Row */}
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Typography fontWeight={600}>
-              {p.name}
+        <Stack direction="row" spacing={2}>
+          <Chip
+            label={saving ? "Saving..." : "Saved"}
+            color={saving ? "warning" : "success"}
+          />
+          {lastSaved && (
+            <Typography fontSize={12} color="text.secondary">
+              {lastSaved.toLocaleTimeString()}
             </Typography>
+          )}
+        </Stack>
+      </Stack>
 
-            <Button
-              variant="contained"
-              color={p.present ? "success" : "error"}
-              onClick={() => toggle(p.id)}
-            >
-              {p.present ? "Present" : "Absent"}
-            </Button>
-          </Box>
+      {/* ACTION BAR */}
+      <Stack direction="row" spacing={2} mb={3} flexWrap="wrap">
 
-          {/* Remark Input */}
-          <Box mt={2}>
-            <input
-              type="text"
-              placeholder="Add feedback..."
-              value={p.remark || ""}
-              onChange={(e) => updateRemark(p.id, e.target.value)}
-              style={{
-                width: "100%",
-                padding: 8,
-                borderRadius: 8,
-                border: "none",
-                outline: "none"
+        <TextField
+          size="small"
+          placeholder="Search player..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <Button
+          variant="outlined"
+          color="success"
+          onClick={() => markAll(true)}
+        >
+          Mark All Present
+        </Button>
+
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={() => markAll(false)}
+        >
+          Mark All Absent
+        </Button>
+
+      </Stack>
+
+      {/* GRID */}
+      <Grid container spacing={3}>
+        {filtered.map(p => (
+          <Grid item xs={12} md={6} lg={4} key={p.id}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+                transition: "0.2s",
+                "&:hover": {
+                  transform: "translateY(-3px)"
+                }
               }}
-            />
-          </Box>
+            >
+              <CardContent>
 
-        </GlassCard>
-      ))}
+                {/* NAME */}
+                <Typography fontWeight={700} mb={1}>
+                  {p.name}
+                </Typography>
 
-      {/* Save Button */}
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={saveAttendance}
-        sx={{ mt: 2 }}
-      >
-        Save Attendance
-      </Button>
+                {/* STATUS */}
+                <ToggleButtonGroup
+                  value={p.present ? "present" : "absent"}
+                  exclusive
+                  onChange={(e, val) => {
+                    if (val)
+                      updatePlayer(p.id, "present", val === "present");
+                  }}
+                  sx={{ mb: 2 }}
+                >
+                  <ToggleButton value="present" color="success">
+                    Present
+                  </ToggleButton>
+                  <ToggleButton value="absent" color="error">
+                    Absent
+                  </ToggleButton>
+                </ToggleButtonGroup>
+
+                {/* REMARK */}
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Coach Feedback"
+                  value={p.remark}
+                  onChange={(e) =>
+                    updatePlayer(p.id, "remark", e.target.value)
+                  }
+                />
+
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
     </Box>
   );
 }

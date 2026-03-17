@@ -88,85 +88,95 @@ export default function CoachSessions() {
   };
 
   return (
-    <Box
-      sx={{
-        p: 4,
-        background: "linear-gradient(135deg,#1f2937,#111827)",
-        minHeight: "100vh",
-        color: "white"
-      }}
-    >
-      <Typography variant="h3" fontWeight={800} mb={4}>
-        📅 My Sessions
-      </Typography>
+<Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
+  
+  <Typography variant="h4" fontWeight={800} mb={3}>
+    📅 My Sessions
+  </Typography>
 
-      {sessions.length === 0 && (
-        <Typography>No sessions assigned</Typography>
-      )}
+  {sessions.length === 0 && (
+    <Typography>No sessions assigned</Typography>
+  )}
 
-      <Grid container spacing={3}>
-        {sessions.map((s) => {
-          const isCheckedIn = checkedInMap[s.id];
+  <Grid container spacing={3}>
+    {sessions.map((s) => {
+      const isCheckedIn = checkedInMap[s.id];
 
-          return (
-            <Grid item xs={12} md={6} key={s.id}>
-              <GlassCard>
+      return (
+        <Grid item xs={12} md={6} lg={4} key={s.id}>
+          <Card
+            sx={{
+              borderRadius: 3,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.08)"
+            }}
+          >
+            <CardContent>
 
-                <Typography fontWeight={700} variant="h6">
-                  {s.session_date}
-                </Typography>
+              {/* DATE */}
+              <Typography fontWeight={700}>
+                {s.session_date}
+              </Typography>
 
-                <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                  {s.start_time} – {s.end_time}
-                </Typography>
+              {/* TIME */}
+              <Typography color="text.secondary">
+                {s.start_time} – {s.end_time}
+              </Typography>
 
-                <Typography mt={1}>
-                  📍 {s.locationName}
-                </Typography>
+              {/* LOCATION */}
+              <Typography mt={1}>
+                📍 {s.locationName}
+              </Typography>
 
-                <Typography variant="body2" sx={{ opacity: 0.7 }}>
-                  {s.category}
-                </Typography>
+              {/* CATEGORY */}
+              <Typography fontSize={13} color="text.secondary">
+                {s.category}
+              </Typography>
 
-                <Box mt={2} display="flex" gap={1} flexWrap="wrap">
+              {/* ACTIONS */}
+              <Box mt={2} display="flex" gap={1} flexWrap="wrap">
 
-                  {!isCheckedIn ? (
+                {!isCheckedIn ? (
+                  <Button
+                    variant="contained"
+                    color="warning"
+                    fullWidth
+                    onClick={() =>
+                      handleCheckIn(s.id, s.location_id)
+                    }
+                  >
+                    Check In
+                  </Button>
+                ) : (
+                  <>
                     <Button
                       variant="contained"
-                      color="warning"
-                      onClick={() => handleCheckIn(s.id, s.location_id)}
+                      color="success"
+                      fullWidth
+                      onClick={() =>
+                        (window.location.href = `/coach/sessions/${s.id}/attendance`)
+                      }
                     >
-                      Check In
+                      Mark Attendance
                     </Button>
-                  ) : (
-                    <>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        onClick={() =>
-                          (window.location.href = `/coach/sessions/${s.id}/attendance`)
-                        }
-                      >
-                        Mark Attendance
-                      </Button>
 
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => handleCheckOut(s.id)}
-                      >
-                        Check Out
-                      </Button>
-                    </>
-                  )}
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      fullWidth
+                      onClick={() => handleCheckOut(s.id)}
+                    >
+                      Check Out
+                    </Button>
+                  </>
+                )}
 
-                </Box>
+              </Box>
 
-              </GlassCard>
-            </Grid>
-          );
-        })}
-      </Grid>
-    </Box>
-  );
+            </CardContent>
+          </Card>
+        </Grid>
+      );
+    })}
+  </Grid>
+</Box>  );
 }
