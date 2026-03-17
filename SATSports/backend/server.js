@@ -2023,3 +2023,35 @@ app.post("/api/admin/players/bulk-assign", async (req, res) => {
 
   res.json({ success: true });
 });
+app.get("/api/admin/locations", async (req, res) => {
+  const [rows] = await db.query("SELECT * FROM locations");
+  res.json(rows);
+});
+app.post("/api/admin/locations", async (req, res) => {
+  const { name } = req.body;
+
+  await db.query(
+    "INSERT INTO locations (name) VALUES (?)",
+    [name]
+  );
+
+  res.json({ success: true });
+});
+app.put("/api/admin/locations/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+
+  await db.query(
+    "UPDATE locations SET name=? WHERE id=?",
+    [name, id]
+  );
+
+  res.json({ success: true });
+});
+app.delete("/api/admin/locations/:id", async (req, res) => {
+  const { id } = req.params;
+
+  await db.query("DELETE FROM locations WHERE id=?", [id]);
+
+  res.json({ success: true });
+});
