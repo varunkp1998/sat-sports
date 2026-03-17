@@ -413,10 +413,16 @@ app.put("/api/admin/players/:id", async (req, res) => {
 
 app.delete("/api/admin/players/:id", async (req, res) => {
   const { id } = req.params;
-  await db.query(`DELETE FROM players WHERE id = ?`, [id]);
+
+  const [[player]] = await db.query(
+    "SELECT user_id FROM players WHERE id = ?",
+    [id]
+  );
+
+  await db.query("DELETE FROM users WHERE id = ?", [player.user_id]);
+
   res.json({ success: true });
 });
-
   
  
   // --- COACHES ---
@@ -470,22 +476,43 @@ app.put("/api/admin/coaches/:id", async (req, res) => {
 app.delete("/api/admin/coaches/:id", async (req, res) => {
   const { id } = req.params;
 
-  // Check if coach is used in any session
-  const [[row]] = await db.query(
-    "SELECT COUNT(*) AS cnt FROM training_sessions WHERE coach_id = ?",
-    [id]
-  );
+  try {
+    // 1️⃣ Check if coach is used in sessions
+    const [[row]] = await db.query(
+      "SELECT COUNT(*) AS cnt FROM training_sessions WHERE coach_id = ?",
+      [id]
+    );
 
-  if (row.cnt > 0) {
-    return res.status(400).json({
-      message: "Cannot delete coach: this coach is assigned to one or more sessions."
-    });
+    if (row.cnt > 0) {
+      return res.status(400).json({
+        message: "Cannot delete coach: assigned to sessions."
+      });
+    }
+
+    // 2️⃣ Get user_id from coaches
+    const [[coach]] = await db.query(
+      "SELECT user_id FROM coaches WHERE id = ?",
+      [id]
+    );
+
+    if (!coach) {
+      return res.status(404).json({ message: "Coach not found" });
+    }
+
+    const userId = coach.user_id;
+
+    // 3️⃣ DELETE FROM USERS (IMPORTANT)
+    await db.query("DELETE FROM users WHERE id = ?", [userId]);
+
+    // ✅ This will automatically delete coach due to CASCADE
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Delete failed" });
   }
-
-  await db.query("DELETE FROM coaches WHERE id = ?", [id]);
-  res.json({ success: true });
 });
-
 // ===============================
 // COACH → PLAYERS (BY COACH ID)
 // ===============================
@@ -1590,44 +1617,67 @@ app.get("/api/admin/applications", async (req, res) => {
 // ADMIN: approve application -> create player
 app.post("/api/admin/applications/:id/approve", async (req, res) => {
   const { id } = req.params;
+  const { program_id } = req.body;
 
-  const [[appRow]] = await db.query(`SELECT * FROM applications WHERE id = ?`, [id]);
-  if (!appRow) return res.status(404).json({ message: "Not found" });
+  try {
+    const [[appData]] = await db.query(
+      "SELECT * FROM applications WHERE id = ?",
+      [id]
+    );
 
-  // Decide program title by age
-  let programTitle = "Adult";
-  if (appRow.age < 10) programTitle = "Little Aces";
-  else if (appRow.age <= 15) programTitle = "BA1";
-  else if (appRow.age <= 18) programTitle = "Junior Pros";
+    const password = Math.random().toString(36).slice(-8);
 
-  // Find program_id
-  const [[program]] = await db.query(
-    `SELECT id FROM programs WHERE title = ?`,
-    [programTitle]
-  );
+    // Create user
+    const [userResult] = await db.query(
+      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'player')",
+      [appData.name, appData.email, password]
+    );
 
-  if (!program) {
-    return res.status(400).json({ message: "Program not found: " + programTitle });
+    const userId = userResult.insertId;
+
+    // Create player
+    await db.query(
+      `INSERT INTO players (user_id, name, age, program_id)
+       VALUES (?, ?, ?, ?)`,
+      [userId, appData.name, appData.age, program_id]
+    );
+
+    // Update status
+    await db.query(
+      "UPDATE applications SET status = 'approved' WHERE id = ?",
+      [id]
+    );
+
+    // Send email
+    await resend.emails.send({
+      from: "SAT Sports <no-reply@sat-sports.in>",
+      to: appData.email,
+      subject: "Your SAT Sports Account",
+      html: `
+        <h3>Welcome to SAT Sports 🎾</h3>
+        <p>Email: ${appData.email}</p>
+        <p>Password: ${password}</p>
+      `
+    });
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Approval failed" });
   }
-
-  await db.query(
-    `INSERT INTO players (name, email, phone, age, program_id, sub_category)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [appRow.name, appRow.email, appRow.phone, appRow.age, program.id, null]
-  );
-
-  await db.query(`UPDATE applications SET status = 'approved' WHERE id = ?`, [id]);
-
-  res.json({ success: true });
 });
-
 // ADMIN: reject
 app.post("/api/admin/applications/:id/reject", async (req, res) => {
   const { id } = req.params;
-  await db.query(`UPDATE applications SET status = 'rejected' WHERE id = ?`, [id]);
+
+  await db.query(
+    "UPDATE applications SET status = 'rejected' WHERE id = ?",
+    [id]
+  );
+
   res.json({ success: true });
 });
-
 app.post("/api/admin/players/import", upload.single("file"), async (req, res) => {
   const workbook = XLSX.readFile(req.file.path);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -1816,63 +1866,20 @@ ORDER BY cc.checkin_date DESC, c.name ASC
 const { Resend } = require("resend");
 
 app.post("/api/signup", async (req, res) => {
-  const { name, email, role } = req.body;
+  const { name, email, phone, age, parentName, parentPhone } = req.body;
 
   try {
-    const password = crypto.randomBytes(4).toString("hex");
-
-    // check existing email
-    const [existing] = await db.query(
-      "SELECT id FROM users WHERE email = ?",
-      [email]
+    await db.query(
+      `INSERT INTO applications 
+       (name, email, phone, age, parent_name, parent_phone, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [name, email, phone, age, parentName, parentPhone]
     );
-
-    if (existing.length) {
-      return res.status(400).json({ message: "Email already registered" });
-    }
-
-    // insert user
-    const [result] = await db.query(
-      "INSERT INTO users (email, password, role) VALUES (?, ?, ?)",
-      [email, password, role]
-    );
-
-    const userId = result.insertId;
-
-    // create role record
-    if (role === "coach") {
-      await db.query(
-        "INSERT INTO coaches (user_id, name) VALUES (?, ?)",
-        [userId, name]
-      );
-    }
-
-    if (role === "player") {
-      await db.query(
-        "INSERT INTO players (user_id, name) VALUES (?, ?)",
-        [userId, name]
-      );
-    }
-
-    // send email
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
-    await resend.emails.send({
-      from: "SAT Sports <onboarding@sat-sports.in>",
-      to: email,
-      subject: "SAT Sports Account Created",
-      html: `
-        <h3>Your account has been created</h3>
-        <p>Email: ${email}</p>
-        <p>Password: ${password}</p>
-        <p>You can change your password after login.</p>
-      `,
-    });
 
     res.json({ success: true });
 
   } catch (err) {
-    console.error("SIGNUP ERROR:", err);
+    console.error(err);
     res.status(500).json({ message: "Signup failed" });
   }
 });
@@ -1917,5 +1924,41 @@ app.get("/api/session/:sessionId/players", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch players" });
+  }
+});
+app.post("/api/signup/coach", async (req, res) => {
+  const { name, email, phone } = req.body;
+
+  try {
+    const password = Math.random().toString(36).slice(-8);
+
+    const [userResult] = await db.query(
+      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'coach')",
+      [name, email, password]
+    );
+
+    const userId = userResult.insertId;
+
+    await db.query(
+      "INSERT INTO coaches (user_id, name, phone) VALUES (?, ?, ?)",
+      [userId, name, phone]
+    );
+
+    await resend.emails.send({
+      from: "SAT Sports <no-reply@sat-sports.in>",
+      to: email,
+      subject: "Coach Account Created",
+      html: `
+        <h3>Welcome Coach 🎾</h3>
+        <p>Email: ${email}</p>
+        <p>Password: ${password}</p>
+      `
+    });
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Coach signup failed" });
   }
 });
