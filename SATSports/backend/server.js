@@ -8,7 +8,9 @@ const mysql = require("mysql2");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const app = express();
+const { Resend } = require("resend");
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 app.use(cors({
   origin: "https://sat-sports.vercel.app"
 }));
