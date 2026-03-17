@@ -2193,6 +2193,7 @@ import {
 
 function PlayerPortal() {
   const userId = localStorage.getItem("userId");
+  const navigate = useNavigate();
 
   const [profile, setProfile] = useState<any>(null);
   const [attendance, setAttendance] = useState<any[]>([]);
@@ -2217,7 +2218,6 @@ function PlayerPortal() {
   }, [userId]);
 
   if (!profile) return <p>Loading...</p>;
-  const navigate = useNavigate();
   const totalSessions = attendance.length;
   const present = attendance.filter(a => a.status === "present").length;
 
