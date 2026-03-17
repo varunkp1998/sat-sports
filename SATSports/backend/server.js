@@ -1,4 +1,3 @@
-app.use(express.json());
 
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
@@ -10,6 +9,8 @@ const mysql = require("mysql2");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const app = express();
+app.use(express.json());
+
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
