@@ -2183,32 +2183,42 @@ function AdminReports() {
   );
 }
 
+
+
 function PlayerPortal() {
-  const [player, setPlayer] = React.useState<any>(null);
-  const [attendance, setAttendance] = React.useState<any[]>([]);
-  const [revenue, setRevenue] = React.useState<any[]>([]);
+  const userId = localStorage.getItem("userId");
 
-  React.useEffect(() => {
-    fetch(`${API_BASE}/api/player/profile`)
-      .then(res => {
-        if (!res.ok) throw new Error("Unauthorized");
-        return res.json();
+  const [player, setPlayer] = useState<any>(null);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [revenue, setRevenue] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    Promise.all([
+      fetch(`${API_BASE}/api/player/profile/${userId}`).then(r => r.json()),
+      fetch(`${API_BASE}/api/player/attendance/${userId}`).then(r => r.json()),
+      fetch(`${API_BASE}/api/player/revenue/${userId}`).then(r => r.json())
+    ])
+      .then(([profile, att, rev]) => {
+        setPlayer(profile);
+        setAttendance(att);
+        setRevenue(rev);
+        setLoading(false);
       })
-      .then(setPlayer);
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [userId]);
 
-    fetch(`${API_BASE}/api/player/attendance`)
-      .then(res => res.json())
-      .then(setAttendance);
-
-    fetch(`${API_BASE}/api/player/revenue`)
-      .then(res => res.json())
-      .then(setRevenue);
-  }, []);
-
-  if (!player) return <p>Loading your portal...</p>;
+  if (loading) return <p>Loading your portal...</p>;
+  if (!player) return <p>No data found</p>;
 
   const totalSessions = attendance.length;
-  const totalPresent = attendance.filter(a => a.status === "Present").length;
+  const totalPresent = attendance.filter(a => a.status === "present").length;
+
   const attendanceRate =
     totalSessions > 0
       ? Math.round((totalPresent / totalSessions) * 100)
@@ -2225,68 +2235,77 @@ function PlayerPortal() {
   const balance = totalPaid - totalDue;
 
   return (
-    <div className="container">
-      <h2>🎾 Player / Parent Portal</h2>
+    <Box sx={{ p: 2 }}>
 
       {/* PROFILE */}
-      <div className="card">
-        <h3>{player.name}</h3>
-        <p><strong>Age:</strong> {player.age || "-"}</p>
-        <p><strong>Program ID:</strong> {player.programId}</p>
-        <p><strong>Coach ID:</strong> {player.coachId}</p>
-      </div>
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Typography variant="h6">{player.name}</Typography>
+          <Typography>Age: {player.age || "-"}</Typography>
+          <Typography>Program: {player.programTitle || "-"}</Typography>
+        </CardContent>
+      </Card>
 
       {/* KPIs */}
-      <div className="grid">
-        <div className="card">
-          <h4>Total Sessions</h4>
-          <p>{totalSessions}</p>
-        </div>
-        <div className="card">
-          <h4>Attendance %</h4>
-          <p>{attendanceRate}%</p>
-        </div>
-        <div className="card">
-          <h4>Total Paid</h4>
-          <p>₹ {totalPaid}</p>
-        </div>
-        <div className="card">
-          <h4>Balance</h4>
-          <p>₹ {balance}</p>
-        </div>
-      </div>
+      <Grid container spacing={2} mb={2}>
+        <Grid item xs={6}>
+          <Card><CardContent>
+            <Typography>Total Sessions</Typography>
+            <Typography variant="h5">{totalSessions}</Typography>
+          </CardContent></Card>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Card><CardContent>
+            <Typography>Attendance %</Typography>
+            <Typography variant="h5">{attendanceRate}%</Typography>
+          </CardContent></Card>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Card><CardContent>
+            <Typography>Total Paid</Typography>
+            <Typography variant="h5">₹{totalPaid}</Typography>
+          </CardContent></Card>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Card><CardContent>
+            <Typography>Balance</Typography>
+            <Typography variant="h5">₹{balance}</Typography>
+          </CardContent></Card>
+        </Grid>
+      </Grid>
 
       {/* ATTENDANCE */}
-      <section className="section">
-        <h3>📅 Attendance History</h3>
-        <div className="grid">
-          {attendance.map((a: any) => (
-            <div key={a.id} className="card">
-              <p><strong>Date:</strong> {a.date}</p>
-              <p><strong>Status:</strong> {a.status}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <Typography variant="h6" mb={1}>📅 Attendance</Typography>
+      {attendance.map((a: any) => (
+        <Card key={a.id} sx={{ mb: 1 }}>
+          <CardContent>
+            <Typography>{a.date}</Typography>
+            <Chip
+              label={a.status}
+              color={a.status === "present" ? "success" : "error"}
+            />
+          </CardContent>
+        </Card>
+      ))}
 
       {/* PAYMENTS */}
-      <section className="section">
-        <h3>💰 Fee / Payment History</h3>
-        <div className="grid">
-          {revenue.map((r: any) => (
-            <div key={r.id} className="card">
-              <p><strong>Date:</strong> {r.date}</p>
-              <p><strong>Type:</strong> {r.type}</p>
-              <p><strong>Amount:</strong> ₹ {r.amount}</p>
-              <p><strong>Description:</strong> {r.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
+      <Typography variant="h6" mt={2} mb={1}>💰 Payments</Typography>
+      {revenue.map((r: any) => (
+        <Card key={r.id} sx={{ mb: 1 }}>
+          <CardContent>
+            <Typography>{r.date}</Typography>
+            <Typography>{r.description}</Typography>
+            <Typography>₹{r.amount}</Typography>
+          </CardContent>
+        </Card>
+      ))}
+
+    </Box>
   );
 }
-
 
 
 
