@@ -2217,7 +2217,7 @@ function PlayerPortal() {
   }, [userId]);
 
   if (!profile) return <p>Loading...</p>;
-
+  const navigate = useNavigate();
   const totalSessions = attendance.length;
   const present = attendance.filter(a => a.status === "present").length;
 
@@ -2266,8 +2266,21 @@ function PlayerPortal() {
   };
   return (
     <Box sx={{ p: 2, maxWidth: 500, margin: "auto" }}>
+<Box display="flex" alignItems="center" mb={2}>
+  <Button
+    onClick={() => navigate("/player/dashboard")}
+    sx={{
+      textTransform: "none",
+      fontWeight: 600
+    }}
+  >
+    ← Back to Dashboard
+  </Button>
 
-      {/* HERO PROFILE */}
+  <Typography ml={1} color="text.secondary">
+    Dashboard
+  </Typography>
+</Box>      {/* HERO PROFILE */}
       <Card sx={{
         borderRadius: 4,
         mb: 2,
