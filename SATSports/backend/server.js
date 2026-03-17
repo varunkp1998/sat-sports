@@ -1073,18 +1073,20 @@ app.get("/api/coach/overview/:userId", async (req, res) => {
     );
 // Active Players
 const [[players]] = await db.query(
-  `SELECT COUNT(*) AS activePlayers 
-   FROM players 
-   WHERE coach_id = ?`,
+  `SELECT COUNT(DISTINCT sp.player_id) AS activePlayers
+   FROM session_players sp
+   JOIN training_sessions ts ON ts.id = sp.session_id
+   WHERE ts.coach_id = ?`,
   [coachId]
 );
 
 // Check-ins Today
 const [[checkins]] = await db.query(
-  `SELECT COUNT(*) AS checkinsToday 
-   FROM attendance 
-   WHERE coach_id = ? 
-   AND DATE(checkin_time) = CURDATE()`,
+  `SELECT COUNT(*) AS checkinsToday
+   FROM attendance a
+   JOIN training_sessions ts ON ts.id = a.session_id
+   WHERE ts.coach_id = ?
+   AND DATE(a.checkin_time) = CURDATE()`,
   [coachId]
 );
 res.json({
