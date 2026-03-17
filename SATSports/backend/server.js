@@ -2055,12 +2055,24 @@ app.get("/api/player/attendance/:userId", async (req, res) => {
 app.get("/api/player/revenue/:userId", async (req, res) => {
   const { userId } = req.params;
 
-  const [rows] = await db.query(`
-    SELECT *
-    FROM revenue
-    WHERE user_id = ?
-    ORDER BY date DESC
-  `, [userId]);
+  try {
+    const [rows] = await db.query(`
+      SELECT 
+        r.id,
+        r.entry_date AS date,
+        r.amount,
+        r.type,
+        r.description
+      FROM revenue r
+      JOIN players p ON p.id = r.player_id
+      WHERE p.user_id = ?
+      ORDER BY r.entry_date DESC
+    `, [userId]);
 
-  res.json(rows);
+    res.json(rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Revenue failed" });
+  }
 });
