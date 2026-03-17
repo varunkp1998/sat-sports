@@ -628,18 +628,6 @@ app.get("/api/admin/revenue",  (req, res) => {
   ];
   
  
-  app.get("/api/admin/locations", (req, res) => {
-    connection.query(
-      "SELECT id, name, qr_token FROM locations",
-      (err, rows) => {
-        if (err) {
-          console.error(err);
-          return res.status(500).json({ message: "DB error" });
-        }
-        res.json(rows);
-      }
-    );
-  });
   
   
   app.get("/api/admin/sessions", async (req, res) => {
@@ -859,27 +847,7 @@ app.post("/api/attendance", (req, res) => {
 // Generate or rotate QR token for a location
 
 // Generate or rotate QR token for a location
-app.post("/api/admin/locations/:id/qr", (req, res) => {
-  const locationId = req.params.id;
-  const newToken = crypto.randomUUID();
 
-  connection.query(
-    "UPDATE locations SET qr_token = ? WHERE id = ?",
-    [newToken, locationId],
-    (err, result) => {
-      if (err) {
-        console.error("DB error:", err);
-        return res.status(500).json({ message: "Database error" });
-      }
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Location not found" });
-      }
-
-      res.json({ success: true, qr_token: newToken });
-    }
-  );
-});
 app.get("/api/coach/sessions/:coachId", async (req, res) => {
   const { coachId } = req.params;
 
