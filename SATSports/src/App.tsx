@@ -2197,7 +2197,8 @@ function PlayerPortal() {
   const [profile, setProfile] = useState<any>(null);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [revenue, setRevenue] = useState<any[]>([]);
-
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   useEffect(() => {
     if (!userId) return;
 
@@ -2234,7 +2235,35 @@ function PlayerPortal() {
     .reduce((s, r) => s + r.amount, 0);
 
   const balance = totalPaid - totalDue;
-
+  const changePassword = async () => {
+    if (!oldPassword || !newPassword) {
+      alert("Enter both passwords");
+      return;
+    }
+  
+    const res = await fetch(`${API_BASE}/api/player/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId,
+        oldPassword,
+        newPassword
+      })
+    });
+  
+    const data = await res.json();
+  
+    if (!res.ok) {
+      alert(data.message);
+      return;
+    }
+  
+    alert("Password updated ✅");
+    setOldPassword("");
+    setNewPassword("");
+  };
   return (
     <Box sx={{ p: 2, maxWidth: 500, margin: "auto" }}>
 
@@ -2332,7 +2361,39 @@ function PlayerPortal() {
           ))}
         </CardContent>
       </Card>
+      <Card sx={{ borderRadius: 3, mt: 2 }}>
+  <CardContent>
+    <Typography fontWeight={700} mb={2}>
+      🔐 Change Password
+    </Typography>
 
+    <Stack spacing={2}>
+      <TextField
+        label="Old Password"
+        type="password"
+        value={oldPassword}
+        onChange={(e) => setOldPassword(e.target.value)}
+        fullWidth
+      />
+
+      <TextField
+        label="New Password"
+        type="password"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        fullWidth
+      />
+
+      <Button
+        variant="contained"
+        color="error"
+        onClick={changePassword}
+      >
+        Update Password
+      </Button>
+    </Stack>
+  </CardContent>
+</Card>
     </Box>
   );
 }

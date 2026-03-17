@@ -2076,3 +2076,33 @@ app.get("/api/player/revenue/:userId", async (req, res) => {
     res.status(500).json({ message: "Revenue failed" });
   }
 });
+app.post("/api/player/change-password", async (req, res) => {
+  const { userId, oldPassword, newPassword } = req.body;
+
+  try {
+    const [[user]] = await db.query(
+      "SELECT password FROM users WHERE id = ?",
+      [userId]
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // ⚠️ plain text (since you're not hashing yet)
+    if (user.password !== oldPassword) {
+      return res.status(400).json({ message: "Old password incorrect" });
+    }
+
+    await db.query(
+      "UPDATE users SET password = ? WHERE id = ?",
+      [newPassword, userId]
+    );
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Password change failed" });
+  }
+});
