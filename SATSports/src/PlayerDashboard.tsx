@@ -1,197 +1,206 @@
 import { useEffect, useState } from "react";
 import {
-  Card,
-  CardContent,
+  Box,
   Typography,
   Grid,
-  Box,
-  Divider,
-  Stack,
-  Chip,
+  Card,
+  CardContent
 } from "@mui/material";
-import API_BASE from "./api";
 
 import EventIcon from "@mui/icons-material/Event";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
 
-type Overview = {
-  playerName: string;
-  totalSessions: number;
-  nextSession: {
-    start_time: string;
-    end_time: string;
-    session_date: string;
-  } | null;
-  weeklySessions: number[];
-  lastSessions: { date: string; time: string }[];
-  recentActivities: string[];
-};
+import { motion } from "framer-motion";
+import API_BASE from "./api";
 
-function StatCard({
-  title,
-  value,
-  icon,
-  color,
-}: {
-  title: string;
-  value: React.ReactNode;
-  icon: React.ReactNode;
-  color: string;
-}) {
+function GlassCard({ children }: any) {
   return (
     <Card
       sx={{
-        borderRadius: 3,
-        boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
+        backdropFilter: "blur(12px)",
+        background: "rgba(255,255,255,0.08)",
+        borderRadius: 4,
+        boxShadow: "0 8px 25px rgba(0,0,0,0.4)",
+        color: "white"
       }}
     >
-      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Box sx={{ fontSize: 40, color }}>{icon}</Box>
-        <Box>
-          <Typography variant="body2" color="text.secondary">
-            {title}
-          </Typography>
-          <Typography variant="h5" fontWeight={700}>
-            {value}
-          </Typography>
-        </Box>
-      </CardContent>
+      <CardContent>{children}</CardContent>
     </Card>
   );
 }
 
-function PlayerDashboard() {
+function Stat({ icon, title, value }: any) {
+  return (
+    <GlassCard>
+      <Box display="flex" alignItems="center" gap={2}>
+        {icon}
+        <Box>
+          <Typography variant="body2">{title}</Typography>
+          <Typography variant="h4" fontWeight={700}>
+            {value}
+          </Typography>
+        </Box>
+      </Box>
+    </GlassCard>
+  );
+}
+
+export default function PlayerDashboard() {
   const userId = localStorage.getItem("userId");
-  const [data, setData] = useState<Overview | null>(null);
+
+  const [data, setData] = useState<any>({
+    weeklySessions: [],
+    lastSessions: [],
+    recentActivities: []
+  });
 
   useEffect(() => {
-    if (!userId) return;
-
     fetch(`${API_BASE}/api/player/overview/${userId}`)
-      .then((res) => res.json())
-      .then(setData);
-  }, [userId]);
-
-  if (!data) return <p>Loading dashboard...</p>;
+      .then(res => res.json())
+      .then(res => setData({
+        weeklySessions: [],
+        lastSessions: [],
+        recentActivities: [],
+        ...res
+      }));
+  }, []);
 
   const weekly = data.weeklySessions || [];
 
   return (
-    <section style={{ background: "#f5f7fb", minHeight: "100vh", padding: 16 }}>
+    <Box
+      sx={{
+        p: 4,
+        background: "linear-gradient(135deg,#1f2937,#111827)",
+        minHeight: "100vh",
+        color: "white"
+      }}
+    >
+
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" fontWeight={800}>
-          Welcome, {data.playerName}
-        </Typography>
-        <Typography color="text.secondary">
-          Here’s your training overview
-        </Typography>
-      </Box>
+      <Typography variant="h3" fontWeight={800} mb={4}>
+        🏃 Welcome {data.playerName || "Player"}
+      </Typography>
 
       {/* Stats */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={3} mb={4}>
+
         <Grid item xs={12} md={4}>
-          <StatCard
+          <Stat
+            icon={<FitnessCenterIcon />}
             title="Total Sessions"
-            value={data.totalSessions}
-            icon={<FitnessCenterIcon fontSize="inherit" />}
-            color="#1976d2"
+            value={data.totalSessions || 0}
           />
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <StatCard
+          <Stat
+            icon={<ScheduleIcon />}
             title="Next Session"
             value={
               data.nextSession
-                ? `${data.nextSession.start_time} – ${data.nextSession.end_time}`
-                : "No upcoming session"
+                ? `${data.nextSession.start_time} - ${data.nextSession.end_time}`
+                : "None"
             }
-            icon={<ScheduleIcon fontSize="inherit" />}
-            color="#2e7d32"
           />
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <StatCard
+          <Stat
+            icon={<EventIcon />}
             title="This Week"
-            value={weekly.reduce((a, b) => a + b, 0)}
-            icon={<EventIcon fontSize="inherit" />}
-            color="#ed6c02"
+            value={weekly.reduce((a: number, b: number) => a + b, 0)}
           />
         </Grid>
+
       </Grid>
 
-      {/* Weekly mini chart */}
-      <Card sx={{ mb: 3, borderRadius: 3 }}>
-        <CardContent>
-          <Typography fontWeight={700} mb={1}>
-            Sessions This Week
-          </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1,
-              alignItems: "flex-end",
-              height: 120,
-            }}
-          >
-            {weekly.map((v, i) => (
-              <Box
-                key={i}
-                sx={{
-                  width: 24,
-                  height: `${v * 20}px`,
-                  background:
-                    "linear-gradient(180deg, #42a5f5, #1e88e5)",
-                  borderRadius: 1,
-                }}
-                title={`${v} sessions`}
-              />
-            ))}
-          </Box>
-        </CardContent>
-      </Card>
+      {/* Weekly Chart */}
+      <Grid container spacing={3} mb={4}>
 
-      <Grid container spacing={2}>
+        <Grid item xs={12}>
+
+          <GlassCard>
+
+            <Typography variant="h6" mb={2}>
+              Weekly Sessions
+            </Typography>
+
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                alignItems: "flex-end",
+                height: 150
+              }}
+            >
+              {weekly.map((v: number, i: number) => (
+                <Box
+                  key={i}
+                  sx={{
+                    width: 30,
+                    height: `${v * 25}px`,
+                    background: "#4ade80",
+                    borderRadius: 2
+                  }}
+                />
+              ))}
+            </Box>
+
+          </GlassCard>
+
+        </Grid>
+
+      </Grid>
+
+      {/* Activity + History */}
+      <Grid container spacing={3}>
+
         {/* Recent Activity */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography fontWeight={700}>Recent Activity</Typography>
-              <Divider sx={{ my: 1 }} />
-              <Stack spacing={1}>
-                {(data.recentActivities || []).map((a, i) => (
-                  <Typography key={i}>• {a}</Typography>
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
+
+          <GlassCard>
+
+            <Typography variant="h6" mb={2}>
+              Recent Activity
+            </Typography>
+
+            {(data.recentActivities || []).map((a: string, i: number) => (
+              <Typography key={i} sx={{ mb: 1 }}>
+                • {a}
+              </Typography>
+            ))}
+
+          </GlassCard>
+
         </Grid>
 
         {/* Last Sessions */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography fontWeight={700}>Last Sessions</Typography>
-              <Divider sx={{ my: 1 }} />
-              {(data.lastSessions || []).length === 0 && (
-                <Typography color="text.secondary">
-                  No sessions yet
-                </Typography>
-              )}
-              {(data.lastSessions || []).map((s, i) => (
-                <Typography key={i}>
-                  • {s.date} ({s.time})
-                </Typography>
-              ))}
-            </CardContent>
-          </Card>
+
+          <GlassCard>
+
+            <Typography variant="h6" mb={2}>
+              Last Sessions
+            </Typography>
+
+            {(data.lastSessions || []).length === 0 && (
+              <Typography>No sessions yet</Typography>
+            )}
+
+            {(data.lastSessions || []).map((s: any, i: number) => (
+              <Typography key={i}>
+                {s.date} | {s.time}
+              </Typography>
+            ))}
+
+          </GlassCard>
+
         </Grid>
+
       </Grid>
-    </section>
+
+    </Box>
   );
 }
-
-export default PlayerDashboard;
