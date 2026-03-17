@@ -1083,10 +1083,9 @@ const [[players]] = await db.query(
 // Check-ins Today
 const [[checkins]] = await db.query(
   `SELECT COUNT(*) AS checkinsToday
-   FROM attendance a
-   JOIN training_sessions ts ON ts.id = a.session_id
-   WHERE ts.coach_id = ?
-   AND DATE(a.checkin_time) = CURDATE()`,
+   FROM coach_checkins
+   WHERE coach_id = ?
+   AND checkin_date = CURDATE()`,
   [coachId]
 );
 res.json({
