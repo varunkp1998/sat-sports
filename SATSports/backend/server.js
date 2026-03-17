@@ -1930,8 +1930,22 @@ app.post("/api/signup/coach", async (req, res) => {
   const { name, email, phone } = req.body;
 
   try {
+    // 1️⃣ Check if email already exists
+    const [[existing]] = await db.query(
+      "SELECT id FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (existing) {
+      return res.status(400).json({
+        message: "Email already registered"
+      });
+    }
+
+    // 2️⃣ Generate password
     const password = Math.random().toString(36).slice(-8);
 
+    // 3️⃣ Create user
     const [userResult] = await db.query(
       "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'coach')",
       [name, email, password]
@@ -1939,26 +1953,29 @@ app.post("/api/signup/coach", async (req, res) => {
 
     const userId = userResult.insertId;
 
+    // 4️⃣ Create coach
     await db.query(
       "INSERT INTO coaches (user_id, name, phone) VALUES (?, ?, ?)",
       [userId, name, phone]
     );
 
+    // 5️⃣ Send email
     await resend.emails.send({
       from: "SAT Sports <no-reply@sat-sports.in>",
       to: email,
       subject: "Coach Account Created",
       html: `
-        <h3>Welcome Coach 🎾</h3>
-        <p>Email: ${email}</p>
-        <p>Password: ${password}</p>
+        <h2>Welcome to SAT Sports 🎾</h2>
+        <p><b>Email:</b> ${email}</p>
+        <p><b>Password:</b> ${password}</p>
+        <p>Please login and change your password.</p>
       `
     });
 
     res.json({ success: true });
 
   } catch (err) {
-    console.error(err);
+    console.error("🔥 SIGNUP ERROR:", err);
     res.status(500).json({ message: "Coach signup failed" });
   }
 });
