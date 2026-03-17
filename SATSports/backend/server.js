@@ -1621,17 +1621,36 @@ app.get("/api/admin/applications", async (req, res) => {
 // ADMIN: approve application -> create player
 app.post("/api/admin/applications/:id/approve", async (req, res) => {
   const { id } = req.params;
-  const { program_id } = req.body;
 
   try {
+    // 1️⃣ Get application
     const [[appData]] = await db.query(
       "SELECT * FROM applications WHERE id = ?",
       [id]
     );
 
+    if (!appData) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    // 2️⃣ Get program_id from programs table
+    let programId = null;
+
+    if (appData.preferred_program) {
+      const [[program]] = await db.query(
+        "SELECT id FROM programs WHERE title = ?",
+        [appData.preferred_program]
+      );
+
+      if (program) {
+        programId = program.id;
+      }
+    }
+
+    // 3️⃣ Generate password
     const password = Math.random().toString(36).slice(-8);
 
-    // Create user
+    // 4️⃣ Create user
     const [userResult] = await db.query(
       "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'player')",
       [appData.name, appData.email, password]
@@ -1639,20 +1658,20 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
 
     const userId = userResult.insertId;
 
-    // Create player
+    // 5️⃣ Create player with program_id
     await db.query(
       `INSERT INTO players (user_id, name, age, program_id)
        VALUES (?, ?, ?, ?)`,
-      [userId, appData.name, appData.age, program_id]
+      [userId, appData.name, appData.age, programId]
     );
 
-    // Update status
+    // 6️⃣ Update application status
     await db.query(
       "UPDATE applications SET status = 'approved' WHERE id = ?",
       [id]
     );
 
-    // Send email
+    // 7️⃣ Send email
     await resend.emails.send({
       from: "SAT Sports <no-reply@sat-sports.in>",
       to: appData.email,
