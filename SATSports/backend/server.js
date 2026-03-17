@@ -1858,7 +1858,7 @@ app.post("/api/signup", async (req, res) => {
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     await resend.emails.send({
-      from: "SAT Sports <onboarding@resend.dev>",
+      from: "SAT Sports <onboarding@sat-sports.in>",
       to: email,
       subject: "SAT Sports Account Created",
       html: `
