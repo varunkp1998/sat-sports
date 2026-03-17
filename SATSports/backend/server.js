@@ -437,7 +437,7 @@ app.delete("/api/admin/players/:id", async (req, res) => {
 // List coaches
 app.get("/api/admin/coaches", async (req, res) => {
   const [rows] = await db.query(
-    "SELECT id, name, email, phone, created_at FROM coaches ORDER BY created_at DESC"
+    "SELECT id, name, phone, created_at FROM coaches ORDER BY created_at DESC"
   );
   res.json(rows);
 });
