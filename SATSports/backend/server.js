@@ -2023,3 +2023,44 @@ app.delete("/api/admin/locations/:id", async (req, res) => {
 
   res.json({ success: true });
 });
+app.get("/api/player/profile/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  const [[row]] = await db.query(`
+    SELECT p.name, p.age, pr.title AS programTitle
+    FROM players p
+    LEFT JOIN programs pr ON pr.id = p.program_id
+    WHERE p.user_id = ?
+  `, [userId]);
+
+  res.json(row || {});
+});
+app.get("/api/player/attendance/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  const [rows] = await db.query(`
+    SELECT 
+      sa.id,
+      ts.session_date AS date,
+      CASE WHEN sa.present = 1 THEN 'present' ELSE 'absent' END AS status
+    FROM session_attendance sa
+    JOIN training_sessions ts ON ts.id = sa.session_id
+    JOIN players p ON p.id = sa.player_id
+    WHERE p.user_id = ?
+    ORDER BY ts.session_date DESC
+  `, [userId]);
+
+  res.json(rows);
+});
+app.get("/api/player/revenue/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  const [rows] = await db.query(`
+    SELECT *
+    FROM revenue
+    WHERE user_id = ?
+    ORDER BY date DESC
+  `, [userId]);
+
+  res.json(rows);
+});
