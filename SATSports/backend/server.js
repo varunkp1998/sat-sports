@@ -1865,7 +1865,6 @@ ORDER BY cc.checkin_date DESC, c.name ASC
     res.status(500).json({ message: "Failed to fetch daily coach hours" });
   }
 });
-const { Resend } = require("resend");
 
 app.post("/api/signup", async (req, res) => {
   const { name, email, phone, age, parentName, parentPhone } = req.body;
