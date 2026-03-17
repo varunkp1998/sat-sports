@@ -44,6 +44,7 @@ import {
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import PersonIcon from "@mui/icons-material/Person";
 import AddIcon from "@mui/icons-material/Add";
+import UploadIcon from "@mui/icons-material/Upload";
 
 import dayjs, { Dayjs } from "dayjs";
 import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
