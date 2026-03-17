@@ -16,6 +16,7 @@ import AdminApplications from "./AdminApplications.tsx";
 import AdminCoachPayroll from "./AdminCoachPayroll";
 import API_BASE from "./api";
 import { useNavigate } from "react-router-dom";
+import { Avatar } from "@mui/material";
 import Signup from "./Signup.tsx";
 import {
   Card,
@@ -2185,6 +2186,11 @@ function AdminReports() {
 
 
 
+import {
+ 
+  LinearProgress,
+} from "@mui/material";
+
 function PlayerPortal() {
   const userId = localStorage.getItem("userId");
 
@@ -2205,17 +2211,18 @@ function PlayerPortal() {
 
     fetch(`${API_BASE}/api/player/revenue/${userId}`)
       .then(res => res.json())
-      .then(setRevenue);
+      .then(setRevenue)
+      .catch(() => setRevenue([])); // prevent crash
   }, [userId]);
 
-  if (!profile) return <p>Loading your portal...</p>;
+  if (!profile) return <p>Loading...</p>;
 
   const totalSessions = attendance.length;
-  const totalPresent = attendance.filter(a => a.status === "present").length;
+  const present = attendance.filter(a => a.status === "present").length;
 
   const attendanceRate =
     totalSessions > 0
-      ? Math.round((totalPresent / totalSessions) * 100)
+      ? Math.round((present / totalSessions) * 100)
       : 0;
 
   const totalPaid = revenue
@@ -2229,123 +2236,106 @@ function PlayerPortal() {
   const balance = totalPaid - totalDue;
 
   return (
-    <section style={{ background: "#f5f7fb", minHeight: "100vh", padding: 16 }}>
+    <Box sx={{ p: 2, maxWidth: 500, margin: "auto" }}>
 
-      <Typography variant="h4" fontWeight={800} mb={3}>
-        🎾 Player Portal
-      </Typography>
+      {/* HERO PROFILE */}
+      <Card sx={{
+        borderRadius: 4,
+        mb: 2,
+        background: "linear-gradient(135deg,#1e3a8a,#2563eb)",
+        color: "white"
+      }}>
+        <CardContent>
+          <Stack alignItems="center" spacing={1}>
+            <Avatar sx={{ width: 70, height: 70 }}>
+              {profile.name?.[0]}
+            </Avatar>
+            <Typography fontWeight={700}>{profile.name}</Typography>
+            <Typography fontSize={14}>{profile.email}</Typography>
+            <Chip label={profile.programTitle || "No Program"} color="warning" />
+          </Stack>
+        </CardContent>
+      </Card>
 
-      <Box sx={{ maxWidth: 500, margin: "auto" }}>
-
-        {/* PROFILE CARD */}
-        <Card sx={{ borderRadius: 3, mb: 2, boxShadow: "0 6px 16px rgba(0,0,0,0.08)" }}>
-          <CardContent>
-            <Stack spacing={2} alignItems="center">
-
-              <Avatar sx={{ width: 80, height: 80, bgcolor: "primary.main" }}>
-                {profile.name?.[0] || "P"}
-              </Avatar>
-
-              <Typography fontWeight={700}>
-                {profile.name}
-              </Typography>
-
-              <Typography color="text.secondary">
-                {profile.email}
-              </Typography>
-
-              <Typography fontSize={14}>
-                Program: {profile.programTitle || "-"}
-              </Typography>
-
-            </Stack>
-          </CardContent>
-        </Card>
-
-        {/* KPI CARDS */}
-        <Grid container spacing={2} mb={2}>
-          <Grid item xs={6}>
-            <Card sx={{ borderRadius: 3 }}>
-              <CardContent>
-                <Typography>Total Sessions</Typography>
-                <Typography variant="h6">{totalSessions}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={6}>
-            <Card sx={{ borderRadius: 3 }}>
-              <CardContent>
-                <Typography>Attendance</Typography>
-                <Typography variant="h6">{attendanceRate}%</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={6}>
-            <Card sx={{ borderRadius: 3 }}>
-              <CardContent>
-                <Typography>Paid</Typography>
-                <Typography variant="h6">₹{totalPaid}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={6}>
-            <Card sx={{ borderRadius: 3 }}>
-              <CardContent>
-                <Typography>Balance</Typography>
-                <Typography variant="h6">₹{balance}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+      {/* KPI GRID */}
+      <Grid container spacing={2} mb={2}>
+        <Grid item xs={6}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography fontSize={12}>Sessions</Typography>
+              <Typography variant="h6">{totalSessions}</Typography>
+            </CardContent>
+          </Card>
         </Grid>
 
-        {/* ATTENDANCE */}
-        <Card sx={{ borderRadius: 3, mb: 2 }}>
-          <CardContent>
-            <Typography fontWeight={700} mb={1}>
-              📅 Attendance
-            </Typography>
+        <Grid item xs={6}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography fontSize={12}>Balance</Typography>
+              <Typography variant="h6">₹{balance}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-            <Stack spacing={1}>
-              {attendance.map((a: any) => (
-                <Box key={a.id} display="flex" justifyContent="space-between">
-                  <Typography>{a.date}</Typography>
-                  <Chip
-                    label={a.status}
-                    color={a.status === "present" ? "success" : "error"}
-                    size="small"
-                  />
-                </Box>
-              ))}
-            </Stack>
-          </CardContent>
-        </Card>
+      {/* ATTENDANCE PROGRESS */}
+      <Card sx={{ borderRadius: 3, mb: 2 }}>
+        <CardContent>
+          <Typography fontWeight={700}>
+            Attendance ({attendanceRate}%)
+          </Typography>
 
-        {/* PAYMENTS */}
-        <Card sx={{ borderRadius: 3 }}>
-          <CardContent>
-            <Typography fontWeight={700} mb={1}>
-              💰 Payments
-            </Typography>
+          <LinearProgress
+            variant="determinate"
+            value={attendanceRate}
+            sx={{ height: 10, borderRadius: 5, mt: 1 }}
+          />
+        </CardContent>
+      </Card>
 
-            <Stack spacing={1}>
-              {revenue.map((r: any) => (
-                <Box key={r.id} display="flex" justifyContent="space-between">
-                  <Typography>{r.date}</Typography>
-                  <Typography>₹{r.amount}</Typography>
-                </Box>
-              ))}
-            </Stack>
-          </CardContent>
-        </Card>
+      {/* RECENT ATTENDANCE */}
+      <Card sx={{ borderRadius: 3, mb: 2 }}>
+        <CardContent>
+          <Typography fontWeight={700} mb={1}>
+            Recent Sessions
+          </Typography>
 
-      </Box>
-    </section>
+          {attendance.slice(0, 5).map((a: any) => (
+            <Box key={a.id} display="flex" justifyContent="space-between">
+              <Typography>{a.date}</Typography>
+              <Chip
+                label={a.status}
+                color={a.status === "present" ? "success" : "error"}
+                size="small"
+              />
+            </Box>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* PAYMENTS */}
+      <Card sx={{ borderRadius: 3 }}>
+        <CardContent>
+          <Typography fontWeight={700} mb={1}>
+            Payments
+          </Typography>
+
+          {revenue.slice(0, 5).map((r: any) => (
+            <Box key={r.id} display="flex" justifyContent="space-between">
+              <Typography>{r.date}</Typography>
+              <Typography
+                color={r.type === "CR" ? "green" : "red"}
+              >
+                ₹{r.amount}
+              </Typography>
+            </Box>
+          ))}
+        </CardContent>
+      </Card>
+
+    </Box>
   );
 }
-
 
 
 function AdminCoaches() {
