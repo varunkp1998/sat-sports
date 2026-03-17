@@ -130,7 +130,17 @@ app.get("/api/admin/programs", async (req, res) => {
     res.status(500).json({ message: "Failed to load programs" });
   }
 });
+app.put("/api/admin/programs/:id", async (req, res) => {
+  const { id } = req.params;
+  const { min_age, max_age, title } = req.body;
 
+  await db.query(
+    `UPDATE programs SET min_age=?, max_age=?, title=? WHERE id=?`,
+    [min_age, max_age, title, id]
+  );
+
+  res.json({ success: true });
+});
 // CREATE
 app.post("/api/programs", async (req, res) => {
   const { title, description, min_age, max_age } = req.body;
@@ -1638,10 +1648,12 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
 
     if (appData.preferred_program) {
       const [[program]] = await db.query(
-        "SELECT id FROM programs WHERE title = ?",
-        [appData.preferred_program]
+        `SELECT id FROM programs
+         WHERE ? BETWEEN min_age AND max_age
+         ORDER BY min_age DESC
+         LIMIT 1`,
+        [player.age]
       );
-
       if (program) {
         programId = program.id;
       }
@@ -2000,4 +2012,14 @@ app.post("/api/signup/coach", async (req, res) => {
     console.error("🔥 SIGNUP ERROR:", err);
     res.status(500).json({ message: "Coach signup failed" });
   }
+});
+app.post("/api/admin/players/bulk-assign", async (req, res) => {
+  const { playerIds, program_id } = req.body;
+
+  await db.query(
+    `UPDATE players SET program_id=? WHERE id IN (?)`,
+    [program_id, playerIds]
+  );
+
+  res.json({ success: true });
 });

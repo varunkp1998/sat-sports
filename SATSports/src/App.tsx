@@ -1298,10 +1298,12 @@ function AdminTournaments() {
     </section>
   );
 }
-import UploadIcon from "@mui/icons-material/Upload";
 
 function AdminPlayers() {
   const [players, setPlayers] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [filter, setFilter] = useState("");
   const [file, setFile] = useState<File | null>(null);
 
   const loadPlayers = () => {
@@ -1310,10 +1312,18 @@ function AdminPlayers() {
       .then(setPlayers);
   };
 
+  const loadPrograms = () => {
+    fetch(`${API_BASE}/api/admin/programs`)
+      .then(res => res.json())
+      .then(setPrograms);
+  };
+
   useEffect(() => {
     loadPlayers();
+    loadPrograms();
   }, []);
 
+  // ✅ Excel Upload
   const uploadExcel = async () => {
     if (!file) return alert("Select file");
 
@@ -1330,70 +1340,203 @@ function AdminPlayers() {
     loadPlayers();
   };
 
-  const promote = async (p: any) => {
-    const newProgram = prompt("Enter new program ID:");
-    if (!newProgram) return;
+  // ✅ Select Players
+  const toggleSelect = (id: number) => {
+    setSelected(prev =>
+      prev.includes(id)
+        ? prev.filter(x => x !== id)
+        : [...prev, id]
+    );
+  };
 
-    await fetch(`${API_BASE}/api/admin/players/${p.id}`, {
+  // ✅ Assign Program
+  const assignProgram = async (playerId: number, programId: number) => {
+    await fetch(`${API_BASE}/api/admin/players/${playerId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ program_id: newProgram, sub_category: p.sub_category, age: p.age })
+      body: JSON.stringify({ program_id: programId })
     });
 
     loadPlayers();
   };
 
+  // ✅ Auto Assign (AGE BASED)
+  const autoAssign = async (p: any) => {
+    const program = programs.find(pr =>
+      p.age >= pr.min_age && p.age <= pr.max_age
+    );
+
+    if (!program) {
+      alert("No matching program for age");
+      return;
+    }
+
+    await assignProgram(p.id, program.id);
+  };
+
+  // ✅ Bulk Assign
+  const bulkAssign = async (programId: number) => {
+    if (selected.length === 0) return alert("Select players");
+
+    await fetch(`${API_BASE}/api/admin/players/bulk-assign`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        playerIds: selected,
+        program_id: programId
+      })
+    });
+
+    setSelected([]);
+    loadPlayers();
+  };
+
+  // ✅ Filter Logic
+  const filteredPlayers = players.filter(p => {
+    if (filter === "unassigned") return !p.programTitle;
+    if (filter) return p.programTitle === filter;
+    return true;
+  });
+
   return (
     <Box sx={{ p: 3 }}>
+
+      {/* HEADER */}
       <Card sx={{ mb: 3, borderRadius: 3, background: "linear-gradient(135deg,#c31432,#240b36)", color: "#fff" }}>
         <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <SportsTennisIcon sx={{ fontSize: 40 }} />
           <Box>
-            <Typography variant="h5" fontWeight={700}>Players Management</Typography>
-            <Typography variant="body2">Manage, promote & import players</Typography>
+            <Typography variant="h5" fontWeight={700}>
+              Players Management
+            </Typography>
+            <Typography variant="body2">
+              Manage, assign & import players
+            </Typography>
           </Box>
         </CardContent>
       </Card>
 
-      {/* Excel Upload */}
+      {/* EXCEL UPLOAD */}
       <Card sx={{ mb: 3, p: 2, borderRadius: 3 }}>
         <Stack direction="row" spacing={2} alignItems="center">
-          <TextField type="file" onChange={(e:any) => setFile(e.target.files[0])} />
-          <Button variant="contained" color="error" startIcon={<UploadIcon />} onClick={uploadExcel}>
+          <TextField
+            type="file"
+            onChange={(e: any) => setFile(e.target.files[0])}
+          />
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<UploadIcon />}
+            onClick={uploadExcel}
+          >
             Import Excel
           </Button>
         </Stack>
       </Card>
 
-      {/* Players Table */}
+      {/* FILTER + BULK */}
+      <Card sx={{ mb: 3, p: 2, borderRadius: 3 }}>
+        <Stack direction="row" spacing={2}>
+
+          {/* Filter */}
+          <Select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="unassigned">Unassigned</MenuItem>
+            {programs.map(p => (
+              <MenuItem key={p.id} value={p.title}>
+                {p.title}
+              </MenuItem>
+            ))}
+          </Select>
+
+          {/* Bulk Assign */}
+          <Select
+            displayEmpty
+            onChange={(e) => bulkAssign(Number(e.target.value))}
+          >
+            <MenuItem value="">Bulk Assign</MenuItem>
+            {programs.map(p => (
+              <MenuItem key={p.id} value={p.id}>
+                {p.title}
+              </MenuItem>
+            ))}
+          </Select>
+
+        </Stack>
+      </Card>
+
+      {/* TABLE */}
       <Paper sx={{ borderRadius: 3 }}>
         <Table>
           <TableHead>
             <TableRow sx={{ background: "#f5f5f5" }}>
+              <TableCell />
               <TableCell>Name</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Age</TableCell>
               <TableCell>Program</TableCell>
               <TableCell>Sub Category</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>Auto</TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {players.map(p => (
+            {filteredPlayers.map(p => (
               <TableRow key={p.id} hover>
-                <TableCell sx={{ fontWeight: 600, color: "#b11226" }}>{p.name}</TableCell>
+
+                {/* CHECKBOX */}
+                <TableCell>
+                  <Checkbox
+                    checked={selected.includes(p.id)}
+                    onChange={() => toggleSelect(p.id)}
+                  />
+                </TableCell>
+
+                <TableCell sx={{ fontWeight: 600, color: "#b11226" }}>
+                  {p.name}
+                </TableCell>
+
                 <TableCell>{p.email}</TableCell>
                 <TableCell>{p.age}</TableCell>
+
+                {/* PROGRAM DROPDOWN */}
                 <TableCell>
-                  {p.programTitle ? <Chip label={p.programTitle} color="success" size="small" /> : "Unassigned"}
+                  <Select
+                    size="small"
+                    value={p.program_id || ""}
+                    onChange={(e) =>
+                      assignProgram(p.id, Number(e.target.value))
+                    }
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {programs.map(pr => (
+                      <MenuItem key={pr.id} value={pr.id}>
+                        {pr.title}
+                      </MenuItem>
+                    ))}
+                  </Select>
                 </TableCell>
+
                 <TableCell>{p.sub_category || "-"}</TableCell>
-                <TableCell align="right">
-                  <Button size="small" color="warning" variant="contained" onClick={() => promote(p)}>
-                    Promote
+
+                {/* AUTO ASSIGN */}
+                <TableCell>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="warning"
+                    onClick={() => autoAssign(p)}
+                  >
+                    Auto
                   </Button>
                 </TableCell>
+
               </TableRow>
             ))}
           </TableBody>
@@ -1402,7 +1545,7 @@ function AdminPlayers() {
     </Box>
   );
 }
-  
+
 
 function PlayerProfile() {
   const params = window.location.pathname.split("/");
