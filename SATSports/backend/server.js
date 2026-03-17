@@ -1055,16 +1055,31 @@ app.get("/api/coach/overview/:userId", async (req, res) => {
        GROUP BY d`,
       [coachId]
     );
+// Active Players
+const [[players]] = await db.query(
+  `SELECT COUNT(*) AS activePlayers 
+   FROM players 
+   WHERE coach_id = ?`,
+  [coachId]
+);
 
-    res.json({
-      coachName: coachRows[0].name,
-      todaySessionCount: todaySessions.cnt,
-      todaySessionList,
-      upcoming,
-      weekly,
-      checkedInToday: false
-    });
-
+// Check-ins Today
+const [[checkins]] = await db.query(
+  `SELECT COUNT(*) AS checkinsToday 
+   FROM attendance 
+   WHERE coach_id = ? 
+   AND DATE(checkin_time) = CURDATE()`,
+  [coachId]
+);
+res.json({
+  coachName: coachRows[0].name,
+  todaySessionCount: todaySessions.cnt,
+  todaySessionList,
+  upcoming,
+  weekly,
+  activePlayers: players.activePlayers,
+  checkinsToday: checkins.checkinsToday
+});
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Overview failed" });
