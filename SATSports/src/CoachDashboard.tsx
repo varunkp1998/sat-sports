@@ -115,16 +115,14 @@ export default function CoachDashboard() {
           <Stat
             icon={<SportsTennisIcon />}
             title="Active Players"
-            value="12"
-          />
+            value={data.activePlayers || 0}          />
         </Grid>
 
         <Grid item xs={12} md={3}>
           <Stat
             icon={<CheckCircleIcon />}
             title="Check-ins Today"
-            value="9"
-          />
+            value={data.checkinsToday || 0}          />
         </Grid>
 
         <Grid item xs={12} md={3}>
