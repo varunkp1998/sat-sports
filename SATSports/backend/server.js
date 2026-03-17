@@ -1900,3 +1900,22 @@ app.get("/api/player/attendance/:userId", async (req, res) => {
 
   res.json(rows);
 });
+app.get("/api/session/:sessionId/players", async (req, res) => {
+  const { sessionId } = req.params;
+
+  try {
+    const [rows] = await db.query(
+      `SELECT p.id, p.name
+       FROM session_players sp
+       JOIN players p ON p.id = sp.player_id
+       WHERE sp.session_id = ?`,
+      [sessionId]
+    );
+
+    res.json(rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch players" });
+  }
+});
