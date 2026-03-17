@@ -1,6 +1,30 @@
 import { useEffect, useState } from "react";
-import { Button, Table, TableBody, TableCell, TableHead, TableRow, Alert, Paper } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Button
+} from "@mui/material";
+
 import API_BASE from "./api";
+
+function GlassCard({ children }: any) {
+  return (
+    <Card
+      sx={{
+        backdropFilter: "blur(12px)",
+        background: "rgba(255,255,255,0.08)",
+        borderRadius: 4,
+        boxShadow: "0 8px 25px rgba(0,0,0,0.4)",
+        color: "white"
+      }}
+    >
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
 
 type Session = {
   id: number;
@@ -9,26 +33,25 @@ type Session = {
   end_time: string;
   category: string;
   locationName: string;
-  location_id: number;   // ✅ ADD THIS
+  location_id: number;
 };
 
-
-function CoachSessions() {
+export default function CoachSessions() {
   const coachId = localStorage.getItem("coachId");
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, boolean>>({});
-  console.log("Logged in coachId:", coachId);
 
-  // Load sessions assigned to this coach
+  // Load sessions
   useEffect(() => {
     if (!coachId) return;
 
     fetch(`${API_BASE}/api/coach/sessions/${coachId}`)
       .then(res => res.json())
-      .then(data => setSessions(data));
+      .then(setSessions);
   }, [coachId]);
 
-  // For each session, check check-in status
+  // Load check-in status
   useEffect(() => {
     if (!coachId || sessions.length === 0) return;
 
@@ -48,113 +71,102 @@ function CoachSessions() {
     await fetch(`${API_BASE}/api/coach/checkin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        coachId,
-        sessionId,
-        locationId,
-      }),
+      body: JSON.stringify({ coachId, sessionId, locationId }),
     });
 
-    // Refresh status for this session
-    const res = await fetch(
-      `${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${sessionId}`
-    );
-    const data = await res.json();
-
-    setCheckedInMap(prev => ({
-      ...prev,
-      [sessionId]: Boolean(data.checkedIn),
-    }));
+    setCheckedInMap(prev => ({ ...prev, [sessionId]: true }));
   };
+
   const handleCheckOut = async (sessionId: number) => {
     await fetch(`${API_BASE}/api/coach/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        coachId,
-        sessionId,
-      }),
+      body: JSON.stringify({ coachId, sessionId }),
     });
-  
-    // After checkout, mark as not checked in
-    setCheckedInMap(prev => ({
-      ...prev,
-      [sessionId]: false,
-    }));
+
+    setCheckedInMap(prev => ({ ...prev, [sessionId]: false }));
   };
-  
+
   return (
-    <section>
-      <h3>My Sessions</h3>
-
-      {sessions.length === 0 && <Alert severity="info">No sessions assigned.</Alert>}
-
-      {sessions.length > 0 && (
-        <Paper>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Time</TableCell>
-                <TableCell>Location</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {sessions.map((s) => {
-                const isCheckedIn = checkedInMap[s.id];
-
-                return (
-                  <TableRow key={s.id}>
-                    <TableCell>{s.session_date}</TableCell>
-                    <TableCell>
-                      {s.start_time} – {s.end_time}
-                    </TableCell>
-                    <TableCell>{s.locationName}</TableCell>
-                    <TableCell>{s.category}</TableCell>
-                    <TableCell>
-                    {!isCheckedIn ? (
-  <Button
-    variant="contained"
-    color="warning"
-    onClick={() => handleCheckIn(s.id, s.location_id)}
-  >
-    Check In
-  </Button>
-) : (
-  <>
-    <Button
-      variant="contained"
-      color="success"
-      onClick={() => {
-        window.location.href = `/coach/sessions/${s.id}/attendance`;
+    <Box
+      sx={{
+        p: 4,
+        background: "linear-gradient(135deg,#1f2937,#111827)",
+        minHeight: "100vh",
+        color: "white"
       }}
-      sx={{ mr: 1 }}
     >
-      Mark Attendance
-    </Button>
+      <Typography variant="h3" fontWeight={800} mb={4}>
+        📅 My Sessions
+      </Typography>
 
-    <Button
-      variant="outlined"
-      color="error"
-      onClick={() => handleCheckOut(s.id)}
-    >
-      Check Out
-    </Button>
-  </>
-)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Paper>
+      {sessions.length === 0 && (
+        <Typography>No sessions assigned</Typography>
       )}
-    </section>
+
+      <Grid container spacing={3}>
+        {sessions.map((s) => {
+          const isCheckedIn = checkedInMap[s.id];
+
+          return (
+            <Grid item xs={12} md={6} key={s.id}>
+              <GlassCard>
+
+                <Typography fontWeight={700} variant="h6">
+                  {s.session_date}
+                </Typography>
+
+                <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                  {s.start_time} – {s.end_time}
+                </Typography>
+
+                <Typography mt={1}>
+                  📍 {s.locationName}
+                </Typography>
+
+                <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                  {s.category}
+                </Typography>
+
+                <Box mt={2} display="flex" gap={1} flexWrap="wrap">
+
+                  {!isCheckedIn ? (
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      onClick={() => handleCheckIn(s.id, s.location_id)}
+                    >
+                      Check In
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        onClick={() =>
+                          (window.location.href = `/coach/sessions/${s.id}/attendance`)
+                        }
+                      >
+                        Mark Attendance
+                      </Button>
+
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => handleCheckOut(s.id)}
+                      >
+                        Check Out
+                      </Button>
+                    </>
+                  )}
+
+                </Box>
+
+              </GlassCard>
+            </Grid>
+          );
+        })}
+      </Grid>
+    </Box>
   );
 }
-
-export default CoachSessions;

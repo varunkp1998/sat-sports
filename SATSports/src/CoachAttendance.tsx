@@ -1,114 +1,157 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Button, Checkbox, Table, TableBody, TableCell, TableHead, TableRow, Paper, Alert } from "@mui/material";
-import API_BASE from "./api";
-type Player = {
-  id: number;
-  name: string;
-  age: number;
-};
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Button
+} from "@mui/material";
 
-function CoachAttendance() {
-  const { sessionId } = useParams<{ sessionId: string }>();
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [attendance, setAttendance] = useState<Record<number, boolean>>({});
+import API_BASE from "./api";
+
+function GlassCard({ children }: any) {
+  return (
+    <Card
+      sx={{
+        backdropFilter: "blur(12px)",
+        background: "rgba(255,255,255,0.08)",
+        borderRadius: 4,
+        boxShadow: "0 8px 25px rgba(0,0,0,0.4)",
+        color: "white",
+        mb: 2
+      }}
+    >
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+export default function CoachAttendance() {
+  const { sessionId } = useParams();
+
+  const [players, setPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ Load players for session
   useEffect(() => {
-    if (!sessionId) return;
-
-    fetch(`${API_BASE}/api/coach/sessions/${sessionId}/players`)
+    fetch(`${API_BASE}/api/session/${sessionId}/players`)
       .then(res => res.json())
       .then(data => {
-        setPlayers(data);
-
-        // Initialize attendance map (default: present = true)
-        const initial: Record<number, boolean> = {};
-        data.forEach((p: Player) => {
-          initial[p.id] = true;
-        });
-        setAttendance(initial);
-
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to load players:", err);
+        setPlayers(
+          data.map((p: any) => ({
+            ...p,
+            present: true,   // default present
+            remark: ""       // 👈 NEW
+          }))
+        );
         setLoading(false);
       });
   }, [sessionId]);
 
-  const togglePlayer = (playerId: number) => {
-    setAttendance(prev => ({
-      ...prev,
-      [playerId]: !prev[playerId],
-    }));
+  // ✅ Toggle present/absent
+  const toggle = (id: number) => {
+    setPlayers(prev =>
+      prev.map(p =>
+        p.id === id ? { ...p, present: !p.present } : p
+      )
+    );
   };
 
-  const saveAttendance = async () => {
-    const payload = {
-      attendance: players.map(p => ({
-        playerId: p.id,
-        present: Boolean(attendance[p.id]),
-      })),
-    };
+  // ✅ Update remark
+  const updateRemark = (id: number, value: string) => {
+    setPlayers(prev =>
+      prev.map(p =>
+        p.id === id ? { ...p, remark: value } : p
+      )
+    );
+  };
 
+  // ✅ Save attendance + remarks
+  const saveAttendance = async () => {
     await fetch(`${API_BASE}/api/coach/sessions/${sessionId}/attendance`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        attendance: players.map(p => ({
+          playerId: p.id,
+          present: p.present,
+          remark: p.remark
+        }))
+      })
     });
 
-    alert("Attendance saved ✅");
+    alert("✅ Attendance + feedback saved");
   };
 
-  if (loading) {
-    return <p>Loading players...</p>;
-  }
+  if (loading) return <p>Loading...</p>;
 
   return (
-    <section>
-      <h3>Mark Attendance</h3>
-      <p>Session ID: {sessionId}</p>
+    <Box
+      sx={{
+        p: 4,
+        background: "linear-gradient(135deg,#1f2937,#111827)",
+        minHeight: "100vh",
+        color: "white"
+      }}
+    >
+      <Typography variant="h4" fontWeight={800} mb={3}>
+        📋 Session Attendance
+      </Typography>
 
-      {players.length === 0 && (
-        <Alert severity="info">No players assigned to this session.</Alert>
-      )}
+      {players.map(p => (
+        <GlassCard key={p.id}>
 
-      {players.length > 0 && (
-        <Paper>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Present</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Age</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {players.map(p => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={Boolean(attendance[p.id])}
-                      onChange={() => togglePlayer(p.id)}
-                    />
-                  </TableCell>
-                  <TableCell>{p.name}</TableCell>
-                  <TableCell>{p.age}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {/* Player Row */}
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Typography fontWeight={600}>
+              {p.name}
+            </Typography>
 
-          <div style={{ padding: 16 }}>
-            <Button variant="contained" color="success" onClick={saveAttendance}>
-              Save Attendance
+            <Button
+              variant="contained"
+              color={p.present ? "success" : "error"}
+              onClick={() => toggle(p.id)}
+            >
+              {p.present ? "Present" : "Absent"}
             </Button>
-          </div>
-        </Paper>
-      )}
-    </section>
+          </Box>
+
+          {/* Remark Input */}
+          <Box mt={2}>
+            <input
+              type="text"
+              placeholder="Add feedback..."
+              value={p.remark || ""}
+              onChange={(e) => updateRemark(p.id, e.target.value)}
+              style={{
+                width: "100%",
+                padding: 8,
+                borderRadius: 8,
+                border: "none",
+                outline: "none"
+              }}
+            />
+          </Box>
+
+        </GlassCard>
+      ))}
+
+      {/* Save Button */}
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={saveAttendance}
+        sx={{ mt: 2 }}
+      >
+        Save Attendance
+      </Button>
+    </Box>
   );
 }
-
-export default CoachAttendance;
