@@ -30,30 +30,43 @@ export default function Signup() {
 
   const submit = async () => {
     if (!role) return alert("Select role");
-
+  
     const endpoint =
       role === "player"
         ? "/api/signup"
         : "/api/signup/coach";
-
+  
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify(form)
     });
-
+  
     const data = await res.json();
-
-    if (!res.ok) return alert(data.message);
-
+  
+    if (!res.ok) {
+      alert(data.message);
+      return;
+    }
+  
+    // ✅ HANDLE SUCCESS
     if (role === "player") {
-      alert("Application submitted 🎾");
+      alert("Application submitted. Await admin approval 🎾");
+  
+      // OPTIONAL: redirect after 2 sec
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+  
     } else {
-      alert("Coach account created 📩");
+      alert("Coach account created. Check email 📩");
+  
+      // ✅ REDIRECT IMMEDIATELY
       navigate("/login");
     }
   };
-
   return (
     <Box
       sx={{
