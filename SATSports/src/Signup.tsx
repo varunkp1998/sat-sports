@@ -13,7 +13,9 @@ import API_BASE from "./api";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { Resend } = require("resend");
 
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const [role, setRole] = useState("");
   const [form, setForm] = useState({
     name: "",
