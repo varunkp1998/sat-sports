@@ -894,25 +894,41 @@ app.get("/api/coach/sessions/:sessionId/players", async (req, res) => {
 });
 app.post("/api/coach/sessions/:sessionId/attendance", async (req, res) => {
   const { sessionId } = req.params;
-  const { attendance } = req.body; 
-  // attendance = [{ playerId: 1, present: true }, ...]
+  const { attendance } = req.body;
 
-  for (const a of attendance) {
-    await db.execute(
-      `INSERT INTO session_attendance (session_id, player_id, present)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE present = VALUES(present)`,
-      [sessionId, a.playerId, a.present ? 1 : 0]
-    );
+  try {
+    for (const a of attendance) {
+      await db.execute(
+        `INSERT INTO session_attendance 
+         (session_id, player_id, present, remark)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE 
+           present = VALUES(present),
+           remark = VALUES(remark)`,
+        [
+          sessionId,
+          a.playerId,
+          a.present ? 1 : 0,
+          a.remark || null
+        ]
+      );
+    }
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to save attendance" });
   }
-
-  res.json({ success: true });
 });
 app.get("/api/admin/sessions/:sessionId/attendance", async (req, res) => {
   const { sessionId } = req.params;
 
   const [rows] = await db.query(
-    `SELECT p.name, sa.present
+    `SELECT 
+      p.name, 
+      sa.present,
+      sa.remark
      FROM session_attendance sa
      JOIN players p ON p.id = sa.player_id
      WHERE sa.session_id = ?`,
@@ -1858,4 +1874,28 @@ app.post("/api/signup", async (req, res) => {
     console.error("SIGNUP ERROR:", err);
     res.status(500).json({ message: "Signup failed" });
   }
+});
+app.get("/api/player/attendance/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  const [[player]] = await db.query(
+    "SELECT id FROM players WHERE user_id = ?",
+    [userId]
+  );
+
+  const [rows] = await db.query(
+    `SELECT 
+      ts.session_date,
+      ts.start_time,
+      ts.end_time,
+      sa.present,
+      sa.remark
+     FROM session_attendance sa
+     JOIN training_sessions ts ON ts.id = sa.session_id
+     WHERE sa.player_id = ?
+     ORDER BY ts.session_date DESC`,
+    [player.id]
+  );
+
+  res.json(rows);
 });
