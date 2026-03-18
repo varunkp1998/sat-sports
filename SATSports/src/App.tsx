@@ -42,7 +42,7 @@ import {
   Checkbox,
   Stack
 } from "@mui/material";
-
+import TournamentDetails from "./TournamentDetails.tsx";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import PersonIcon from "@mui/icons-material/Person";
 import AddIcon from "@mui/icons-material/Add";
