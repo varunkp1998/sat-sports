@@ -269,100 +269,117 @@ function About() {
 }
 
 /* ---------- PROGRAMS ---------- */
+
 function ProgramsPage() {
-  const [items, setItems] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/programs`)
-      .then((res) => res.json())
-      .then(setItems)
-      .catch((err) => console.error("Failed to load programs", err));
+      .then(res => res.json())
+      .then(setPrograms);
   }, []);
 
+  // group by category
+  const grouped: any = {};
+  programs.forEach(p => {
+    const cat = p.category || "Other";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(p);
+  });
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" fontWeight={700} mb={3}>
-        🎾 Training Programs
-      </Typography>
+    <Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
 
-      <Grid container spacing={3}>
-        {items.map((p) => (
-          <Grid item xs={12} sm={6} md={4} key={p.id}>
-            <Card
-              sx={{
-                borderRadius: 3,
-                boxShadow: "0 6px 20px rgba(0,0,0,0.1)",
-                transition: "0.25s",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                "&:hover": {
-                  transform: "translateY(-5px)",
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-                },
-              }}
-            >
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box display="flex" alignItems="center" mb={1}>
-                  <SportsTennisIcon color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" fontWeight={600}>
-                    {p.title}
-                  </Typography>
-                </Box>
-
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 2 }}
-                >
-                  {p.description}
-                </Typography>
-
-                {/* Optional program details */}
-                <Box display="flex" gap={1} flexWrap="wrap">
-                  {p.min_age && (
-                    <Chip
-                      label={`Age ${p.min_age}+`}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  )}
-
-                  {p.category && (
-                    <Chip
-                      label={p.category}
-                      size="small"
-                      color="secondary"
-                    />
-                  )}
-                </Box>
-              </CardContent>
-
-              <CardActions sx={{ p: 2 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="primary"
-                  href={`/programs/${p.id}`}
-                >
-                  View Schedule
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {items.length === 0 && (
-        <Typography mt={4} align="center" color="text.secondary">
-          No programs available.
+      {/* HERO */}
+      <Box mb={4}>
+        <Typography variant="h3" fontWeight={800}>
+          🎾 Training Programs
         </Typography>
-      )}
+        <Typography color="text.secondary">
+          Structured pathways for every age & level
+        </Typography>
+      </Box>
+
+      {/* CATEGORY SECTIONS */}
+      {Object.keys(grouped).map(category => (
+        <Box key={category} mb={5}>
+
+          {/* CATEGORY HEADER */}
+          <Typography variant="h5" fontWeight={700} mb={2}>
+            {category}
+          </Typography>
+
+          <Grid container spacing={3}>
+            {grouped[category].map((p: any) => (
+              <Grid item xs={12} sm={6} md={4} key={p.id}>
+                <Card
+                  sx={{
+                    borderRadius: 4,
+                    overflow: "hidden",
+                    transition: "0.3s",
+                    "&:hover": {
+                      transform: "translateY(-6px)",
+                      boxShadow: "0 16px 40px rgba(0,0,0,0.15)"
+                    }
+                  }}
+                >
+
+                  {/* TOP BANNER */}
+                  <Box
+                    sx={{
+                      height: 120,
+                      background:
+                        "linear-gradient(135deg,#ef4444,#b91c1c)",
+                      color: "white",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 700,
+                      fontSize: 18
+                    }}
+                  >
+                    {p.title}
+                  </Box>
+
+                  <CardContent>
+
+                    {/* AGE */}
+                    <Chip
+                      label={`${p.min_age}-${p.max_age} yrs`}
+                      color="primary"
+                      size="small"
+                    />
+
+                    {/* DESCRIPTION */}
+                    <Typography mt={1} fontSize={14} color="text.secondary">
+                      {p.description || "Professional tennis training program"}
+                    </Typography>
+
+                    {/* CTA */}
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      sx={{
+                        mt: 2,
+                        borderRadius: 3,
+                        fontWeight: 700
+                      }}
+                    >
+                      View Schedule
+                    </Button>
+
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+        </Box>
+      ))}
+
     </Box>
   );
 }
-
  function AdminPrograms() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [title, setTitle] = useState("");
