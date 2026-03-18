@@ -146,13 +146,15 @@ export default function App() {
 }
 
 /* ---------- NAVBAR ---------- */
+
 function Header() {
   const role = localStorage.getItem("role");
   const username = localStorage.getItem("username");
 
+  const [open, setOpen] = useState(false); // ✅ NEW
+
   const handleLogout = () => {
-    localStorage.removeItem("role");
-    localStorage.removeItem("username");
+    localStorage.clear();
     window.location.href = "/";
   };
 
@@ -160,18 +162,22 @@ function Header() {
     <header className="header">
       <div className="header-brand">
         <img src="/logo.png" alt="SAT Sports" className="header-logo" />
-        <h2>SAT Sports PVT LTD</h2>
+        <h2>SAT Sports</h2>
       </div>
 
-      <nav>
+      {/* 🍔 BURGER BUTTON */}
+      <button className="burger" onClick={() => setOpen(!open)}>
+        ☰
+      </button>
+
+      {/* NAV */}
+      <nav className={open ? "nav open" : "nav"}>
         <Link to="/">Home</Link>
         <Link to="/about">About</Link>
         <Link to="/programs">Programs</Link>
         <Link to="/news">News</Link>
         <Link to="/tournaments">Tournaments</Link>
         <Link to="/contact">Contact</Link>
-        <Link to="/book-court">Book a Court</Link>
-        <Link to="/register-player">Join Academy</Link>
 
         {!role ? (
           <button onClick={() => (window.location.href = "/login")}>
@@ -179,7 +185,7 @@ function Header() {
           </button>
         ) : (
           <div className="auth-actions">
-            <span className="username">Hi, {username}</span>
+            <span>Hi, {username}</span>
 
             <Link
               to={
@@ -193,16 +199,13 @@ function Header() {
               Profile
             </Link>
 
-            <button className="outline" onClick={handleLogout}>
-              Logout
-            </button>
+            <button onClick={handleLogout}>Logout</button>
           </div>
         )}
       </nav>
     </header>
   );
 }
-
 const adminCardStyle = {
   borderRadius: 3,
   boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
@@ -3122,14 +3125,23 @@ function AdminSessions() {
   );
 }
 
+
 function AdminLayout() {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="admin-layout">
-      
-      {/* Sidebar */}
-      <aside className="sidebar">
+
+      {/* 🍔 MOBILE HEADER */}
+      <div className="admin-topbar">
+        <button onClick={() => setOpen(!open)}>☰</button>
+        <h3>Admin</h3>
+      </div>
+
+      {/* SIDEBAR */}
+      <aside className={open ? "sidebar open" : "sidebar"}>
         <div className="logo-box">
-          <img src="/logo.png" alt="SAT Sports" className="logo" />
+          <img src="/logo.png" className="logo" />
           <h2>SAT Sports</h2>
         </div>
 
@@ -3137,59 +3149,17 @@ function AdminLayout() {
           <a href="/admin">📘 Programs</a>
           <a href="/admin/players">👤 Players</a>
           <a href="/admin/coaches">🎾 Coaches</a>
-          <a href="/admin/attendance">📅 Attendance</a>
-          <a href="/admin/revenue">💰 Revenue</a>
-          <a href="/admin/reports">📊 Reports</a>
           <a href="/admin/sessions">📅 Sessions</a>
-          <a href="/admin/leaves">📝 Leave Management</a>
-          <a href="/admin/locations">📍 Locations (QR)</a>
-          <Link to="/admin/live">🟢 Live Coaches</Link>
-          <Link to="/admin/court-bookings">Court Bookings</Link>
-          <a href="/admin/applications">Applications</a>
-          <a href="/admin/payroll">Payroll</a>
-
-
         </nav>
       </aside>
 
-      {/* Main Content */}
+      {/* CONTENT */}
       <div className="admin-content">
-        <h2>Admin Dashboard</h2>
-{/* Breadcrumbs */}
-<AdminBreadcrumbs />
-
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <>
-                <AdminDashboard />
-                <AdminPrograms />
-              </>
-            }
-          />
-          <Route path="news" element={<AdminNews />} />
-          <Route path="tournaments" element={<AdminTournaments />} />
-          <Route path="attendance" element={<AdminAttendance />} />
-          <Route path="players" element={<AdminPlayers />} />
-          <Route path="coaches" element={<AdminCoaches />} />
-          <Route path="revenue" element={<AdminRevenue />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="sessions" element={<AdminSessions />} />
-          <Route path="leaves" element={<AdminLeaves />} />
-          <Route path="locations" element={<AdminLocations />} />
-          <Route path="live" element={<AdminLivePresence />} />
-          <Route path="court-bookings" element={<AdminCourtBookings />} />
-          <Route path="applications" element={<AdminApplications />} />
-          <Route path="/admin/payroll" element={<AdminCoachPayroll />} />
-
-        </Routes>
+        <Routes>{/* your routes */}</Routes>
       </div>
-
     </div>
   );
 }
-
 /* ---------- CONTACT ---------- */
 function Contact() {
   return (

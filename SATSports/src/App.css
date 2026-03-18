@@ -40,3 +40,72 @@
 .read-the-docs {
   color: #888;
 }
+/* BURGER BUTTON */
+.burger {
+  display: none;
+  font-size: 24px;
+  background: none;
+  border: none;
+  color: white;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+
+  .burger {
+    display: block;
+  }
+
+  .nav {
+    position: absolute;
+    top: 70px;
+    right: 0;
+    width: 250px;
+    background: #111;
+    flex-direction: column;
+    display: none;
+    padding: 16px;
+  }
+
+  .nav.open {
+    display: flex;
+  }
+}
+/* TOPBAR (mobile only) */
+.admin-topbar {
+  display: none;
+  background: #111;
+  color: white;
+  padding: 10px;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+
+  .admin-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: -250px;
+    top: 0;
+    height: 100%;
+    width: 250px;
+    background: #111;
+    transition: 0.3s;
+    z-index: 1000;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+}
+.sidebar.open::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
