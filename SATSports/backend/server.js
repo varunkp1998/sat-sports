@@ -294,8 +294,19 @@ let tournaments = [
   { id: 1, name: "Academy Cup", date: "2026-02-12", status: "Open", registrationOpen: true },
 ];
 
-app.get("/api/tournaments", (req, res) => {
-  res.json(tournaments);
+app.get("/api/tournaments", async (req, res) => {
+  const [rows] = await db.query(`
+    SELECT 
+      t.*,
+      COUNT(tp.player_id) AS playerCount
+    FROM tournaments t
+    LEFT JOIN tournament_players tp 
+      ON tp.tournament_id = t.id
+    GROUP BY t.id
+    ORDER BY t.date DESC
+  `);
+
+  res.json(rows);
 });
 
 app.post("/api/tournaments", (req, res) => {
@@ -2174,4 +2185,15 @@ app.post("/api/auth/reset-password", async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "Reset failed" });
   }
+});
+app.post("/api/tournaments/:id/register", async (req, res) => {
+  const { id } = req.params;
+  const { playerId } = req.body;
+
+  await db.query(
+    "INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)",
+    [id, playerId]
+  );
+
+  res.json({ success: true });
 });

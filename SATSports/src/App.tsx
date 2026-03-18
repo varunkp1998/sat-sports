@@ -1054,33 +1054,147 @@ function NewsPage() {
 }
 
 /* ---------- TOURNAMENTS ---------- */
-function TournamentsPage() {
-  const [tournaments, setTournaments] = React.useState<any[]>([]);
 
-  React.useEffect(() => {
+ function TournamentsPage() {
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
     fetch(`${API_BASE}/api/tournaments`)
       .then(res => res.json())
       .then(setTournaments);
   }, []);
 
+  const filtered =
+    filter === "all"
+      ? tournaments
+      : tournaments.filter(t => t.status === filter);
+
+  const getStatusColor = (status: string) => {
+    if (status === "live") return "error";
+    if (status === "upcoming") return "warning";
+    return "success";
+  };
+
+  const getCountdown = (date: string) => {
+    const diff = new Date(date).getTime() - Date.now();
+    if (diff <= 0) return "Started";
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    return `${days} days left`;
+  };
+
   return (
-    <section className="section">
-      <h3>Tournaments</h3>
-      <div className="grid">
-        {tournaments.map((t) => (
-          <div key={t.id} className="card">
-            <strong>{t.name}</strong>
-            <p>{t.date}</p>
-            <p>{t.location}</p>
-            <p>Status: {t.status}</p>
-          </div>
+    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
+
+      {/* HERO */}
+      <Box mb={3}>
+        <Typography variant="h4" fontWeight={800}>
+          🏆 Tournaments
+        </Typography>
+        <Typography color="text.secondary">
+          Compete, track, and win
+        </Typography>
+      </Box>
+
+      {/* FILTERS */}
+      <Stack direction="row" spacing={1} mb={3}>
+        {["all", "live", "upcoming", "completed"].map(f => (
+          <Chip
+            key={f}
+            label={f.toUpperCase()}
+            color={filter === f ? "primary" : "default"}
+            onClick={() => setFilter(f)}
+            clickable
+          />
         ))}
-      </div>
-    </section>
+      </Stack>
+
+      {/* GRID */}
+      <Grid container spacing={3}>
+        {filtered.map((t) => (
+          <Grid item xs={12} md={4} key={t.id}>
+            <Card
+              sx={{
+                borderRadius: 4,
+                overflow: "hidden",
+                transition: "0.3s",
+                "&:hover": {
+                  transform: "translateY(-6px)"
+                }
+              }}
+            >
+
+              {/* BANNER */}
+              <Box
+                sx={{
+                  height: 140,
+                  background:
+                    "linear-gradient(135deg,#ef4444,#b91c1c)",
+                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700
+                }}
+              >
+                {t.name}
+              </Box>
+
+              <CardContent>
+
+                {/* STATUS */}
+                <Chip
+                  label={t.status}
+                  color={getStatusColor(t.status)}
+                  size="small"
+                />
+
+                {/* DETAILS */}
+                <Typography mt={1}>
+                  📅 {t.date}
+                </Typography>
+
+                <Typography>
+                  📍 {t.location}
+                </Typography>
+
+                {/* COUNTDOWN */}
+                <Typography color="text.secondary" mt={1}>
+                  ⏳ {getCountdown(t.date)}
+                </Typography>
+
+                {/* PLAYERS */}
+                <Typography mt={1}>
+                  👥 {t.playerCount || 0} players
+                </Typography>
+
+                {/* ACTION */}
+                <Button
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 2, borderRadius: 3 }}
+                >
+                  {t.status === "completed"
+                    ? "View Results"
+                    : "Register"}
+                </Button>
+
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {filtered.length === 0 && (
+        <Typography mt={4} color="text.secondary">
+          No tournaments found
+        </Typography>
+      )}
+
+    </Box>
   );
 }
-
-
 
 
 
