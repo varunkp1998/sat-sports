@@ -1431,9 +1431,10 @@ const isPresent = r.checkout_time === null;
 
 
 function AdminTournaments() {
-  const navigate = useNavigate();
 
   const [items, setItems] = useState([]);
+  const navigate = useNavigate();
+
   const [form, setForm] = useState({
     name: "",
     date: "",
