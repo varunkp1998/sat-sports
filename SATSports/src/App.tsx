@@ -1081,10 +1081,10 @@ function NewsPage() {
 
 /* ---------- TOURNAMENTS ---------- */
 
-const navigate = useNavigate();
  function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [filter, setFilter] = useState("all");
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch(`${API_BASE}/api/tournaments`)
