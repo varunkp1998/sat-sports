@@ -1473,7 +1473,9 @@ function AdminTournaments() {
 
     alert("Brackets generated 🎯");
   };
-
+  const shuffleSeeding = () => {
+    setSelected(prev => [...prev].sort(() => Math.random() - 0.5));
+  };
   const statusColor = (status) => {
     if (status === "live") return "error";
     if (status === "upcoming") return "warning";
@@ -1589,7 +1591,13 @@ function AdminTournaments() {
                   >
                     Generate Brackets
                   </Button>
-
+                  <Button
+  variant="outlined"
+  onClick={() => navigate(`/admin/tournaments/${t.id}/players`)}
+>
+  Manage Players
+</Button>
+<Button onClick={shuffleSeeding}>Auto Seed</Button>
                   <Button
                     variant="outlined"
                     onClick={() =>

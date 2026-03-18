@@ -2313,3 +2313,72 @@ app.post("/api/matches/:id/score", async (req, res) => {
 
   res.json({ success: true });
 });
+app.post("/api/admin/tournaments/:id/generate-brackets", async (req, res) => {
+  const { id } = req.params;
+
+  const [players] = await db.query(
+    "SELECT player_id FROM tournament_players WHERE tournament_id = ?",
+    [id]
+  );
+
+  if (players.length < 2) {
+    return res.status(400).json({ message: "Not enough players" });
+  }
+
+  // shuffle players
+  const shuffled = players.sort(() => 0.5 - Math.random());
+
+  const matches = [];
+
+  for (let i = 0; i < shuffled.length; i += 2) {
+    if (shuffled[i + 1]) {
+      matches.push([
+        id,
+        shuffled[i].player_id,
+        shuffled[i + 1].player_id,
+        1,
+        i / 2 + 1
+      ]);
+    }
+  }
+
+  await db.query(
+    `INSERT INTO matches 
+     (tournament_id, player1_id, player2_id, round, match_order)
+     VALUES ?`,
+    [matches]
+  );
+
+  res.json({ success: true });
+});
+app.get("/api/tournaments/:id/matches", async (req, res) => {
+  const { id } = req.params;
+
+  const [rows] = await db.query(`
+    SELECT 
+      m.*,
+      p1.name AS player1,
+      p2.name AS player2
+    FROM matches m
+    LEFT JOIN players p1 ON p1.id = m.player1_id
+    LEFT JOIN players p2 ON p2.id = m.player2_id
+    WHERE m.tournament_id = ?
+    ORDER BY m.round, m.match_order
+  `, [id]);
+
+  res.json(rows);
+});
+app.post("/api/admin/tournaments/:id/players", async (req, res) => {
+  const { id } = req.params;
+  const { players } = req.body;
+
+  const values = players.map(p => [id, p]);
+
+  await db.query(
+    `INSERT INTO tournament_players (tournament_id, player_id)
+     VALUES ?`,
+    [values]
+  );
+
+  res.json({ success: true });
+});
