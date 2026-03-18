@@ -269,8 +269,7 @@ function About() {
 }
 
 /* ---------- PROGRAMS ---------- */
-
-function ProgramsPage() {
+ function ProgramsPage() {
   const [programs, setPrograms] = useState<any[]>([]);
 
   useEffect(() => {
@@ -282,101 +281,111 @@ function ProgramsPage() {
   // group by category
   const grouped: any = {};
   programs.forEach(p => {
-    const cat = p.category || "Other";
+    const cat = p.category || "Programs";
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(p);
   });
 
   return (
-    <Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
+    <Box sx={{ background: "#0f172a", minHeight: "100vh", color: "white" }}>
 
       {/* HERO */}
-      <Box mb={4}>
-        <Typography variant="h3" fontWeight={800}>
-          🎾 Training Programs
+      <Box
+        sx={{
+          height: 240,
+          background:
+            "linear-gradient(135deg,#dc2626,#991b1b)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column"
+        }}
+      >
+        <Typography variant="h3" fontWeight={900}>
+          🎾 Elite Training Programs
         </Typography>
-        <Typography color="text.secondary">
-          Structured pathways for every age & level
+
+        <Typography sx={{ opacity: 0.8 }}>
+          Build champions. Train like a pro.
         </Typography>
       </Box>
 
-      {/* CATEGORY SECTIONS */}
-      {Object.keys(grouped).map(category => (
-        <Box key={category} mb={5}>
+      <Box sx={{ p: 3 }}>
 
-          {/* CATEGORY HEADER */}
-          <Typography variant="h5" fontWeight={700} mb={2}>
-            {category}
-          </Typography>
+        {/* SECTIONS */}
+        {Object.keys(grouped).map(category => (
+          <Box key={category} mb={5}>
 
-          <Grid container spacing={3}>
-            {grouped[category].map((p: any) => (
-              <Grid item xs={12} sm={6} md={4} key={p.id}>
-                <Card
-                  sx={{
-                    borderRadius: 4,
-                    overflow: "hidden",
-                    transition: "0.3s",
-                    "&:hover": {
-                      transform: "translateY(-6px)",
-                      boxShadow: "0 16px 40px rgba(0,0,0,0.15)"
-                    }
-                  }}
-                >
+            <Typography
+              variant="h5"
+              fontWeight={800}
+              mb={2}
+              sx={{ borderLeft: "4px solid #ef4444", pl: 1 }}
+            >
+              {category}
+            </Typography>
 
-                  {/* TOP BANNER */}
+            <Grid container spacing={3}>
+
+              {grouped[category].map((p: any) => (
+                <Grid item xs={12} sm={6} md={4} key={p.id}>
+
                   <Box
                     sx={{
-                      height: 120,
+                      borderRadius: 4,
+                      overflow: "hidden",
                       background:
-                        "linear-gradient(135deg,#ef4444,#b91c1c)",
-                      color: "white",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      fontSize: 18
+                        "linear-gradient(180deg,#1f2937,#111827)",
+                      boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                      transition: "0.3s",
+                      "&:hover": {
+                        transform: "scale(1.04)"
+                      }
                     }}
                   >
-                    {p.title}
-                  </Box>
 
-                  <CardContent>
-
-                    {/* AGE */}
-                    <Chip
-                      label={`${p.min_age}-${p.max_age} yrs`}
-                      color="primary"
-                      size="small"
-                    />
-
-                    {/* DESCRIPTION */}
-                    <Typography mt={1} fontSize={14} color="text.secondary">
-                      {p.description || "Professional tennis training program"}
-                    </Typography>
-
-                    {/* CTA */}
-                    <Button
-                      fullWidth
-                      variant="contained"
+                    {/* CARD HEADER */}
+                    <Box
                       sx={{
-                        mt: 2,
-                        borderRadius: 3,
-                        fontWeight: 700
+                        p: 2,
+                        fontWeight: 700,
+                        fontSize: 18
                       }}
                     >
-                      View Schedule
-                    </Button>
+                      {p.title}
+                    </Box>
 
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+                    {/* AGE */}
+                    <Box sx={{ px: 2, opacity: 0.7 }}>
+                      Age {p.min_age} – {p.max_age}
+                    </Box>
 
-        </Box>
-      ))}
+                    {/* CTA */}
+                    <Box sx={{ p: 2 }}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        sx={{
+                          borderRadius: 3,
+                          background:
+                            "linear-gradient(90deg,#ef4444,#dc2626)",
+                          fontWeight: 700
+                        }}
+                      >
+                        View Schedule
+                      </Button>
+                    </Box>
 
+                  </Box>
+
+                </Grid>
+              ))}
+
+            </Grid>
+          </Box>
+        ))}
+
+      </Box>
     </Box>
   );
 }
