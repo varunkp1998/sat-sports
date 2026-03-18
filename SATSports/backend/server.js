@@ -2382,3 +2382,15 @@ app.post("/api/admin/tournaments/:id/players", async (req, res) => {
 
   res.json({ success: true });
 });
+app.post("/api/admin/matches", async (req, res) => {
+  const { tournament_id, player1_id, player2_id, round, match_order } = req.body;
+
+  await db.query(
+    `INSERT INTO matches 
+     (tournament_id, player1_id, player2_id, round, match_order)
+     VALUES (?, ?, ?, ?, ?)`,
+    [tournament_id, player1_id, player2_id, round, match_order]
+  );
+
+  res.json({ success: true });
+});
