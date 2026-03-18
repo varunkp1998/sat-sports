@@ -2106,3 +2106,58 @@ app.post("/api/player/change-password", async (req, res) => {
     res.status(500).json({ message: "Password change failed" });
   }
 });
+app.post("/api/auth/send-otp", async (req, res) => {
+  const { email } = req.body;
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  try {
+    // save OTP
+    await db.query(
+      "INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))",
+      [email, otp]
+    );
+
+    // send email
+    await resend.emails.send({
+      from: "SAT Sports <no-reply@sat-sports.in>",
+      to: email,
+      subject: "Password Reset OTP",
+      html: `<h2>Your OTP is: ${otp}</h2>`
+    });
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "OTP send failed" });
+  }
+});
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  try {
+    const [[row]] = await db.query(
+      `SELECT * FROM password_resets 
+       WHERE email = ? AND otp = ? 
+       AND expires_at > NOW()
+       ORDER BY id DESC LIMIT 1`,
+      [email, otp]
+    );
+
+    if (!row) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    await db.query(
+      "UPDATE users SET password = ? WHERE email = ?",
+      [newPassword, email]
+    );
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Reset failed" });
+  }
+});

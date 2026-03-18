@@ -726,12 +726,32 @@ import {
 } from "@mui/material";
 import LockIcon from "@mui/icons-material/Lock";
 
+import {
+ 
+  Fade
+} from "@mui/material";
+import EmailIcon from "@mui/icons-material/Email";
+
+
 function Login() {
+  const navigate = useNavigate();
+
+  // LOGIN STATE
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
+  // GLOBAL STATE
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+
+  // FORGOT PASSWORD STATE
+  const [forgotMode, setForgotMode] = useState(false);
+  const [otpStep, setOtpStep] = useState(1);
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  // 🔐 LOGIN
   const handleLogin = () => {
     setError("");
     setLoading(true);
@@ -750,18 +770,12 @@ function Login() {
           return;
         }
 
-        // ✅ Save session info
         localStorage.setItem("role", data.role);
         localStorage.setItem("userId", String(data.userId));
 
-        if (data.coachId) {
-          localStorage.setItem("coachId", String(data.coachId));
-        }
-        if (data.playerId) {
-          localStorage.setItem("playerId", String(data.playerId));
-        }
+        if (data.coachId) localStorage.setItem("coachId", String(data.coachId));
+        if (data.playerId) localStorage.setItem("playerId", String(data.playerId));
 
-        // ✅ Redirect by role
         if (data.role === "admin") window.location.href = "/admin";
         if (data.role === "coach") window.location.href = "/coach";
         if (data.role === "player") window.location.href = "/player";
@@ -772,15 +786,58 @@ function Login() {
       });
   };
 
+  // 🔥 SEND OTP
+  const sendOtp = async () => {
+    await fetch(`${API_BASE}/api/auth/send-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email })
+    });
+
+    setOtpStep(2);
+  };
+
+  // 🔥 RESET PASSWORD
+  const resetPassword = async () => {
+    const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email,
+        otp,
+        newPassword
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.message);
+      return;
+    }
+
+    alert("Password reset successful ✅");
+
+    // reset UI
+    setForgotMode(false);
+    setOtpStep(1);
+    setOtp("");
+    setNewPassword("");
+  };
+
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)",
+        background: "linear-gradient(135deg,#0f172a,#111827,#1f2937)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        p: 2,
+        p: 2
       }}
     >
       <Card
@@ -788,101 +845,162 @@ function Login() {
           width: "100%",
           maxWidth: 420,
           borderRadius: 4,
-          boxShadow: "0 20px 50px rgba(0,0,0,0.6)",
-          background: "linear-gradient(180deg, #ffffff 0%, #f7f7f7 100%)",
+          backdropFilter: "blur(20px)",
+          background: "rgba(255,255,255,0.08)",
+          color: "white",
+          boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
         }}
       >
         <CardContent sx={{ p: 4 }}>
-          {/* Header */}
-          <Box sx={{ textAlign: "center", mb: 3 }}>
-            <Typography variant="h4" fontWeight={800} color="error">
-              SAT Sports
+
+          {/* HEADER */}
+          <Box textAlign="center" mb={3}>
+            <Typography variant="h4" fontWeight={800}>
+              🎾 SAT Sports
             </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Login to your dashboard
+            <Typography color="gray">
+              {forgotMode ? "Reset your password" : "Login to your account"}
             </Typography>
           </Box>
 
-          {/* Error */}
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
 
-          {/* Username */}
-          <TextField
-            fullWidth
-            label="Username"
-            margin="normal"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PersonIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <Fade in={!forgotMode}>
+            <Stack spacing={2} display={forgotMode ? "none" : "flex"}>
 
-          {/* Password */}
-          <TextField
-            fullWidth
-            type="password"
-            label="Password"
-            margin="normal"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <LockIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
+              <TextField
+                label="Username / Email"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                fullWidth
+                sx={{ input: { color: "white" } }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
 
-          {/* Button */}
-          <Button
-            fullWidth
-            size="large"
-            variant="contained"
-            color="error"
-            sx={{
-              mt: 3,
-              py: 1.5,
-              fontWeight: 700,
-              borderRadius: 3,
-              boxShadow: "0 8px 20px rgba(177,18,38,0.4)",
-              transition: "all 0.2s ease",
-              "&:hover": {
-                transform: "translateY(-2px)",
-                boxShadow: "0 12px 28px rgba(177,18,38,0.6)",
-              },
-            }}
-            disabled={loading}
-            onClick={handleLogin}
-          >
-            {loading ? "Logging in..." : "Login"}
-          </Button>
-          <Button
-  fullWidth
-  variant="outlined"
-  sx={{ mt: 2, borderRadius: 3 }}
-  onClick={() => navigate("/signup")}
->
-  Create New Account
-</Button>
-          {/* Footer */}
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            textAlign="center"
-            sx={{ mt: 3 }}
-          >
-            © {new Date().getFullYear()} SAT Sports Pvt Ltd
-          </Typography>
+              <TextField
+                label="Password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                fullWidth
+                sx={{ input: { color: "white" } }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Button
+                fullWidth
+                size="large"
+                variant="contained"
+                onClick={handleLogin}
+                sx={{
+                  mt: 1,
+                  borderRadius: 3,
+                  background: "linear-gradient(90deg,#ef4444,#dc2626)",
+                  fontWeight: 700
+                }}
+                disabled={loading}
+              >
+                {loading ? "Logging in..." : "Login"}
+              </Button>
+
+              <Typography
+                textAlign="center"
+                sx={{ cursor: "pointer", color: "#60a5fa" }}
+                onClick={() => setForgotMode(true)}
+              >
+                Forgot Password?
+              </Typography>
+
+              <Button
+                fullWidth
+                variant="outlined"
+                sx={{ borderRadius: 3 }}
+                onClick={() => navigate("/signup")}
+              >
+                Create Account
+              </Button>
+            </Stack>
+          </Fade>
+
+          {/* 🔐 FORGOT PASSWORD */}
+          <Fade in={forgotMode}>
+            <Stack spacing={2} display={!forgotMode ? "none" : "flex"}>
+
+              <TextField
+                label="Email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                fullWidth
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {otpStep === 1 && (
+                <Button variant="contained" onClick={sendOtp}>
+                  Send OTP
+                </Button>
+              )}
+
+              {otpStep === 2 && (
+                <>
+                  <TextField
+                    label="OTP"
+                    value={otp}
+                    onChange={e => setOtp(e.target.value)}
+                  />
+
+                  <TextField
+                    label="New Password"
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                  />
+
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={resetPassword}
+                  >
+                    Reset Password
+                  </Button>
+                </>
+              )}
+
+              <Typography
+                textAlign="center"
+                sx={{ cursor: "pointer", color: "gray" }}
+                onClick={() => {
+                  setForgotMode(false);
+                  setOtpStep(1);
+                }}
+              >
+                ← Back to Login
+              </Typography>
+
+            </Stack>
+          </Fade>
+
         </CardContent>
       </Card>
     </Box>
