@@ -123,7 +123,7 @@ export default function App() {
   <Route path="/coach/sessions/:sessionId/attendance" element={<CoachAttendance />} />
 
 </Route>
-
+<Route path="/tournaments/:id" element={<TournamentDetails />} />
             <Route path="/player/*" element={<PlayerLayout />} />
 
             <Route
@@ -1081,6 +1081,7 @@ function NewsPage() {
 
 /* ---------- TOURNAMENTS ---------- */
 
+const navigate = useNavigate();
  function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [filter, setFilter] = useState("all");
@@ -1205,7 +1206,14 @@ function NewsPage() {
                     ? "View Results"
                     : "Register"}
                 </Button>
-
+                <Button
+  fullWidth
+  variant="contained"
+  sx={{ mt: 2, borderRadius: 3 }}
+  onClick={() => navigate(`/tournaments/${t.id}`)}
+>
+  View Tournament
+</Button>
               </CardContent>
             </Card>
           </Grid>
