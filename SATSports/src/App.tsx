@@ -3292,6 +3292,8 @@ function AdminLayout() {
           <Route path="sessions" element={<AdminSessions />} />
           <Route path="leaves" element={<AdminLeaves />} />
           <Route path="locations" element={<AdminLocations />} />
+          <a href="/admin/tournaments">🏆 Tournaments</a>
+
           <Route path="live" element={<AdminLivePresence />} />
           <Route path="court-bookings" element={<AdminCourtBookings />} />
           <Route path="applications" element={<AdminApplications />} />
