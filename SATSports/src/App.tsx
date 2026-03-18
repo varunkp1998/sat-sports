@@ -3257,6 +3257,8 @@ function AdminLayout() {
           <a href="/admin/sessions">📅 Sessions</a>
           <a href="/admin/leaves">📝 Leave Management</a>
           <a href="/admin/locations">📍 Locations (QR)</a>
+          <a href="/admin/tournaments">🏆 Tournaments</a>
+
           <Link to="/admin/live">🟢 Live Coaches</Link>
           <Link to="/admin/court-bookings">Court Bookings</Link>
           <a href="/admin/applications">Applications</a>
@@ -3292,8 +3294,8 @@ function AdminLayout() {
           <Route path="sessions" element={<AdminSessions />} />
           <Route path="leaves" element={<AdminLeaves />} />
           <Route path="locations" element={<AdminLocations />} />
-          <a href="/admin/tournaments">🏆 Tournaments</a>
-
+          <Route path="tournaments" element={<AdminTournaments />} />
+          <Route path="tournaments/:id/matches" element={<TournamentBracket />} />
           <Route path="live" element={<AdminLivePresence />} />
           <Route path="court-bookings" element={<AdminCourtBookings />} />
           <Route path="applications" element={<AdminApplications />} />

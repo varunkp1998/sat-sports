@@ -2245,3 +2245,37 @@ app.post("/api/matches/:id/winner", async (req, res) => {
 
   res.json({ success: true });
 });
+app.post("/api/admin/tournaments/:id/next-round", async (req, res) => {
+  const { id } = req.params;
+
+  const [completed] = await db.query(
+    `SELECT winner_id FROM matches 
+     WHERE tournament_id = ? AND winner_id IS NOT NULL`,
+    [id]
+  );
+
+  const winners = completed.map(m => m.winner_id);
+
+  const matches = [];
+
+  for (let i = 0; i < winners.length; i += 2) {
+    if (winners[i + 1]) {
+      matches.push([
+        id,
+        winners[i],
+        winners[i + 1],
+        2,
+        i / 2
+      ]);
+    }
+  }
+
+  await db.query(
+    `INSERT INTO matches 
+     (tournament_id, player1_id, player2_id, round, match_order)
+     VALUES ?`,
+    [matches]
+  );
+
+  res.json({ success: true });
+});
