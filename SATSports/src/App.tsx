@@ -1421,14 +1421,17 @@ const isPresent = r.checkout_time === null;
 }
 
 
+
 function AdminTournaments() {
-  const [items, setItems] = React.useState<any[]>([]);
-  const [name, setName] = React.useState("");
-  const [date, setDate] = React.useState("");
-  const [location, setLocation] = React.useState("");
-  const [status, setStatus] = React.useState("Open");
-  const [isPublished, setIsPublished] = React.useState(true);
-  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const navigate = useNavigate();
+
+  const [items, setItems] = useState([]);
+  const [form, setForm] = useState({
+    name: "",
+    date: "",
+    location: "",
+    status: "upcoming"
+  });
 
   const loadItems = () => {
     fetch(`${API_BASE}/api/admin/tournaments`)
@@ -1436,130 +1439,185 @@ function AdminTournaments() {
       .then(setItems);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadItems();
   }, []);
 
-  const saveItem = () => {
-    const payload = { name, date, location, status, isPublished };
+  const save = async () => {
+    await fetch(`${API_BASE}/api/tournaments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(form)
+    });
 
-    if (editingId) {
-      fetch(`${API_BASE}/api/tournaments/${editingId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(() => {
-        resetForm();
-        loadItems();
-      });
-    } else {
-      fetch(`${API_BASE}/api/tournaments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(() => {
-        resetForm();
-        loadItems();
-      });
-    }
+    setForm({ name: "", date: "", location: "", status: "upcoming" });
+    loadItems();
   };
 
-  const editItem = (item: any) => {
-    setEditingId(item.id);
-    setName(item.name);
-    setDate(item.date);
-    setLocation(item.location);
-    setStatus(item.status);
-    setIsPublished(item.isPublished);
+  const deleteItem = async (id) => {
+    if (!window.confirm("Delete tournament?")) return;
+
+    await fetch(`${API_BASE}/api/tournaments/${id}`, {
+      method: "DELETE"
+    });
+
+    loadItems();
   };
 
-  const deleteItem = (id: number) => {
-    if (!window.confirm("Delete this tournament?")) return;
-    fetch(`${API_BASE}/api/tournaments/${id}`, {
-      method: "DELETE",
-    }).then(() => loadItems());
+  const generateBrackets = async (id) => {
+    await fetch(`${API_BASE}/api/admin/tournaments/${id}/generate-brackets`, {
+      method: "POST"
+    });
+
+    alert("Brackets generated 🎯");
   };
 
-  const resetForm = () => {
-    setEditingId(null);
-    setName("");
-    setDate("");
-    setLocation("");
-    setStatus("Open");
-    setIsPublished(true);
+  const statusColor = (status) => {
+    if (status === "live") return "error";
+    if (status === "upcoming") return "warning";
+    return "success";
   };
 
   return (
-    <section className="section">
-      <h3>Admin Dashboard – Manage Tournaments</h3>
+    <Box sx={{ p: 3 }}>
 
-      {/* FORM */}
-      <div className="card">
-        <input
-          placeholder="Tournament Name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-        />
-        <input
-          placeholder="Location"
-          value={location}
-          onChange={e => setLocation(e.target.value)}
-        />
+      {/* HEADER */}
+      <Typography variant="h4" fontWeight={800} mb={3}>
+        🏆 Tournament Management
+      </Typography>
 
-        <select value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="Open">Open</option>
-          <option value="Closed">Closed</option>
-          <option value="Upcoming">Upcoming</option>
-        </select>
+      {/* CREATE FORM */}
+      <Card sx={{ mb: 4, borderRadius: 3 }}>
+        <CardContent>
+          <Typography fontWeight={700} mb={2}>
+            Create Tournament
+          </Typography>
 
-        <label style={{ display: "block", margin: "8px 0" }}>
-          <input
-            type="checkbox"
-            checked={isPublished}
-            onChange={e => setIsPublished(e.target.checked)}
-          />{" "}
-          Published
-        </label>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                label="Name"
+                value={form.name}
+                onChange={(e) =>
+                  setForm({ ...form, name: e.target.value })
+                }
+              />
+            </Grid>
 
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button onClick={saveItem}>
-            {editingId ? "Update" : "Add"}
-          </button>
-          {editingId && (
-            <button className="outline" onClick={resetForm}>
-              Cancel
-            </button>
-          )}
-        </div>
-      </div>
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                type="date"
+                value={form.date}
+                onChange={(e) =>
+                  setForm({ ...form, date: e.target.value })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                label="Location"
+                value={form.location}
+                onChange={(e) =>
+                  setForm({ ...form, location: e.target.value })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} md={3}>
+              <Button
+                fullWidth
+                variant="contained"
+                sx={{ height: "56px" }}
+                onClick={save}
+              >
+                Create
+              </Button>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
       {/* LIST */}
-      <div className="grid">
-        {items.map(t => (
-          <div key={t.id} className="card">
-            <strong>{t.name}</strong>
-            <p>{t.date}</p>
-            <p>{t.location}</p>
-            <p>Status: {t.status}</p>
-            <p>{t.isPublished ? "Published" : "Draft"}</p>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => editItem(t)}>Edit</button>
-              <button className="outline" onClick={() => deleteItem(t.id)}>
-                Delete
-              </button>
-            </div>
-          </div>
+      <Grid container spacing={3}>
+        {items.map((t) => (
+          <Grid item xs={12} md={4} key={t.id}>
+            <Card
+              sx={{
+                borderRadius: 4,
+                transition: "0.3s",
+                "&:hover": {
+                  transform: "translateY(-6px)"
+                }
+              }}
+            >
+              <CardContent>
+
+                {/* TITLE */}
+                <Typography fontWeight={700} fontSize={18}>
+                  {t.name}
+                </Typography>
+
+                {/* META */}
+                <Typography mt={1}>
+                  📅 {t.date}
+                </Typography>
+
+                <Typography>
+                  📍 {t.location}
+                </Typography>
+
+                {/* STATUS */}
+                <Chip
+                  label={t.status}
+                  color={statusColor(t.status)}
+                  size="small"
+                  sx={{ mt: 1 }}
+                />
+
+                {/* ACTIONS */}
+                <Stack spacing={1} mt={2}>
+
+                  <Button
+                    variant="contained"
+                    onClick={() => generateBrackets(t.id)}
+                  >
+                    Generate Brackets
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={() =>
+                      navigate(`/admin/tournaments/${t.id}/matches`)
+                    }
+                  >
+                    View Matches
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => deleteItem(t.id)}
+                  >
+                    Delete
+                  </Button>
+
+                </Stack>
+
+              </CardContent>
+            </Card>
+          </Grid>
         ))}
-      </div>
-    </section>
+      </Grid>
+
+    </Box>
   );
 }
-
 function AdminPlayers() {
   const [players, setPlayers] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);

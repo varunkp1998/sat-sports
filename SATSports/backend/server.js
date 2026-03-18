@@ -2280,3 +2280,36 @@ app.post("/api/admin/tournaments/:id/next-round", async (req, res) => {
 
   res.json({ success: true });
 });
+app.get("/api/programs/:id/sessions", async (req, res) => {
+  const { id } = req.params;
+
+  const [rows] = await db.query(
+    `SELECT * FROM training_sessions WHERE program_id = ?`,
+    [id]
+  );
+
+  res.json(rows);
+});
+app.post("/api/programs/enroll", async (req, res) => {
+  const { userId, programId } = req.body;
+
+  await db.query(
+    `UPDATE players SET program_id = ? WHERE user_id = ?`,
+    [programId, userId]
+  );
+
+  res.json({ success: true });
+});
+app.post("/api/matches/:id/score", async (req, res) => {
+  const { id } = req.params;
+  const { score1, score2, status } = req.body;
+
+  await db.query(
+    `UPDATE matches 
+     SET score1=?, score2=?, status=? 
+     WHERE id=?`,
+    [score1, score2, status, id]
+  );
+
+  res.json({ success: true });
+});
