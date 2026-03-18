@@ -2197,3 +2197,51 @@ app.post("/api/tournaments/:id/register", async (req, res) => {
 
   res.json({ success: true });
 });
+app.post("/api/matches/:id/winner", async (req, res) => {
+  const { id } = req.params;
+  const { winnerId } = req.body;
+
+  // 1. update winner
+  await db.query(
+    "UPDATE matches SET winner_id = ? WHERE id = ?",
+    [winnerId, id]
+  );
+
+  // 2. get match details
+  const [[match]] = await db.query(
+    "SELECT * FROM matches WHERE id = ?",
+    [id]
+  );
+
+  const nextRound = match.round + 1;
+
+  // 3. find next match
+  const [[nextMatch]] = await db.query(
+    `SELECT * FROM matches 
+     WHERE tournament_id = ? 
+     AND round = ? 
+     AND match_order = ?`,
+    [
+      match.tournament_id,
+      nextRound,
+      Math.floor(match.match_order / 2)
+    ]
+  );
+
+  if (nextMatch) {
+    // fill player1 or player2
+    if (!nextMatch.player1_id) {
+      await db.query(
+        "UPDATE matches SET player1_id = ? WHERE id = ?",
+        [winnerId, nextMatch.id]
+      );
+    } else {
+      await db.query(
+        "UPDATE matches SET player2_id = ? WHERE id = ?",
+        [winnerId, nextMatch.id]
+      );
+    }
+  }
+
+  res.json({ success: true });
+});
