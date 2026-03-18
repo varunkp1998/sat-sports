@@ -14,8 +14,22 @@ app.use(express.json());
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const allowedOrigins = [
+  "https://sat-sports.vercel.app",
+  "https://www.sat-sports.in",
+  "https://sat-sports.in"
+];
+
 app.use(cors({
-  origin: "https://sat-sports.vercel.app"
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
 }));
 
 
