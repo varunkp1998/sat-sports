@@ -110,17 +110,17 @@ app.post("/api/logout", (req, res) => {
 
 // READ (Public - all programs)
 app.get("/api/programs", async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      "SELECT id, title, description, created_at FROM programs ORDER BY created_at DESC"
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error("GET PROGRAMS ERROR:", err);
-    res.status(500).json({ message: "Failed to load programs" });
-  }
-});
+  const [rows] = await db.query(`
+    SELECT 
+      p.*,
+      pc.name AS category
+    FROM programs p
+    LEFT JOIN program_categories pc 
+      ON pc.id = p.category_id
+  `);
 
+  res.json(rows);
+});
 // READ (Admin - all programs)
 app.get("/api/admin/programs", async (req, res) => {
   try {
