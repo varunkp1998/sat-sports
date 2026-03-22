@@ -2818,11 +2818,12 @@ import { DataGrid } from "@mui/x-data-grid";
   return (
     <Box
     sx={{
+      flex: 1,
       width: "100%",
-      maxWidth: "100vw",
-      overflowX: "hidden",   // ✅ prevent horizontal scroll
+      maxWidth: "100%",
+      ml: 0,
       px: { xs: 2, md: 4 },
-      py: 2
+      py: 3
     }}
   >
 
