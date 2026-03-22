@@ -1182,8 +1182,25 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 }
 
 /* ---------- NEWS ---------- */
-function NewsPage() {
+import React from "react";
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Tabs,
+  Tab,
+  TextField,
+  Chip
+} from "@mui/material";
+
+import API_BASE from "./api";
+
+export default function NewsPage() {
   const [news, setNews] = React.useState<any[]>([]);
+  const [tab, setTab] = React.useState(0);
+  const [search, setSearch] = React.useState("");
 
   React.useEffect(() => {
     fetch(`${API_BASE}/api/news`)
@@ -1191,22 +1208,109 @@ function NewsPage() {
       .then(setNews);
   }, []);
 
+  // FILTER LOGIC
+  const filtered = news.filter(n => {
+    const matchesTab =
+      tab === 0 ? n.category === "Event" : n.category === "News";
+
+    const matchesSearch =
+      n.title.toLowerCase().includes(search.toLowerCase()) ||
+      n.body.toLowerCase().includes(search.toLowerCase());
+
+    return matchesTab && matchesSearch;
+  });
+
   return (
-    <section className="section">
-      <h3>News & Events</h3>
-      <div className="grid">
-        {news.map((n) => (
-          <div key={n.id} className="card">
-            <strong>{n.title}</strong>
-            <p className="muted">{n.category}</p>
-            <p>{n.body}</p>
-          </div>
-        ))}
-      </div>
-    </section>
+    <Box sx={{ p: 4, background: "#f9fafb", minHeight: "100vh" }}>
+
+      {/* HEADER */}
+      <Typography variant="h4" fontWeight={700} mb={3}>
+        Events & News
+      </Typography>
+
+      {/* TABS */}
+      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
+        <Tab label="Events" />
+        <Tab label="News" />
+      </Tabs>
+
+      {/* SEARCH */}
+      <TextField
+        placeholder="What are you looking for?"
+        fullWidth
+        size="small"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        sx={{ mb: 3 }}
+      />
+
+      {/* LIST */}
+      <Grid container spacing={3}>
+        {filtered.map((n) => {
+          const date = new Date(n.created_at || Date.now());
+          const day = date.getDate();
+          const month = date.toLocaleString("default", { month: "short" });
+
+          return (
+            <Grid item xs={12} md={6} key={n.id}>
+              <Card sx={{ borderRadius: 3 }}>
+                <CardContent sx={{ display: "flex", gap: 2 }}>
+
+                  {/* DATE BOX */}
+                  <Box
+                    sx={{
+                      minWidth: 70,
+                      height: 70,
+                      background: "#6d28d9",
+                      color: "white",
+                      borderRadius: 2,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    <Typography fontWeight={700}>
+                      {day}
+                    </Typography>
+                    <Typography fontSize={12}>
+                      {month}
+                    </Typography>
+                  </Box>
+
+                  {/* CONTENT */}
+                  <Box flex={1}>
+                    <Typography fontWeight={600}>
+                      {n.title}
+                    </Typography>
+
+                    <Typography
+                      color="text.secondary"
+                      fontSize={14}
+                      sx={{ mt: 0.5 }}
+                    >
+                      {n.body}
+                    </Typography>
+
+                    <Box mt={1}>
+                      <Chip
+                        label={n.category}
+                        size="small"
+                        color="primary"
+                      />
+                    </Box>
+                  </Box>
+
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+    </Box>
   );
 }
-
 /* ---------- TOURNAMENTS ---------- */
  function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
