@@ -3970,23 +3970,23 @@ function AdminLayout() {
 
       {/* MOBILE TOP BAR */}
       <Box
-        sx={{
-          display: { xs: "flex", md: "none" },
-          position: "relative",
-          top: 0,
-          width: "100%",
-          background: "#111827",
-          color: "white",
-          p: 1,
-          zIndex: 1000,
-          alignItems: "center"
-        }}
-      >
-        <IconButton onClick={() => setOpen(true)} sx={{ color: "white" }}>
-          <MenuIcon />
-        </IconButton>
-        <span style={{ marginLeft: 10 }}>Admin</span>
-      </Box>
+  sx={{
+    display: { xs: "flex", md: "none" },
+    position: "relative",
+    width: "100%",
+    background: "#111827",
+    color: "white",
+    p: 1,
+    alignItems: "center",
+    justifyContent: "space-between"   // ✅ ADD
+  }}
+>
+  <span style={{ fontWeight: 600 }}>Admin</span>
+
+  <IconButton onClick={() => setOpen(true)} sx={{ color: "white" }}>
+    <MenuIcon />
+  </IconButton>
+</Box>
 
       {/* DESKTOP SIDEBAR */}
       <Box
@@ -4021,8 +4021,12 @@ function AdminLayout() {
       </Box>
 
       {/* MOBILE DRAWER */}
-      <Drawer open={open} onClose={() => setOpen(false)}>
-        <Box sx={{ width: 250 }}>
+      <Drawer
+  anchor="right"   // ✅ ADD THIS
+  open={open}
+  onClose={() => setOpen(false)}
+>
+          <Box sx={{ width: 250 }}>
           <List>
             {menuItems.map(item => (
               <ListItem
