@@ -145,3 +145,38 @@ select:focus {
     padding: 10px 16px;
   }
 }
+/* PLAYER LAYOUT FIX */
+
+.dashboard {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  background: #111827;
+  color: white;
+  padding: 20px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar a {
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.sidebar a:hover {
+  color: #60a5fa;
+}
+
+.content {
+  flex: 1;
+  padding: 20px;
+  background: #f5f7fb;
+}
