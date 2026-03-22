@@ -1080,7 +1080,6 @@ function NewsPage() {
 }
 
 /* ---------- TOURNAMENTS ---------- */
-
  function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [filter, setFilter] = useState("all");
@@ -1590,7 +1589,25 @@ function AdminTournaments() {
                   size="small"
                   sx={{ mt: 1 }}
                 />
+<Select
+  size="small"
+  fullWidth
+  value={t.status}
+  onChange={async (e) => {
+    await fetch(`${API_BASE}/api/tournaments/${t.id}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: e.target.value })
+    });
 
+    loadItems();
+  }}
+  sx={{ mt: 2 }}
+>
+  <MenuItem value="upcoming">Upcoming</MenuItem>
+  <MenuItem value="live">Live</MenuItem>
+  <MenuItem value="completed">Completed</MenuItem>
+</Select>
                 {/* ACTIONS */}
                 <Stack spacing={1} mt={2}>
 

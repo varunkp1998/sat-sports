@@ -5,189 +5,194 @@ import {
   TextField,
   Button,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Paper,
-  Alert,
   Typography,
   Chip,
   Box,
-  Divider,
+  Grid,
+  Select,
+  MenuItem,
+  Paper
 } from "@mui/material";
 import API_BASE from "./api";
-type Leave = {
-  id: number;
-  start_date: string;
-  end_date: string;
-  reason: string;
-  status: string;
-};
 
 function CoachLeave() {
-  const [startDate, setStartDate] = React.useState("");
-  const [endDate, setEndDate] = React.useState("");
-  const [reason, setReason] = React.useState("");
-  const [leaves, setLeaves] = useState<Leave[]>([]);
-
   const coachId = localStorage.getItem("userId");
 
-  const loadLeaves = () => {
-    if (!coachId) return;
+  const [form, setForm] = useState({
+    startDate: "",
+    endDate: "",
+    reason: "",
+    leaveType: "casual"
+  });
 
+  const [leaves, setLeaves] = useState([]);
+  const [balance, setBalance] = useState<any>({});
+
+  // LOAD DATA
+  const load = () => {
     fetch(`${API_BASE}/api/coach/leaves/${coachId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setLeaves(data);
-        } else {
-          setLeaves([]);
-        }
-      });
+      .then(res => res.json())
+      .then(setLeaves);
+
+    fetch(`${API_BASE}/api/coach/leave-balance/${coachId}`)
+      .then(res => res.json())
+      .then(setBalance);
   };
 
   useEffect(() => {
-    loadLeaves();
-  }, [coachId]);
+    load();
+  }, []);
 
-  const submitLeave = () => {
-    if (!startDate || !endDate) {
-      alert("Select leave dates");
-      return;
-    }
-
-    fetch(`${API_BASE}/api/coach/leaves`, {
+  // SUBMIT
+  const submit = async () => {
+    await fetch(`${API_BASE}/api/coach/leaves`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         userId: coachId,
-        start_date: startDate,
-        end_date: endDate,
-        reason,
-      }),
-    }).then(() => {
-      alert("Leave request submitted");
-      setStartDate("");
-      setEndDate("");
-      setReason("");
-      loadLeaves();
+        start_date: form.startDate,
+        end_date: form.endDate,
+        reason: form.reason,
+        leave_type: form.leaveType
+      })
     });
+
+    alert("Leave submitted");
+    setForm({ startDate: "", endDate: "", reason: "", leaveType: "casual" });
+    load();
   };
 
   return (
-    <section style={{ background: "#f5f7fb", minHeight: "100vh", padding: 16 }}>
+    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
+
       <Typography variant="h4" fontWeight={800} mb={3}>
-        Leave Management
+        Leave Dashboard
       </Typography>
 
-      {/* APPLY FORM */}
-      <Card
-        sx={{
-          maxWidth: 500,
-          mb: 4,
-          borderRadius: 3,
-          boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
-        }}
-      >
+      {/* BALANCE CARDS */}
+      <Grid container spacing={2} mb={3}>
+        {[
+          { label: "Casual", value: balance.casual },
+          { label: "Medical", value: balance.medical },
+          { label: "LOP", value: "Unlimited" }
+        ].map((b, i) => (
+          <Grid item xs={4} key={i}>
+            <Card>
+              <CardContent>
+                <Typography fontWeight={700}>{b.label}</Typography>
+                <Typography variant="h5">{b.value || 0}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* APPLY */}
+      <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" fontWeight={700} mb={2}>
-            Apply for Leave
+          <Typography fontWeight={700} mb={2}>
+            Apply Leave
           </Typography>
 
-          <Stack spacing={2}>
-            <TextField
-              type="date"
-              label="From"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <TextField
+                type="date"
+                fullWidth
+                value={form.startDate}
+                onChange={(e) =>
+                  setForm({ ...form, startDate: e.target.value })
+                }
+              />
+            </Grid>
 
-            <TextField
-              type="date"
-              label="To"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
+            <Grid item xs={6}>
+              <TextField
+                type="date"
+                fullWidth
+                value={form.endDate}
+                onChange={(e) =>
+                  setForm({ ...form, endDate: e.target.value })
+                }
+              />
+            </Grid>
 
-            <TextField
-              label="Reason"
-              multiline
-              rows={3}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              fullWidth
-            />
+            <Grid item xs={6}>
+              <Select
+                fullWidth
+                value={form.leaveType}
+                onChange={(e) =>
+                  setForm({ ...form, leaveType: e.target.value })
+                }
+              >
+                <MenuItem value="casual">Casual Leave</MenuItem>
+                <MenuItem value="medical">Medical Leave</MenuItem>
+                <MenuItem value="lop">Loss of Pay</MenuItem>
+              </Select>
+            </Grid>
 
-            <Button variant="contained" color="error" onClick={submitLeave}>
-              Submit Leave Request
-            </Button>
-          </Stack>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                placeholder="Reason"
+                value={form.reason}
+                onChange={(e) =>
+                  setForm({ ...form, reason: e.target.value })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Button fullWidth variant="contained" onClick={submit}>
+                Submit Leave
+              </Button>
+            </Grid>
+          </Grid>
         </CardContent>
       </Card>
 
       {/* LEAVE LIST */}
-      <Box mb={2}>
-        <Typography variant="h6" fontWeight={700}>
-          My Leave Requests
-        </Typography>
-        <Typography color="text.secondary">
-          Track approval status of your leave applications
-        </Typography>
-      </Box>
+      <Typography fontWeight={700} mb={1}>
+        Leave History
+      </Typography>
 
-      {leaves.length === 0 && (
-        <Alert severity="info">No leave requests yet.</Alert>
-      )}
+      <Grid container spacing={2}>
+        {leaves.map((l: any) => (
+          <Grid item xs={12} md={6} key={l.id}>
+            <Card>
+              <CardContent>
 
-      {leaves.length > 0 && (
-        <Paper
-          sx={{
-            borderRadius: 3,
-            boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
-            overflow: "hidden",
-          }}
-        >
-          <Table>
-            <TableHead>
-              <TableRow sx={{ background: "#f0f2f7" }}>
-                <TableCell><strong>From</strong></TableCell>
-                <TableCell><strong>To</strong></TableCell>
-                <TableCell><strong>Reason</strong></TableCell>
-                <TableCell><strong>Status</strong></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {leaves.map((l) => (
-                <TableRow key={l.id} hover>
-                  <TableCell>{l.start_date}</TableCell>
-                  <TableCell>{l.end_date}</TableCell>
-                  <TableCell>{l.reason || "-"}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={l.status}
-                      color={
-                        l.status === "Approved"
-                          ? "success"
-                          : l.status === "Rejected"
-                          ? "error"
-                          : "warning"
-                      }
-                      variant="outlined"
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
-      )}
-    </section>
+                <Typography fontWeight={700}>
+                  {l.start_date} → {l.end_date}
+                </Typography>
+
+                <Typography>{l.reason}</Typography>
+
+                <Typography mt={1}>
+                  Type: {l.leave_type}
+                </Typography>
+
+                <Chip
+                  label={l.status}
+                  color={
+                    l.status === "Approved"
+                      ? "success"
+                      : l.status === "Rejected"
+                      ? "error"
+                      : "warning"
+                  }
+                  sx={{ mt: 1 }}
+                />
+
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+    </Box>
   );
 }
 

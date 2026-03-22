@@ -2394,3 +2394,49 @@ app.post("/api/admin/matches", async (req, res) => {
 
   res.json({ success: true });
 });
+app.put("/api/tournaments/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  await db.query(
+    "UPDATE tournaments SET status = ? WHERE id = ?",
+    [status, id]
+  );
+
+  res.json({ success: true });
+});
+app.get("/api/coach/leave-balance/:coachId", async (req, res) => {
+  const { coachId } = req.params;
+
+  const [[row]] = await db.query(
+    "SELECT * FROM leave_balances WHERE coach_id = ?",
+    [coachId]
+  );
+
+  res.json(row || {});
+});
+app.post("/api/admin/leaves/:id/approve", async (req, res) => {
+  const { id } = req.params;
+
+  const [[leave]] = await db.query(
+    "SELECT * FROM coach_leaves WHERE id = ?",
+    [id]
+  );
+
+  // deduct leave
+  if (leave.leave_type !== "lop") {
+    await db.query(
+      `UPDATE leave_balances 
+       SET ${leave.leave_type} = ${leave.leave_type} - 1
+       WHERE coach_id = ?`,
+      [leave.coach_id]
+    );
+  }
+
+  await db.query(
+    "UPDATE coach_leaves SET status='Approved' WHERE id=?",
+    [id]
+  );
+
+  res.json({ success: true });
+});
