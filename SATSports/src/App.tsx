@@ -2655,88 +2655,63 @@ import WarningIcon from "@mui/icons-material/Warning";
 import SearchIcon from "@mui/icons-material/Search";
 
 
+
+
 function AdminDashboard() {
 
   const [data, setData] = useState<any>({
     players: [],
-    coaches: [],
     sessions: [],
     leaves: []
   });
-
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const safe = (d:any) => Array.isArray(d) ? d : d?.data || [];
 
     Promise.all([
       fetch(`${API_BASE}/api/admin/players`).then(r=>r.json()).catch(()=>[]),
-      fetch(`${API_BASE}/api/admin/coaches`).then(r=>r.json()).catch(()=>[]),
       fetch(`${API_BASE}/api/admin/sessions`).then(r=>r.json()).catch(()=>[]),
       fetch(`${API_BASE}/api/admin/leaves`).then(r=>r.json()).catch(()=>[])
-    ]).then(([players, coaches, sessions, leaves]) =>
+    ]).then(([players, sessions, leaves]) =>
       setData({
         players: safe(players),
-        coaches: safe(coaches),
         sessions: safe(sessions),
         leaves: safe(leaves)
       })
     );
   }, []);
 
-  const filteredPlayers = data.players.filter((p:any)=>
-    (p.name || "").toLowerCase().includes(search.toLowerCase()) ||
-    (p.email || "").toLowerCase().includes(search.toLowerCase())
-  );
-
   const pendingLeaves = data.leaves.filter((l:any)=>l.status==="pending");
 
   return (
-    <Box sx={{ p: 3, width: "100%", background: "#f4f6f8", minHeight: "100vh" }}>
+    <Box
+      sx={{
+        width: "100%",
+        p: 2,
+        background: "#f4f6f8",
+        minHeight: "100vh"
+      }}
+    >
 
       {/* HEADER */}
-      <Typography variant="h4" fontWeight={700} mb={3}>
+      <Typography variant="h4" fontWeight={700} mb={2}>
         Dashboard
       </Typography>
 
-      {/* SEARCH */}
-      <TextField
-        fullWidth
-        placeholder="Search players..."
-        value={search}
-        onChange={(e)=>setSearch(e.target.value)}
-        sx={{ mb: 3 }}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon />
-            </InputAdornment>
-          )
-        }}
-      />
-
-      {/* KPI CARDS */}
-      <Grid container spacing={3} mb={3}>
+      {/* KPI STRIP */}
+      <Grid container spacing={2} mb={2}>
         {[
           { label: "Players", value: data.players.length },
-          { label: "Coaches", value: data.coaches.length },
           { label: "Sessions", value: data.sessions.length },
           { label: "Pending Leaves", value: pendingLeaves.length }
         ].map((k,i)=>(
-          <Grid item xs={12} sm={6} md={6} lg={3} key={i}>
-            <Card
-              sx={{
-                borderRadius: 3,
-                height: 130,
-                display: "flex",
-                alignItems: "center"
-              }}
-            >
+          <Grid item xs={12} sm={4} key={i}>
+            <Card sx={{ borderRadius: 2 }}>
               <CardContent>
                 <Typography color="text.secondary">
                   {k.label}
                 </Typography>
-                <Typography variant="h4" fontWeight={700}>
+                <Typography variant="h5" fontWeight={700}>
                   {k.value}
                 </Typography>
               </CardContent>
@@ -2745,56 +2720,49 @@ function AdminDashboard() {
         ))}
       </Grid>
 
-      {/* TABLES */}
-      <Grid container spacing={3}>
+      {/* MAIN TABLE (PLAYERS) */}
+      <Card sx={{ borderRadius: 2, mb: 2 }}>
+        <CardContent>
+          <Typography variant="h6" mb={2}>
+            Players
+          </Typography>
 
-        {/* PLAYERS */}
-        <Grid item xs={12}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Age</TableCell>
+              </TableRow>
+            </TableHead>
 
-              <Box display="flex" justifyContent="space-between" mb={2}>
-                <Typography variant="h6">
-                  Players
-                </Typography>
-                <Button variant="contained">
-                  Add Player
-                </Button>
-              </Box>
+            <TableBody>
+              {data.players.slice(0,10).map((p:any)=>(
+                <TableRow
+                  key={p.id}
+                  sx={{
+                    "&:nth-of-type(odd)": {
+                      backgroundColor: "#f9fafb"
+                    }
+                  }}
+                >
+                  <TableCell>{p.name}</TableCell>
+                  <TableCell>{p.email}</TableCell>
+                  <TableCell>{p.age || "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Age</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredPlayers.map((p:any)=>(
-                    <TableRow
-                      key={p.id}
-                      sx={{
-                        "&:nth-of-type(odd)": {
-                          backgroundColor: "#f9fafb"
-                        }
-                      }}
-                    >
-                      <TableCell>{p.name}</TableCell>
-                      <TableCell>{p.email}</TableCell>
-                      <TableCell>{p.age || "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        </CardContent>
+      </Card>
 
-            </CardContent>
-          </Card>
-        </Grid>
+      {/* SECOND ROW */}
+      <Grid container spacing={2}>
 
         {/* SESSIONS */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 3 }}>
+          <Card sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Sessions
@@ -2807,8 +2775,9 @@ function AdminDashboard() {
                     <TableCell>Time</TableCell>
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
-                  {data.sessions.map((s:any)=>(
+                  {data.sessions.slice(0,5).map((s:any)=>(
                     <TableRow key={s.id}>
                       <TableCell>{s.session_date}</TableCell>
                       <TableCell>{s.start_time}</TableCell>
@@ -2823,7 +2792,7 @@ function AdminDashboard() {
 
         {/* LEAVES */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 3 }}>
+          <Card sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Leave Requests
@@ -2836,8 +2805,9 @@ function AdminDashboard() {
                     <TableCell>Status</TableCell>
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
-                  {data.leaves.map((l:any)=>(
+                  {data.leaves.slice(0,5).map((l:any)=>(
                     <TableRow key={l.id}>
                       <TableCell>{l.name}</TableCell>
                       <TableCell>
@@ -2862,6 +2832,26 @@ function AdminDashboard() {
         </Grid>
 
       </Grid>
+
+      {/* ACTIVITY FEED */}
+      <Card sx={{ borderRadius: 2, mt: 2 }}>
+        <CardContent>
+          <Typography variant="h6" mb={1}>
+            Activity
+          </Typography>
+
+          <Typography color="text.secondary">
+            • New player registered
+          </Typography>
+          <Typography color="text.secondary">
+            • Session created
+          </Typography>
+          <Typography color="text.secondary">
+            • Leave request submitted
+          </Typography>
+
+        </CardContent>
+      </Card>
 
     </Box>
   );
