@@ -2650,7 +2650,10 @@ import PercentIcon from "@mui/icons-material/Percent";
 import WarningIcon from "@mui/icons-material/Warning";
 
 
- function AdminDashboard() {
+
+
+
+function AdminDashboard() {
 
   const [data, setData] = useState<any>({
     programs: [],
@@ -2660,18 +2663,15 @@ import WarningIcon from "@mui/icons-material/Warning";
     coaches: []
   });
 
-  // =========================
-  // SAFE FETCH
-  // =========================
   useEffect(() => {
     const safe = (d:any) => Array.isArray(d) ? d : [];
 
     Promise.all([
-      fetch(`${API_BASE}/api/admin/programs`).then(r => r.json()).catch(() => []),
-      fetch(`${API_BASE}/api/admin/attendance`).then(r => r.json()).catch(() => []),
-      fetch(`${API_BASE}/api/admin/sessions`).then(r => r.json()).catch(() => []),
-      fetch(`${API_BASE}/api/admin/leaves`).then(r => r.json()).catch(() => []),
-      fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json()).catch(() => [])
+      fetch(`${API_BASE}/api/admin/programs`).then(r => r.json()).catch(()=>[]),
+      fetch(`${API_BASE}/api/admin/attendance`).then(r => r.json()).catch(()=>[]),
+      fetch(`${API_BASE}/api/admin/sessions`).then(r => r.json()).catch(()=>[]),
+      fetch(`${API_BASE}/api/admin/leaves`).then(r => r.json()).catch(()=>[]),
+      fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json()).catch(()=>[])
     ]).then(([programs, attendance, sessions, leaves, coaches]) =>
       setData({
         programs: safe(programs),
@@ -2683,169 +2683,155 @@ import WarningIcon from "@mui/icons-material/Warning";
     );
   }, []);
 
-  // =========================
-  // SAFE ARRAYS
-  // =========================
-  const attendanceArr = Array.isArray(data.attendance) ? data.attendance : [];
-  const sessionsArr = Array.isArray(data.sessions) ? data.sessions : [];
-  const leavesArr = Array.isArray(data.leaves) ? data.leaves : [];
-  const coachesArr = Array.isArray(data.coaches) ? data.coaches : [];
-  const programsArr = Array.isArray(data.programs) ? data.programs : [];
+  const attendanceArr = data.attendance;
+  const sessionsArr = data.sessions;
+  const leavesArr = data.leaves;
+  const coachesArr = data.coaches;
+  const programsArr = data.programs;
 
-  // =========================
-  // KPI CALCULATIONS
-  // =========================
-  const present = attendanceArr.filter(a => a?.status === "Present").length;
-  const absent = attendanceArr.filter(a => a?.status === "Absent").length;
+  const present = attendanceArr.filter((a:any)=>a.status==="Present").length;
+  const absent = attendanceArr.filter((a:any)=>a.status==="Absent").length;
 
   const attendanceRate =
     present + absent > 0
-      ? Math.round((present / (present + absent)) * 100)
+      ? Math.round((present/(present+absent))*100)
       : 0;
 
-  const pendingLeaves = leavesArr.filter(l => l?.status === "pending");
+  const pendingLeaves = leavesArr.filter((l:any)=>l.status==="pending");
 
   return (
     <Box
       sx={{
-        p: { xs: 2, md: 3 },
-        background: "linear-gradient(135deg,#0f172a,#020617)",
-        minHeight: "100vh",
-        color: "white"
+        p: { xs: 2, md: 4 },
+        background: "#f6f9fc",
+        minHeight: "100vh"
       }}
     >
 
       {/* HEADER */}
-      <Box mb={3}>
-        <Typography variant="h4" fontWeight={800}>
+      <Box mb={4}>
+        <Typography variant="h4" fontWeight={700}>
           Dashboard
         </Typography>
-        <Typography opacity={0.7}>
+        <Typography color="text.secondary">
           Overview of your academy
         </Typography>
       </Box>
 
-      {/* KPI CARDS */}
-      <Grid container spacing={3} mb={3}>
+      {/* KPI STRIPE STYLE */}
+      <Grid container spacing={2} mb={4}>
         {[
-          { title: "Programs", value: programsArr.length, icon: <SportsTennisIcon />, color: "#6366f1" },
-          { title: "Sessions", value: sessionsArr.length, icon: <EventIcon />, color: "#22c55e" },
-          { title: "Attendance", value: `${attendanceRate}%`, icon: <PercentIcon />, color: "#f59e0b" },
-          { title: "Leaves", value: pendingLeaves.length, icon: <WarningIcon />, color: "#ef4444" }
-        ].map((k, i) => (
+          { label: "Programs", value: programsArr.length },
+          { label: "Sessions", value: sessionsArr.length },
+          { label: "Attendance", value: `${attendanceRate}%` },
+          { label: "Leaves", value: pendingLeaves.length }
+        ].map((k,i)=>(
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <motion.div whileHover={{ scale: 1.05 }}>
-              <Card
-                sx={{
-                  borderRadius: 4,
-                  background: `linear-gradient(135deg, ${k.color}, #020617)`,
-                  color: "white",
-                  boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
-                }}
-              >
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between">
-                    {k.icon}
-                  </Box>
+            <Card
+              sx={{
+                borderRadius: 2,
+                border: "1px solid #e5e7eb",
+                boxShadow: "none"
+              }}
+            >
+              <CardContent>
+                <Typography
+                  fontSize={13}
+                  color="text.secondary"
+                >
+                  {k.label}
+                </Typography>
 
-                  <Typography fontSize={14} opacity={0.7}>
-                    {k.title}
-                  </Typography>
-
-                  <Typography variant="h3" fontWeight={800}>
-                    {k.value}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
+                <Typography
+                  variant="h5"
+                  fontWeight={700}
+                  mt={1}
+                >
+                  {k.value}
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
         ))}
       </Grid>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN GRID */}
       <Grid container spacing={3}>
 
-        {/* BIG PANEL */}
-        <Grid item xs={12} md={6}>
-          <Card
-            sx={{
-              borderRadius: 4,
-              height: "100%",
-              backdropFilter: "blur(12px)",
-              background: "rgba(255,255,255,0.05)"
-            }}
-          >
+        {/* LEFT - SESSIONS */}
+        <Grid item xs={12} lg={8}>
+          <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb", boxShadow: "none" }}>
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Recent Sessions
               </Typography>
 
-              {sessionsArr.slice(0, 5).map((s:any, i:number) => (
-                <Box
-                  key={i}
-                  sx={{
-                    p: 1.5,
-                    mb: 1,
-                    borderRadius: 2,
-                    background: "rgba(255,255,255,0.05)"
-                  }}
-                >
-                  <Typography>{s?.session_date || "No Date"}</Typography>
-                  <Typography fontSize={12} opacity={0.6}>
-                    {s?.start_time || ""}
+              <Divider sx={{ mb: 2 }} />
+
+              {sessionsArr.slice(0,6).map((s:any,i:number)=>(
+                <Box key={i} sx={{ py: 1.5 }}>
+                  <Typography fontWeight={500}>
+                    {s.session_date}
                   </Typography>
+                  <Typography fontSize={12} color="text.secondary">
+                    {s.start_time}
+                  </Typography>
+                  {i !== 5 && <Divider sx={{ mt:1 }} />}
                 </Box>
               ))}
 
-              {sessionsArr.length === 0 && (
-                <Typography opacity={0.6}>
+              {sessionsArr.length===0 && (
+                <Typography color="text.secondary">
                   No sessions available
                 </Typography>
               )}
+
             </CardContent>
           </Card>
         </Grid>
 
-        {/* RIGHT STACK */}
-        <Grid item xs={12} md={6}>
+        {/* RIGHT SIDE */}
+        <Grid item xs={12} lg={4}>
           <Grid container spacing={3}>
 
             {/* LEAVES */}
             <Grid item xs={12}>
-              <Card sx={{ borderRadius: 4, background: "rgba(255,255,255,0.05)" }}>
+              <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb", boxShadow: "none" }}>
                 <CardContent>
                   <Typography variant="h6" mb={2}>
                     Pending Leaves
                   </Typography>
 
                   {pendingLeaves.length === 0 ? (
-                    <Typography opacity={0.6}>
+                    <Typography color="text.secondary">
                       No pending leaves
                     </Typography>
                   ) : (
-                    pendingLeaves.slice(0, 3).map((l:any, i:number) => (
+                    pendingLeaves.slice(0,4).map((l:any,i:number)=>(
                       <Typography key={i}>
-                        {l?.name || "Unknown"}
+                        {l.name}
                       </Typography>
                     ))
                   )}
+
                 </CardContent>
               </Card>
             </Grid>
 
             {/* COACHES */}
             <Grid item xs={12}>
-              <Card sx={{ borderRadius: 4, background: "rgba(255,255,255,0.05)" }}>
+              <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb", boxShadow: "none" }}>
                 <CardContent>
                   <Typography variant="h6" mb={2}>
                     Coaches
                   </Typography>
 
-                  {coachesArr.slice(0, 5).map((c:any, i:number) => (
+                  {coachesArr.slice(0,5).map((c:any,i:number)=>(
                     <Typography key={i}>
-                      {c?.name || "No Name"}
+                      {c.name}
                     </Typography>
                   ))}
+
                 </CardContent>
               </Card>
             </Grid>
