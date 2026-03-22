@@ -2629,86 +2629,95 @@ function AdminRevenue() {
   );
 }
 
+
+
 function AdminDashboard() {
-  const [programs, setPrograms] = React.useState<any[]>([]);
-  const [news, setNews] = React.useState<any[]>([]);
-  const [tournaments, setTournaments] = React.useState<any[]>([]);
-  const [attendance, setAttendance] = React.useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [news, setNews] = useState<any[]>([]);
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [attendance, setAttendance] = useState<any[]>([]);
 
-  React.useEffect(() => {
-    fetch(`${API_BASE}/api/admin/programs`)
-      .then(res => res.json())
-      .then(setPrograms);
-
-    fetch(`${API_BASE}/api/admin/news`)
-      .then(res => res.json())
-      .then(setNews);
-
-    fetch(`${API_BASE}/api/admin/tournaments`)
-      .then(res => res.json())
-      .then(setTournaments);
-
-    fetch(`${API_BASE}/api/admin/attendance`)
-      .then(res => res.json())
-      .then(setAttendance);
+  useEffect(() => {
+    fetch(`${API_BASE}/api/admin/programs`).then(res => res.json()).then(setPrograms);
+    fetch(`${API_BASE}/api/admin/news`).then(res => res.json()).then(setNews);
+    fetch(`${API_BASE}/api/admin/tournaments`).then(res => res.json()).then(setTournaments);
+    fetch(`${API_BASE}/api/admin/attendance`).then(res => res.json()).then(setAttendance);
   }, []);
 
   const publishedNews = news.filter(n => n.isPublished).length;
   const activeTournaments = tournaments.filter(t => t.isPublished).length;
 
-// Attendance KPIs (Player-based)
-const totalSessions = attendance.length;
-const totalPresent = attendance.filter(a => a.status === "Present").length;
-const totalAbsent = attendance.filter(a => a.status === "Absent").length;
-const attendanceRate =
-  totalPresent + totalAbsent > 0
-    ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
-    : 0;
+  const totalSessions = attendance.length;
+  const totalPresent = attendance.filter(a => a.status === "Present").length;
+  const totalAbsent = attendance.filter(a => a.status === "Absent").length;
+
+  const attendanceRate =
+    totalPresent + totalAbsent > 0
+      ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
+      : 0;
+
+  const stats = [
+    { title: "Total Programs", value: programs.length },
+    { title: "Published News", value: publishedNews },
+    { title: "Active Tournaments", value: activeTournaments },
+    { title: "Total Sessions", value: totalSessions },
+    { title: "Total Present", value: totalPresent },
+    { title: "Total Absent", value: totalAbsent },
+    { title: "Attendance %", value: `${attendanceRate}%` }
+  ];
 
   return (
-    <section className="section">
-      <h3>Overview</h3>
+    <Box sx={{ p: 2 }}>
 
-      <div className="grid">
-        <div className="card">
-          <h4>Total Programs</h4>
-          <p className="kpi-value">{programs.length}</p>
-          </div>
+      {/* HEADER */}
+      <Typography variant="h4" fontWeight={700} mb={3}>
+        Dashboard Overview
+      </Typography>
 
-        <div className="card">
-          <h4>Published News / Events</h4>
-          <p>{publishedNews}</p>
-        </div>
+      {/* KPI GRID */}
+      <Grid container spacing={3}>
+        {stats.map((s, i) => (
+          <Grid item xs={12} sm={6} md={4} key={i}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.08)"
+              }}
+            >
+              <CardContent>
+                <Typography color="text.secondary" fontSize={14}>
+                  {s.title}
+                </Typography>
 
-        <div className="card">
-          <h4>Active Tournaments</h4>
-          <p>{activeTournaments}</p>
-        </div>
+                <Typography
+                  variant="h4"
+                  fontWeight={700}
+                  sx={{ mt: 1 }}
+                >
+                  {s.value}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
-        <div className="card">
-          <h4>Total Sessions</h4>
-          <p className="kpi-value">{totalSessions}</p>
-          </div>
+      {/* OPTIONAL FUTURE SECTION */}
+      <Card sx={{ mt: 4, borderRadius: 3 }}>
+        <CardContent>
+          <Typography variant="h6">
+            Insights
+          </Typography>
 
-        <div className="card">
-          <h4>Total Present</h4>
-          <p className="kpi-value">{totalPresent}</p>
-          </div>
+          <Typography color="text.secondary">
+            Add charts (attendance trends, revenue, sessions)
+          </Typography>
+        </CardContent>
+      </Card>
 
-        <div className="card">
-          <h4>Total Absent</h4>
-          <p className="kpi-value">{totalAbsent}</p>
-          </div>
-
-        <div className="card">
-          <h4>Attendance %</h4>
-          <p className="kpi-value">{attendanceRate}%</p>
-          </div>
-      </div>
-    </section>
+    </Box>
   );
 }
-
 
 import "jspdf-autotable";
 
