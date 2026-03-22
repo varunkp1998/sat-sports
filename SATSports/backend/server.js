@@ -86,6 +86,7 @@ app.post("/api/login", async (req, res) => {
       success: true,
       role: user.role,   // "admin" | "coach" | "player"
       userId: user.id,
+      username: user.name ,
       coachId,
       playerId
     });
