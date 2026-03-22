@@ -90,7 +90,7 @@ app.post("/api/login", async (req, res) => {
       coachId,
       playerId
     });
-
+console.log(username);
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     res.status(500).json({ message: "Login failed" });

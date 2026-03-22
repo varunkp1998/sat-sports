@@ -1026,7 +1026,7 @@ function Login() {
         localStorage.setItem("role", data.role);
         localStorage.setItem("userId", String(data.userId));
         localStorage.setItem("username", data.username || data.name || "User");
-
+        console.log(data.username );
         if (data.coachId) localStorage.setItem("coachId", String(data.coachId));
         if (data.playerId) localStorage.setItem("playerId", String(data.playerId));
 
