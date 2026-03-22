@@ -2915,7 +2915,7 @@ function Table({ headers, children }) {
               style={{
                 textAlign: "left",
                 padding: "12px",
-                color: "#9ca3af"
+                color: "#ffff"
               }}
             >
               {h}
