@@ -1654,58 +1654,45 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
          WHERE ? BETWEEN min_age AND max_age
          ORDER BY min_age DESC
          LIMIT 1`,
-        [appData.age] // ✅ FIXED
+        [appData.age]
       );
 
-      if (program) {
-        programId = program.id;
-      }
+      if (program) programId = program.id;
     }
 
-    // 3️⃣ Check if user already exists
+    // 3️⃣ Check if user exists
     const [existingUsers] = await db.query(
       "SELECT id FROM users WHERE email = ?",
       [appData.email]
     );
 
     let userId;
+    let password = null;
+    let isNewUser = false;
 
     if (existingUsers.length > 0) {
-      // ✅ User exists → reuse
+      // ✅ Existing user
       userId = existingUsers[0].id;
 
-      // optional: update role
       await db.query(
         "UPDATE users SET role = 'player' WHERE id = ?",
         [userId]
       );
 
     } else {
-      // 4️⃣ Generate password
-      const password = Math.random().toString(36).slice(-8);
+      // ✅ New user
+      password = Math.random().toString(36).slice(-8);
+      isNewUser = true;
 
-      // 5️⃣ Create new user
       const [userResult] = await db.query(
         "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'player')",
         [appData.name, appData.email, password]
       );
 
       userId = userResult.insertId;
-
-      // 6️⃣ Send email ONLY for new users
-      await resend.emails.send({
-        from: "SAT Sports <no-reply@sat-sports.in>",
-        to: appData.email,
-        subject: "Your SAT Sports Account",
-        html: `
-          <h3>Welcome to SAT Sports 🎾</h3>
-          <p>Email: ${appData.email}</p>
-          <p>Password: ${password}</p>
-        `
-      });
     }
 
-    // 7️⃣ Create player (avoid duplicate)
+    // 4️⃣ Create player (avoid duplicates)
     const [existingPlayer] = await db.query(
       "SELECT id FROM players WHERE user_id = ?",
       [userId]
@@ -1719,21 +1706,45 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
       );
     }
 
-    // 8️⃣ Update application
+    // 5️⃣ Update application
     await db.query(
       "UPDATE applications SET status = 'approved' WHERE id = ?",
       [id]
     );
 
+    // 6️⃣ Send email (ALWAYS)
+    try {
+      await resend.emails.send({
+        from: "SAT Sports <no-reply@sat-sports.in>",
+        to: appData.email,
+        subject: "Application Approved 🎾",
+        html: `
+          <h3>Welcome to SAT Sports 🎾</h3>
+          <p>Your application has been approved.</p>
+          <p><b>Email:</b> ${appData.email}</p>
+          ${
+            isNewUser
+              ? `<p><b>Password:</b> ${password}</p>`
+              : `<p>You can login using your existing account.</p>`
+          }
+        `
+      });
+
+      console.log("✅ Email sent to:", appData.email);
+
+    } catch (emailErr) {
+      console.error("❌ Email failed:", emailErr);
+    }
+
     res.json({
       success: true,
-      message: existingUsers.length > 0
-        ? "User already existed, linked successfully"
-        : "New user created and approved"
+      message: isNewUser
+        ? "User created + email sent"
+        : "User already existed, email sent"
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ APPROVE ERROR:", err);
     res.status(500).json({ message: "Approval failed" });
   }
 });
