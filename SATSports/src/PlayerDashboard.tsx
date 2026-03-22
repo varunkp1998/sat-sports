@@ -4,50 +4,31 @@ import {
   Typography,
   Grid,
   Card,
-  CardContent
+  CardContent,
+  Tabs,
+  Tab,
+  Button,
+  Chip
 } from "@mui/material";
 
 import EventIcon from "@mui/icons-material/Event";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
 
-import { motion } from "framer-motion";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  Tooltip
+} from "recharts";
+
 import API_BASE from "./api";
-
-function GlassCard({ children }: any) {
-  return (
-    <Card
-      sx={{
-        backdropFilter: "blur(12px)",
-        background: "rgba(255,255,255,0.08)",
-        borderRadius: 4,
-        boxShadow: "0 8px 25px rgba(0,0,0,0.4)",
-        color: "white"
-      }}
-    >
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
-function Stat({ icon, title, value }: any) {
-  return (
-    <GlassCard>
-      <Box display="flex" alignItems="center" gap={2}>
-        {icon}
-        <Box>
-          <Typography variant="body2">{title}</Typography>
-          <Typography variant="h4" fontWeight={700}>
-            {value}
-          </Typography>
-        </Box>
-      </Box>
-    </GlassCard>
-  );
-}
 
 export default function PlayerDashboard() {
   const userId = localStorage.getItem("userId");
+
+  const [tab, setTab] = useState(0);
 
   const [data, setData] = useState<any>({
     weeklySessions: [],
@@ -58,148 +39,186 @@ export default function PlayerDashboard() {
   useEffect(() => {
     fetch(`${API_BASE}/api/player/overview/${userId}`)
       .then(res => res.json())
-      .then(res => setData({
-        weeklySessions: [],
-        lastSessions: [],
-        recentActivities: [],
-        ...res
-      }));
+      .then(res =>
+        setData({
+          weeklySessions: [],
+          lastSessions: [],
+          recentActivities: [],
+          ...res
+        })
+      );
   }, []);
 
   const weekly = data.weeklySessions || [];
 
   return (
-    <Box
-      sx={{
-        p: 4,
-        background: "linear-gradient(135deg,#1f2937,#111827)",
-        minHeight: "100vh",
-        color: "white"
-      }}
-    >
+    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
 
-      {/* Header */}
-      <Typography variant="h3" fontWeight={800} mb={4}>
-        🏃 Welcome {data.playerName || "Player"}
+      {/* HEADER */}
+      <Typography variant="h5" fontWeight={700} mb={2}>
+        🏃 Player Dashboard
       </Typography>
 
-      {/* Stats */}
-      <Grid container spacing={3} mb={4}>
+      {/* TABS */}
+      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
+        <Tab label="Main" />
+        <Tab label="Sessions" />
+        <Tab label="Activity" />
+      </Tabs>
 
-        <Grid item xs={12} md={4}>
-          <Stat
-            icon={<FitnessCenterIcon />}
-            title="Total Sessions"
-            value={data.totalSessions || 0}
-          />
-        </Grid>
+      {/* ================= MAIN TAB ================= */}
+      {tab === 0 && (
+        <>
+          {/* STATS */}
+          <Grid container spacing={2} mb={3}>
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <Typography color="text.secondary">
+                    Total Sessions
+                  </Typography>
+                  <Typography variant="h4">
+                    {data.totalSessions || 0}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        <Grid item xs={12} md={4}>
-          <Stat
-            icon={<ScheduleIcon />}
-            title="Next Session"
-            value={
-              data.nextSession
-                ? `${data.nextSession.start_time} - ${data.nextSession.end_time}`
-                : "None"
-            }
-          />
-        </Grid>
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <Typography color="text.secondary">
+                    Next Session
+                  </Typography>
+                  <Typography variant="h6">
+                    {data.nextSession
+                      ? `${data.nextSession.start_time} - ${data.nextSession.end_time}`
+                      : "None"}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        <Grid item xs={12} md={4}>
-          <Stat
-            icon={<EventIcon />}
-            title="This Week"
-            value={weekly.reduce((a: number, b: number) => a + b, 0)}
-          />
-        </Grid>
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <Typography color="text.secondary">
+                    This Week
+                  </Typography>
+                  <Typography variant="h4">
+                    {weekly.reduce((a: number, b: number) => a + b, 0)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
 
-      </Grid>
+          {/* CHART */}
+          <Grid container spacing={3} mb={3}>
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography mb={2}>
+                    Weekly Sessions
+                  </Typography>
 
-      {/* Weekly Chart */}
-      <Grid container spacing={3} mb={4}>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <AreaChart
+                      data={weekly.map((v: number, i: number) => ({
+                        day: i,
+                        value: v
+                      }))}
+                    >
+                      <XAxis dataKey="day" />
+                      <Tooltip />
+                      <Area dataKey="value" />
+                    </AreaChart>
+                  </ResponsiveContainer>
 
-        <Grid item xs={12}>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
 
-          <GlassCard>
+          {/* 2 COLUMN */}
+          <Grid container spacing={3}>
 
-            <Typography variant="h6" mb={2}>
-              Weekly Sessions
-            </Typography>
+            {/* RECENT ACTIVITY */}
+            <Grid item xs={12} md={6}>
+              <Typography fontWeight={600} mb={1}>
+                Recent Activity
+              </Typography>
 
-            <Box
-              sx={{
-                display: "flex",
-                gap: 2,
-                alignItems: "flex-end",
-                height: 150
-              }}
-            >
-              {weekly.map((v: number, i: number) => (
-                <Box
-                  key={i}
-                  sx={{
-                    width: 30,
-                    height: `${v * 25}px`,
-                    background: "#4ade80",
-                    borderRadius: 2
-                  }}
-                />
+              {(data.recentActivities || []).map((a: string, i: number) => (
+                <Card key={i} sx={{ mb: 2 }}>
+                  <CardContent>
+                    <Typography>{a}</Typography>
+                    <Chip
+                      label="Completed"
+                      color="success"
+                      size="small"
+                      sx={{ mt: 1 }}
+                    />
+                  </CardContent>
+                </Card>
               ))}
-            </Box>
+            </Grid>
 
-          </GlassCard>
-
-        </Grid>
-
-      </Grid>
-
-      {/* Activity + History */}
-      <Grid container spacing={3}>
-
-        {/* Recent Activity */}
-        <Grid item xs={12} md={6}>
-
-          <GlassCard>
-
-            <Typography variant="h6" mb={2}>
-              Recent Activity
-            </Typography>
-
-            {(data.recentActivities || []).map((a: string, i: number) => (
-              <Typography key={i} sx={{ mb: 1 }}>
-                • {a}
+            {/* LAST SESSIONS */}
+            <Grid item xs={12} md={6}>
+              <Typography fontWeight={600} mb={1}>
+                Last Sessions
               </Typography>
-            ))}
 
-          </GlassCard>
+              {(data.lastSessions || []).length === 0 && (
+                <Typography>No sessions yet</Typography>
+              )}
 
-        </Grid>
+              {(data.lastSessions || []).map((s: any, i: number) => (
+                <Card key={i} sx={{ mb: 2 }}>
+                  <CardContent>
 
-        {/* Last Sessions */}
-        <Grid item xs={12} md={6}>
+                    <Typography fontWeight={600}>
+                      Session
+                    </Typography>
 
-          <GlassCard>
+                    <Typography color="text.secondary">
+                      {s.date}
+                    </Typography>
 
-            <Typography variant="h6" mb={2}>
-              Last Sessions
-            </Typography>
+                    <Typography color="text.secondary">
+                      {s.time}
+                    </Typography>
 
-            {(data.lastSessions || []).length === 0 && (
-              <Typography>No sessions yet</Typography>
-            )}
+                    <Chip
+                      label="Completed"
+                      color="success"
+                      size="small"
+                      sx={{ mt: 1 }}
+                    />
 
-            {(data.lastSessions || []).map((s: any, i: number) => (
-              <Typography key={i}>
-                {s.date} | {s.time}
-              </Typography>
-            ))}
+                    <Box mt={2}>
+                      <Button size="small">View Details</Button>
+                    </Box>
 
-          </GlassCard>
+                  </CardContent>
+                </Card>
+              ))}
+            </Grid>
 
-        </Grid>
+          </Grid>
+        </>
+      )}
 
-      </Grid>
+      {/* ================= SESSIONS TAB ================= */}
+      {tab === 1 && (
+        <Typography>All sessions coming soon...</Typography>
+      )}
+
+      {/* ================= ACTIVITY TAB ================= */}
+      {tab === 2 && (
+        <Typography>Detailed activity logs coming soon...</Typography>
+      )}
 
     </Box>
   );
