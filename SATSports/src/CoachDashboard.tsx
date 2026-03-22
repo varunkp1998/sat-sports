@@ -82,175 +82,132 @@ export default function CoachDashboard() {
   }, []);
 
   return (
-
-    <Box
-      sx={{
-        p: 4,
-        background:
-          "linear-gradient(135deg,#1f2937,#111827)",
-        minHeight: "100vh",
-        color: "white"
-      }}
-    >
+    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
 
       {/* Header */}
-
-      <Typography variant="h3" fontWeight={800} mb={4}>
-        🎾 Welcome {data.coachName || "Coach"}
+      <Typography variant="h5" fontWeight={700} mb={2}>
+        Coach Dashboard
       </Typography>
 
-      {/* Stats */}
+      {/* Tabs */}
+      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
+        <Tab label="Main" />
+        <Tab label="Sessions" />
+        <Tab label="Activity" />
+      </Tabs>
 
-      <Grid container spacing={3} mb={4}>
-
-        <Grid item xs={12} md={3}>
-          <Stat
-            icon={<EventIcon />}
-            title="Today's Sessions"
-            value={data.todaySessionCount || 0}
-          />
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Stat
-            icon={<SportsTennisIcon />}
-            title="Active Players"
-            value={data.activePlayers || 0}          />
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Stat
-            icon={<CheckCircleIcon />}
-            title="Check-ins Today"
-            value={data.checkinsToday || 0}          />
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Stat
-            icon={<ScheduleIcon />}
-            title="Next Session"
-            value={data.nextSession?.start_time || "None"}
-          />
-        </Grid>
-
+      {/* Top Stats */}
+      <Grid container spacing={2} mb={3}>
+        {[
+          { label: "Today's Sessions", value: data.todaySessionCount || 0 },
+          { label: "Active Players", value: data.activePlayers || 0 },
+          { label: "Check-ins", value: data.checkinsToday || 0 },
+          { label: "Upcoming", value: data.upcoming?.length || 0 }
+        ].map((item, i) => (
+          <Grid item xs={12} md={3} key={i}>
+            <Card sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography color="text.secondary">
+                  {item.label}
+                </Typography>
+                <Typography variant="h4" fontWeight={700}>
+                  {item.value}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
-      {/* Chart + Calendar */}
-
-      <Grid container spacing={3} mb={4}>
-
-        {/* Weekly Chart */}
-
-        <Grid item xs={12} md={8}>
-
-          <GlassCard>
-
-            <Typography variant="h6" mb={2}>
-              Weekly Training Sessions
-            </Typography>
-
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={data.weekly}>
-                <XAxis dataKey="d"/>
-                <Tooltip />
-                <Area
-                  dataKey="cnt"
-                  stroke="#4ade80"
-                  fill="#4ade80"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-
-          </GlassCard>
-
-        </Grid>
-
-        {/* Calendar */}
-
-        <Grid item xs={12} md={4}>
-
-          <GlassCard>
-
-            <Typography variant="h6" mb={2}>
-              Session Calendar
-            </Typography>
-
-            <Calendar
-              value={date}
-              onChange={setDate}
-            />
-
-          </GlassCard>
-
-        </Grid>
-
-      </Grid>
-
-      {/* Sessions */}
-
+      {/* 3 Column Layout */}
       <Grid container spacing={3}>
 
-        {/* Today's Sessions */}
+        {/* Column 1 - Today */}
+        <Grid item xs={12} md={4}>
+          <Typography fontWeight={600} mb={1}>
+            Today's Sessions
+          </Typography>
 
-        <Grid item xs={12} md={6}>
+          {data.todaySessionList?.map((s: any) => (
+            <Card key={s.id} sx={{ mb: 2, borderRadius: 3 }}>
+              <CardContent>
 
-          <GlassCard>
+                <Typography fontWeight={600}>
+                  {s.player_name || "Player"}
+                </Typography>
 
-            <Typography variant="h6" mb={2}>
-              Today's Sessions
-            </Typography>
-
-            {(data.todaySessionList || []).map((s:any)=>(
-              <Box
-                key={s.id}
-                sx={{
-                  display:"flex",
-                  justifyContent:"space-between",
-                  p:1,
-                  borderBottom:"1px solid #ddd"
-                }}
-              >
-                <span>
+                <Typography color="text.secondary">
                   {s.start_time} - {s.end_time}
-                </span>
+                </Typography>
 
-                <motion.button
-                  whileHover={{scale:1.05}}
-                  style={{
-                    background:"#4ade80",
-                    border:"none",
-                    padding:"6px 12px",
-                    borderRadius:8
-                  }}
-                >
-                  Start
-                </motion.button>
+                <Box mt={2} display="flex" justifyContent="space-between">
+                  <Button size="small">Details</Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="success"
+                  >
+                    Start
+                  </Button>
+                </Box>
 
-              </Box>
-            ))}
-
-          </GlassCard>
-
+              </CardContent>
+            </Card>
+          ))}
         </Grid>
 
-        {/* Upcoming */}
+        {/* Column 2 - Ongoing */}
+        <Grid item xs={12} md={4}>
+          <Typography fontWeight={600} mb={1}>
+            Ongoing Sessions
+          </Typography>
 
-        <Grid item xs={12} md={6}>
+          {(data.ongoing || []).map((s: any, i: number) => (
+            <Card key={i} sx={{ mb: 2, borderRadius: 3 }}>
+              <CardContent>
 
-          <GlassCard>
+                <Typography fontWeight={600}>
+                  {s.player_name}
+                </Typography>
 
-            <Typography variant="h6" mb={2}>
-              Upcoming Sessions
-            </Typography>
+                <Typography color="text.secondary">
+                  Ends at {s.end_time}
+                </Typography>
 
-            {(data.upcoming || []).map((s:any,i:number)=>(
-              <Typography key={i}>
-                {s.session_date} | {s.start_time}
-              </Typography>
-            ))}
+                <Box mt={2}>
+                  <Button size="small">View</Button>
+                </Box>
 
-          </GlassCard>
+              </CardContent>
+            </Card>
+          ))}
+        </Grid>
 
+        {/* Column 3 - Upcoming */}
+        <Grid item xs={12} md={4}>
+          <Typography fontWeight={600} mb={1}>
+            Upcoming Sessions
+          </Typography>
+
+          {(data.upcoming || []).map((s: any, i: number) => (
+            <Card key={i} sx={{ mb: 2, borderRadius: 3 }}>
+              <CardContent>
+
+                <Typography fontWeight={600}>
+                  {s.player_name}
+                </Typography>
+
+                <Typography color="text.secondary">
+                  {s.session_date}
+                </Typography>
+
+                <Typography color="text.secondary">
+                  {s.start_time}
+                </Typography>
+
+              </CardContent>
+            </Card>
+          ))}
         </Grid>
 
       </Grid>
