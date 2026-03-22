@@ -2631,12 +2631,17 @@ function AdminRevenue() {
 
 
 
+
+
 import {
-  ResponsiveContainer, LineChart,  XAxis, 
+  ResponsiveContainer,
+  LineChart,
+  XAxis,
 } from "recharts";
 
 
-function AdminDashboard() {
+ function AdminDashboard() {
+
   const [data, setData] = useState<any>({
     programs: [],
     attendance: [],
@@ -2646,6 +2651,8 @@ function AdminDashboard() {
   });
 
   useEffect(() => {
+    const safe = (d:any) => Array.isArray(d) ? d : [];
+
     Promise.all([
       fetch(`${API_BASE}/api/admin/programs`).then(r => r.json()),
       fetch(`${API_BASE}/api/admin/attendance`).then(r => r.json()),
@@ -2653,13 +2660,19 @@ function AdminDashboard() {
       fetch(`${API_BASE}/api/admin/leaves`).then(r => r.json()),
       fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json())
     ]).then(([programs, attendance, sessions, leaves, coaches]) =>
-      setData({ programs, attendance, sessions, leaves, coaches })
+      setData({
+        programs: safe(programs),
+        attendance: safe(attendance),
+        sessions: safe(sessions),
+        leaves: safe(leaves),
+        coaches: safe(coaches)
+      })
     );
   }, []);
 
-  // KPI CALCULATIONS
-  const totalSessions = data.sessions.length;
-  const totalPrograms = data.programs.length;
+  // =========================
+  // 🔥 KPI CALCULATIONS
+  // =========================
 
   const present = data.attendance.filter((a:any) => a.status === "Present").length;
   const absent = data.attendance.filter((a:any) => a.status === "Absent").length;
@@ -2671,14 +2684,35 @@ function AdminDashboard() {
 
   const pendingLeaves = data.leaves.filter((l:any) => l.status === "pending");
 
-  // CHART DATA (dummy grouping)
-  const chartData = [
-    { day: "Mon", val: 10 },
-    { day: "Tue", val: 20 },
-    { day: "Wed", val: 15 },
-    { day: "Thu", val: 25 },
-    { day: "Fri", val: 18 }
-  ];
+  // =========================
+  // 🔥 REAL CHART LOGIC
+  // =========================
+
+  const groupByDate = (arr:any[], key:string) => {
+    const map:any = {};
+
+    arr.forEach(item => {
+      const d = item[key]?.split("T")[0];
+      if (!d) return;
+
+      map[d] = (map[d] || 0) + 1;
+    });
+
+    return Object.keys(map)
+      .sort()
+      .slice(-7)
+      .map(d => ({
+        date: d.slice(5),
+        value: map[d]
+      }));
+  };
+
+  const attendanceChart = groupByDate(data.attendance, "date");
+  const sessionsChart = groupByDate(data.sessions, "session_date");
+
+  // =========================
+  // UI
+  // =========================
 
   return (
     <Box sx={{ p: 2 }}>
@@ -2686,8 +2720,8 @@ function AdminDashboard() {
       {/* KPI CARDS */}
       <Grid container spacing={3}>
         {[
-          { title: "Programs", value: totalPrograms },
-          { title: "Sessions", value: totalSessions },
+          { title: "Programs", value: data.programs.length },
+          { title: "Sessions", value: data.sessions.length },
           { title: "Attendance %", value: `${attendanceRate}%` },
           { title: "Pending Leaves", value: pendingLeaves.length }
         ].map((k, i) => (
@@ -2709,38 +2743,38 @@ function AdminDashboard() {
       {/* CHARTS */}
       <Grid container spacing={3} mt={1}>
 
-        {/* Attendance Chart */}
+        {/* Attendance Trend */}
         <Grid item xs={12} md={6}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
               <Typography variant="h6">
-                Attendance Trend
+                Attendance Trend (Last 7 Days)
               </Typography>
 
               <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={chartData}>
-                  <XAxis dataKey="day" />
+                <LineChart data={attendanceChart}>
+                  <XAxis dataKey="date" />
                   <Tooltip />
-                  <Line type="monotone" dataKey="val" stroke="#4ade80" />
+                  <Line dataKey="value" stroke="#22c55e" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Sessions Chart */}
+        {/* Sessions Trend */}
         <Grid item xs={12} md={6}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
               <Typography variant="h6">
-                Sessions Overview
+                Sessions Trend (Last 7 Days)
               </Typography>
 
               <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={chartData}>
-                  <XAxis dataKey="day" />
+                <LineChart data={sessionsChart}>
+                  <XAxis dataKey="date" />
                   <Tooltip />
-                  <Line type="monotone" dataKey="val" stroke="#60a5fa" />
+                  <Line dataKey="value" stroke="#3b82f6" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -2752,15 +2786,15 @@ function AdminDashboard() {
       {/* BOTTOM PANELS */}
       <Grid container spacing={3} mt={1}>
 
-        {/* Leave Requests */}
+        {/* Leaves */}
         <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6">Leave Requests</Typography>
+              <Typography variant="h6">Pending Leaves</Typography>
 
               {pendingLeaves.slice(0, 5).map((l:any, i:number) => (
                 <Typography key={i}>
-                  {l.name} - {l.reason}
+                  {l?.name || "Unknown"} - {l?.reason || "-"}
                 </Typography>
               ))}
 
@@ -2773,15 +2807,15 @@ function AdminDashboard() {
           </Card>
         </Grid>
 
-        {/* Live Coaches */}
+        {/* Coaches */}
         <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6">Live Coaches</Typography>
+              <Typography variant="h6">Coaches</Typography>
 
               {data.coaches.slice(0, 5).map((c:any, i:number) => (
                 <Typography key={i}>
-                  {c.name}
+                  {c?.name || "No Name"}
                 </Typography>
               ))}
 
@@ -2789,19 +2823,14 @@ function AdminDashboard() {
           </Card>
         </Grid>
 
-        {/* Quick Stats */}
+        {/* Quick Insights */}
         <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
               <Typography variant="h6">Quick Insights</Typography>
 
-              <Typography>
-                Present: {present}
-              </Typography>
-
-              <Typography>
-                Absent: {absent}
-              </Typography>
+              <Typography>Present: {present}</Typography>
+              <Typography>Absent: {absent}</Typography>
 
             </CardContent>
           </Card>
@@ -2812,7 +2841,6 @@ function AdminDashboard() {
     </Box>
   );
 }
-
 import "jspdf-autotable";
 
 function AdminReports() {
