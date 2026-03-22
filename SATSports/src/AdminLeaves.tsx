@@ -1,136 +1,206 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Button,
-  Stack,
-  Typography,
-  Chip,
   Box,
-  Alert,
+  Typography,
+  Grid,
   Card,
   CardContent,
+  Button,
+  Stack,
+  Chip,
+  Select,
+  MenuItem,
 } from "@mui/material";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
 import API_BASE from "./api";
+
 function AdminLeaves() {
-  const [leaves, setLeaves] = React.useState<any[]>([]);
+  const [leaves, setLeaves] = useState([]);
+  const [filter, setFilter] = useState("all");
 
   const loadLeaves = () => {
     fetch(`${API_BASE}/api/admin/leaves`)
       .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setLeaves(data);
-        else setLeaves([]);
-      });
+      .then((data) => setLeaves(Array.isArray(data) ? data : []));
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadLeaves();
   }, []);
 
-  const updateStatus = (id: number, status: string) => {
-    fetch(`${API_BASE}/api/admin/leaves/${id}`, {
+  const updateStatus = async (id, status) => {
+    await fetch(`${API_BASE}/api/admin/leaves/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
-    }).then(() => loadLeaves());
+    });
+
+    loadLeaves();
+  };
+
+  // FILTER
+  const filtered =
+    filter === "all"
+      ? leaves
+      : leaves.filter((l) => l.status === filter);
+
+  // SUMMARY
+  const stats = {
+    pending: leaves.filter((l) => l.status === "Pending").length,
+    approved: leaves.filter((l) => l.status === "Approved").length,
+    rejected: leaves.filter((l) => l.status === "Rejected").length,
   };
 
   return (
-    <section style={{ background: "#f5f7fb", minHeight: "100vh", padding: 16 }}>
+    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
+
+      {/* HEADER */}
       <Typography variant="h4" fontWeight={800} mb={3}>
-        Leave Management
+        Leave Management Dashboard
       </Typography>
 
-      <Card
-        sx={{
-          borderRadius: 3,
-          boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
-        }}
-      >
+      {/* SUMMARY CARDS */}
+      <Grid container spacing={2} mb={3}>
+        {[
+          { label: "Pending", value: stats.pending, color: "#f59e0b" },
+          { label: "Approved", value: stats.approved, color: "#22c55e" },
+          { label: "Rejected", value: stats.rejected, color: "#ef4444" },
+        ].map((s, i) => (
+          <Grid item xs={12} md={4} key={i}>
+            <Card sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography color="text.secondary">{s.label}</Typography>
+                <Typography variant="h4" fontWeight={800}>
+                  {s.value}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* FILTERS */}
+      <Stack direction="row" spacing={1} mb={3}>
+        {["all", "Pending", "Approved", "Rejected"].map((f) => (
+          <Chip
+            key={f}
+            label={f}
+            clickable
+            color={filter === f ? "primary" : "default"}
+            onClick={() => setFilter(f)}
+          />
+        ))}
+      </Stack>
+
+      {/* CALENDAR */}
+      <Card sx={{ mb: 3, borderRadius: 3 }}>
         <CardContent>
-          <Typography variant="h6" fontWeight={700} mb={1}>
-            Coach Leave Requests
-          </Typography>
-          <Typography color="text.secondary" mb={2}>
-            Approve or reject leave requests submitted by coaches
+          <Typography fontWeight={700} mb={2}>
+            Leave Calendar
           </Typography>
 
-          {leaves.length === 0 && (
-            <Alert severity="info">No leave requests found.</Alert>
-          )}
+          <Calendar
+            tileContent={({ date }) => {
+              const found = leaves.find(
+                (l) =>
+                  new Date(date) >= new Date(l.start_date) &&
+                  new Date(date) <= new Date(l.end_date)
+              );
 
-          {leaves.length > 0 && (
-            <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ background: "#f0f2f7" }}>
-                    <TableCell><strong>Coach</strong></TableCell>
-                    <TableCell><strong>From</strong></TableCell>
-                    <TableCell><strong>To</strong></TableCell>
-                    <TableCell><strong>Reason</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell align="right"><strong>Actions</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {leaves.map((l) => (
-                    <TableRow key={l.id} hover>
-                      <TableCell>{l.username}</TableCell>
-                      <TableCell>{l.start_date}</TableCell>
-                      <TableCell>{l.end_date}</TableCell>
-                      <TableCell>{l.reason || "-"}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={l.status}
-                          color={
-                            l.status === "Approved"
-                              ? "success"
-                              : l.status === "Rejected"
-                              ? "error"
-                              : "warning"
-                          }
-                          variant="outlined"
-                        />
-                      </TableCell>
-
-                      <TableCell align="right">
-                        {l.status === "Pending" && (
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Button
-                              variant="contained"
-                              color="success"
-                              size="small"
-                              onClick={() => updateStatus(l.id, "Approved")}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              color="error"
-                              size="small"
-                              onClick={() => updateStatus(l.id, "Rejected")}
-                            >
-                              Reject
-                            </Button>
-                          </Stack>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+              return found ? (
+                <div style={{ color: "red", fontSize: 12 }}>●</div>
+              ) : null;
+            }}
+          />
         </CardContent>
       </Card>
-    </section>
+
+      {/* LEAVE CARDS */}
+      <Grid container spacing={3}>
+        {filtered.map((l) => (
+          <Grid item xs={12} md={6} key={l.id}>
+            <Card
+              sx={{
+                borderRadius: 4,
+                transition: "0.3s",
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                },
+              }}
+            >
+              <CardContent>
+
+                {/* COACH */}
+                <Typography fontWeight={700}>
+                  {l.username}
+                </Typography>
+
+                {/* DATES */}
+                <Typography mt={1}>
+                  📅 {l.start_date} → {l.end_date}
+                </Typography>
+
+                {/* TYPE */}
+                <Typography>
+                  🏷 {l.leave_type || "casual"}
+                </Typography>
+
+                {/* REASON */}
+                <Typography color="text.secondary" mt={1}>
+                  {l.reason || "No reason provided"}
+                </Typography>
+
+                {/* STATUS */}
+                <Chip
+                  label={l.status}
+                  color={
+                    l.status === "Approved"
+                      ? "success"
+                      : l.status === "Rejected"
+                      ? "error"
+                      : "warning"
+                  }
+                  sx={{ mt: 2 }}
+                />
+
+                {/* ACTIONS */}
+                {l.status === "Pending" && (
+                  <Stack direction="row" spacing={1} mt={2}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      color="success"
+                      onClick={() => updateStatus(l.id, "Approved")}
+                    >
+                      Approve
+                    </Button>
+
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="error"
+                      onClick={() => updateStatus(l.id, "Rejected")}
+                    >
+                      Reject
+                    </Button>
+                  </Stack>
+                )}
+
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* EMPTY STATE */}
+      {filtered.length === 0 && (
+        <Typography mt={4} color="text.secondary">
+          No leave requests found
+        </Typography>
+      )}
+
+    </Box>
   );
 }
 

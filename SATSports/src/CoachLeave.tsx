@@ -14,7 +14,8 @@ import {
   Paper
 } from "@mui/material";
 import API_BASE from "./api";
-
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
 function CoachLeave() {
   const coachId = localStorage.getItem("userId");
 
@@ -152,7 +153,25 @@ function CoachLeave() {
           </Grid>
         </CardContent>
       </Card>
+      <Box mb={3}>
+  <Typography fontWeight={700} mb={1}>
+    Leave Calendar
+  </Typography>
 
+  <Calendar
+    tileContent={({ date }) => {
+      const leave = leaves.find(
+        (l) =>
+          new Date(l.start_date) <= date &&
+          new Date(l.end_date) >= date
+      );
+
+      return leave ? (
+        <div style={{ fontSize: 10, color: "red" }}>●</div>
+      ) : null;
+    }}
+  />
+</Box>
       {/* LEAVE LIST */}
       <Typography fontWeight={700} mb={1}>
         Leave History
