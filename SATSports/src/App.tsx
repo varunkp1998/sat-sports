@@ -2701,12 +2701,16 @@ function AdminDashboard() {
 
   return (
     <Box
-      sx={{
-        p: { xs: 2, md: 4 },
-        background: "#f6f9fc",
-        minHeight: "100vh"
-      }}
-    >
+    sx={{
+      flexGrow: 1,
+      px: { xs: 2, md: 4 },
+      py: 3,
+      ml: { md: "250px" },
+      mt: { xs: "50px", md: 0 },
+      width: "100%",
+      maxWidth: "100%",   // 🔥 IMPORTANT
+    }}
+  >
 
       {/* HEADER */}
       <Box mb={4}>
