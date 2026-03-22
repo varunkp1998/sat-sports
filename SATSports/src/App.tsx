@@ -3826,7 +3826,8 @@ function AdminLayout() {
   const [open, setOpen] = useState(false);
 
   const menuItems = [
-    { label: "📘 Programs", path: "/admin" },
+    { label: "📊 Dashboard", path: "/admin" },
+    { label: "📘 Programs", path: "/admin/programs" },
     { label: "👤 Players", path: "/admin/players" },
     { label: "🎾 Coaches", path: "/admin/coaches" },
     { label: "📅 Attendance", path: "/admin/attendance" },
@@ -3929,15 +3930,8 @@ function AdminLayout() {
         <AdminBreadcrumbs />
 
         <Routes>
-          <Route
-            path="/"
-            element={
-              <>
-                <AdminDashboard />
-                <AdminPrograms />
-              </>
-            }
-          />
+        <Route path="/" element={<AdminDashboard />} />
+        <Route path="programs" element={<AdminPrograms />} />
           <Route path="news" element={<AdminNews />} />
           <Route path="players" element={<AdminPlayers />} />
           <Route path="coaches" element={<AdminCoaches />} />
