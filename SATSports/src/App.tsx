@@ -2715,140 +2715,240 @@ import SearchIcon from "@mui/icons-material/Search";
 
 
 
-function AdminDashboard() {
-  const [open, setOpen] = useState(true);
+import {
+
+  CircularProgress
+} from "@mui/material";
+
+ function AdminDashboard() {
   const username = localStorage.getItem("username") || "Admin";
 
-  return (
-    <Box sx={{ display: "flex", minHeight: "100vh", background: "#0f172a" }}>
-      
-      {/* SIDEBAR */}
+  const [coaches, setCoaches] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [players, setPlayers] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+
+  // 🔥 FETCH DATA
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/coaches").then(r => r.json()),
+      fetch("/api/admin/court-bookings").then(r => r.json()),
+      fetch("/api/admin/applications").then(r => r.json()),
+      fetch("/api/admin/players").then(r => r.json())
+    ])
+      .then(([c, b, a, p]) => {
+        setCoaches(c);
+        setBookings(b);
+        setApplications(a);
+        setPlayers(p);
+      })
+      .catch(() => console.log("Error loading dashboard"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // 🔄 LOADING STATE
+  if (loading) {
+    return (
       <Box
         sx={{
-          width: open ? 240 : 70,
-          background: "#111827",
-          color: "white",
-          transition: "0.3s",
-          p: 2
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          background: "#0f172a"
         }}
       >
-        <Typography variant="h6" mb={3}>
-          🎾 SAT
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ minHeight: "100vh", background: "#0f172a", color: "white" }}>
+
+      {/* 🔝 TOPBAR */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          p: 3,
+          background: "#111827"
+        }}
+      >
+        <Typography variant="h5" fontWeight={700}>
+          Welcome back, {username} 👋
         </Typography>
 
-        {["Dashboard", "Players", "Coaches", "Revenue", "Reports"].map((item) => (
-          <Box
-            key={item}
-            sx={{
-              py: 1,
-              px: 2,
-              borderRadius: 2,
-              cursor: "pointer",
-              "&:hover": { background: "#1f2937" }
-            }}
-          >
-            {open ? item : item[0]}
-          </Box>
-        ))}
+        <Avatar sx={{ bgcolor: "#2563eb" }}>
+          {username[0]}
+        </Avatar>
       </Box>
 
-      {/* MAIN AREA */}
-      <Box sx={{ flexGrow: 1 }}>
+      {/* 📊 CONTENT */}
+      <Box sx={{ p: 3 }}>
 
-        {/* TOPBAR */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            p: 2,
-            background: "#111827",
-            color: "white"
-          }}
-        >
-          <Box display="flex" alignItems="center" gap={1}>
-            <IconButton onClick={() => setOpen(!open)} sx={{ color: "white" }}>
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6">Dashboard</Typography>
-          </Box>
+        {/* 💎 KPI CARDS */}
+        <Grid container spacing={3} mb={4}>
+          <StatCard label="Total Players" value={players.length} />
+          <StatCard label="Active Coaches" value={coaches.length} />
+          <StatCard label="Bookings Today" value={bookings.length} />
+          <StatCard label="Applications" value={applications.length} />
+        </Grid>
 
-          <Box display="flex" alignItems="center" gap={2}>
-            <Typography>Hi, {username} 👋</Typography>
-            <Avatar />
-          </Box>
-        </Box>
+        {/* 📋 TABLES */}
+        <Section title="Coaches">
+          <Table headers={["Name", "Phone", "Status"]}>
+            {coaches.length ? (
+              coaches.map((c) => (
+                <Row
+                  key={c.id}
+                  data={[c.name, c.phone, c.status || "Active"]}
+                />
+              ))
+            ) : (
+              <EmptyRow colSpan={3} text="No coaches found" />
+            )}
+          </Table>
+        </Section>
 
-        {/* CONTENT */}
-        <Box sx={{ p: 3 }}>
+        <Section title="Court Bookings">
+          <Table headers={["Player", "Court", "Time"]}>
+            {bookings.length ? (
+              bookings.map((b) => (
+                <Row
+                  key={b.id}
+                  data={[b.player_name, b.court, b.time]}
+                />
+              ))
+            ) : (
+              <EmptyRow colSpan={3} text="No bookings found" />
+            )}
+          </Table>
+        </Section>
 
-          {/* STATS */}
-          <Grid container spacing={2} mb={3}>
-            {[
-              { label: "Players", value: 120 },
-              { label: "Coaches", value: 15 },
-              { label: "Revenue", value: "₹1.2L" },
-              { label: "Sessions", value: 45 }
-            ].map((item) => (
-              <Grid item xs={12} md={3} key={item.label}>
-                <Card
-                  sx={{
-                    background: "#1f2937",
-                    color: "white",
-                    borderRadius: 3
-                  }}
-                >
-                  <CardContent>
-                    <Typography color="gray">{item.label}</Typography>
-                    <Typography variant="h5" fontWeight={700}>
-                      {item.value}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+        <Section title="Applications">
+          <Table headers={["Name", "Type", "Status"]}>
+            {applications.length ? (
+              applications.map((a) => (
+                <Row
+                  key={a.id}
+                  data={[a.name, a.type, a.status]}
+                />
+              ))
+            ) : (
+              <EmptyRow colSpan={3} text="No applications found" />
+            )}
+          </Table>
+        </Section>
 
-          {/* TABLE SECTION */}
-          <Card
-            sx={{
-              background: "#1f2937",
-              color: "white",
-              borderRadius: 3
-            }}
-          >
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Recent Players
-              </Typography>
-
-              <table style={{ width: "100%", color: "white" }}>
-                <thead>
-                  <tr style={{ textAlign: "left" }}>
-                    <th>Name</th>
-                    <th>Program</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Varun</td>
-                    <td>BA2</td>
-                    <td>Active</td>
-                  </tr>
-                  <tr>
-                    <td>Tarun</td>
-                    <td>BA1</td>
-                    <td>Pending</td>
-                  </tr>
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-
-        </Box>
       </Box>
     </Box>
+  );
+}
+
+///////////////////////////////////////////////////////
+// 💎 STAT CARD
+///////////////////////////////////////////////////////
+function StatCard({ label, value }) {
+  return (
+    <Grid item xs={12} md={3}>
+      <Card
+        sx={{
+          background: "#1f2937",
+          borderRadius: 4,
+          boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+          transition: "0.3s",
+          "&:hover": { transform: "translateY(-5px)" }
+        }}
+      >
+        <CardContent>
+          <Typography color="gray">{label}</Typography>
+          <Typography variant="h4" fontWeight={800}>
+            {value}
+          </Typography>
+        </CardContent>
+      </Card>
+    </Grid>
+  );
+}
+
+///////////////////////////////////////////////////////
+// 📦 SECTION
+///////////////////////////////////////////////////////
+function Section({ title, children }) {
+  return (
+    <Box mb={4}>
+      <Typography variant="h6" mb={2} fontWeight={600}>
+        {title}
+      </Typography>
+
+      <Card
+        sx={{
+          background: "#1f2937",
+          borderRadius: 4
+        }}
+      >
+        <CardContent>{children}</CardContent>
+      </Card>
+    </Box>
+  );
+}
+
+///////////////////////////////////////////////////////
+// 📊 TABLE
+///////////////////////////////////////////////////////
+function Table({ headers, children }) {
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <thead>
+        <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+          {headers.map((h) => (
+            <th
+              key={h}
+              style={{
+                textAlign: "left",
+                padding: "12px",
+                color: "#9ca3af"
+              }}
+            >
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>{children}</tbody>
+    </table>
+  );
+}
+
+///////////////////////////////////////////////////////
+// 📄 ROW
+///////////////////////////////////////////////////////
+function Row({ data }) {
+  return (
+    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      {data.map((d, i) => (
+        <td key={i} style={{ padding: "12px" }}>
+          {d}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+///////////////////////////////////////////////////////
+// ❌ EMPTY STATE
+///////////////////////////////////////////////////////
+function EmptyRow({ colSpan, text }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} style={{ padding: "20px", textAlign: "center", color: "gray" }}>
+        {text}
+      </td>
+    </tr>
   );
 }
 import "jspdf-autotable";
