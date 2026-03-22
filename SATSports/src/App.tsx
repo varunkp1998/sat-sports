@@ -2762,89 +2762,88 @@ function AdminDashboard() {
       {/* MAIN GRID */}
       <Grid container spacing={3}>
 
-        {/* LEFT - SESSIONS */}
-        <Grid item xs={12} lg={8}>
-          <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb", boxShadow: "none" }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Recent Sessions
+{/* FULL WIDTH - RECENT SESSIONS */}
+<Grid item xs={12}>
+  <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb" }}>
+    <CardContent>
+      <Typography variant="h6" mb={2}>
+        Recent Sessions
+      </Typography>
+
+      <Grid container spacing={2}>
+        {sessionsArr.slice(0, 6).map((s:any, i:number) => (
+          <Grid item xs={12} md={4} key={i}>
+            <Box sx={{
+              p: 2,
+              borderRadius: 2,
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb"
+            }}>
+              <Typography fontWeight={600}>
+                {s.session_date}
               </Typography>
-
-              <Divider sx={{ mb: 2 }} />
-
-              {sessionsArr.slice(0,6).map((s:any,i:number)=>(
-                <Box key={i} sx={{ py: 1.5 }}>
-                  <Typography fontWeight={500}>
-                    {s.session_date}
-                  </Typography>
-                  <Typography fontSize={12} color="text.secondary">
-                    {s.start_time}
-                  </Typography>
-                  {i !== 5 && <Divider sx={{ mt:1 }} />}
-                </Box>
-              ))}
-
-              {sessionsArr.length===0 && (
-                <Typography color="text.secondary">
-                  No sessions available
-                </Typography>
-              )}
-
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* RIGHT SIDE */}
-        <Grid item xs={12} lg={4}>
-          <Grid container spacing={3}>
-
-            {/* LEAVES */}
-            <Grid item xs={12}>
-              <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb", boxShadow: "none" }}>
-                <CardContent>
-                  <Typography variant="h6" mb={2}>
-                    Pending Leaves
-                  </Typography>
-
-                  {pendingLeaves.length === 0 ? (
-                    <Typography color="text.secondary">
-                      No pending leaves
-                    </Typography>
-                  ) : (
-                    pendingLeaves.slice(0,4).map((l:any,i:number)=>(
-                      <Typography key={i}>
-                        {l.name}
-                      </Typography>
-                    ))
-                  )}
-
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* COACHES */}
-            <Grid item xs={12}>
-              <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb", boxShadow: "none" }}>
-                <CardContent>
-                  <Typography variant="h6" mb={2}>
-                    Coaches
-                  </Typography>
-
-                  {coachesArr.slice(0,5).map((c:any,i:number)=>(
-                    <Typography key={i}>
-                      {c.name}
-                    </Typography>
-                  ))}
-
-                </CardContent>
-              </Card>
-            </Grid>
-
+              <Typography fontSize={12} color="text.secondary">
+                {s.start_time}
+              </Typography>
+            </Box>
           </Grid>
-        </Grid>
-
+        ))}
       </Grid>
 
+    </CardContent>
+  </Card>
+</Grid>
+
+{/* FULL WIDTH - SECOND ROW */}
+<Grid item xs={12}>
+  <Grid container spacing={3}>
+
+    {/* LEAVES */}
+    <Grid item xs={12} md={6}>
+      <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb", height: "100%" }}>
+        <CardContent>
+          <Typography variant="h6" mb={2}>
+            Pending Leaves
+          </Typography>
+
+          {pendingLeaves.length === 0 ? (
+            <Typography color="text.secondary">
+              No pending leaves
+            </Typography>
+          ) : (
+            pendingLeaves.slice(0,5).map((l:any,i:number)=>(
+              <Box key={i} sx={{ mb: 1 }}>
+                <Typography>{l.name}</Typography>
+              </Box>
+            ))
+          )}
+
+        </CardContent>
+      </Card>
+    </Grid>
+
+    {/* COACHES */}
+    <Grid item xs={12} md={6}>
+      <Card sx={{ borderRadius: 2, border: "1px solid #e5e7eb", height: "100%" }}>
+        <CardContent>
+          <Typography variant="h6" mb={2}>
+            Coaches
+          </Typography>
+
+          {coachesArr.slice(0,5).map((c:any,i:number)=>(
+            <Box key={i} sx={{ mb: 1 }}>
+              <Typography>{c.name}</Typography>
+            </Box>
+          ))}
+
+        </CardContent>
+      </Card>
+    </Grid>
+
+  </Grid>
+</Grid>
+
+</Grid>
     </Box>
   );
 }
