@@ -3969,7 +3969,7 @@ function AdminLayout() {
       <Box
         sx={{
           display: { xs: "flex", md: "none" },
-          position: "fixed",
+          position: "relative",
           top: 0,
           width: "100%",
           background: "#111827",
