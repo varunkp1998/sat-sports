@@ -3966,7 +3966,8 @@ function AdminLayout() {
   ];
 
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex",    flexDirection: { xs: "column", md: "row" }   // ✅ ADD THIS
+  }}>
 
       {/* MOBILE TOP BAR */}
       <Box
