@@ -2775,7 +2775,9 @@ import {
           justifyContent: "space-between",
           alignItems: "center",
           p: 3,
-          background: "#ffffff"
+          background: "#ffffff",
+color: "#111",
+borderBottom: "1px solid #e5e7eb"
         }}
       >
         <Typography variant="h5" fontWeight={700}>
@@ -2857,9 +2859,11 @@ function StatCard({ label, value }) {
     <Grid item xs={12} md={3}>
       <Card
         sx={{
-          background: "#1f2937",
+          background: "#ffffff",
+          color: "#111",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+          border: "1px solid #e5e7eb",
           borderRadius: 4,
-          boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
           transition: "0.3s",
           "&:hover": { transform: "translateY(-5px)" }
         }}
