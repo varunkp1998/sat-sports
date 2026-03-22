@@ -2631,70 +2631,74 @@ function AdminRevenue() {
 
 
 
+import {
+  ResponsiveContainer, LineChart,  XAxis, 
+} from "recharts";
+
+
 function AdminDashboard() {
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [news, setNews] = useState<any[]>([]);
-  const [tournaments, setTournaments] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
+  const [data, setData] = useState<any>({
+    programs: [],
+    attendance: [],
+    sessions: [],
+    leaves: [],
+    coaches: []
+  });
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/programs`).then(res => res.json()).then(setPrograms);
-    fetch(`${API_BASE}/api/admin/news`).then(res => res.json()).then(setNews);
-    fetch(`${API_BASE}/api/admin/tournaments`).then(res => res.json()).then(setTournaments);
-    fetch(`${API_BASE}/api/admin/attendance`).then(res => res.json()).then(setAttendance);
+    Promise.all([
+      fetch(`${API_BASE}/api/admin/programs`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/attendance`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/sessions`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/leaves`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json())
+    ]).then(([programs, attendance, sessions, leaves, coaches]) =>
+      setData({ programs, attendance, sessions, leaves, coaches })
+    );
   }, []);
 
-  const publishedNews = news.filter(n => n.isPublished).length;
-  const activeTournaments = tournaments.filter(t => t.isPublished).length;
+  // KPI CALCULATIONS
+  const totalSessions = data.sessions.length;
+  const totalPrograms = data.programs.length;
 
-  const totalSessions = attendance.length;
-  const totalPresent = attendance.filter(a => a.status === "Present").length;
-  const totalAbsent = attendance.filter(a => a.status === "Absent").length;
+  const present = data.attendance.filter((a:any) => a.status === "Present").length;
+  const absent = data.attendance.filter((a:any) => a.status === "Absent").length;
 
   const attendanceRate =
-    totalPresent + totalAbsent > 0
-      ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
+    present + absent > 0
+      ? Math.round((present / (present + absent)) * 100)
       : 0;
 
-  const stats = [
-    { title: "Total Programs", value: programs.length },
-    { title: "Published News", value: publishedNews },
-    { title: "Active Tournaments", value: activeTournaments },
-    { title: "Total Sessions", value: totalSessions },
-    { title: "Total Present", value: totalPresent },
-    { title: "Total Absent", value: totalAbsent },
-    { title: "Attendance %", value: `${attendanceRate}%` }
+  const pendingLeaves = data.leaves.filter((l:any) => l.status === "pending");
+
+  // CHART DATA (dummy grouping)
+  const chartData = [
+    { day: "Mon", val: 10 },
+    { day: "Tue", val: 20 },
+    { day: "Wed", val: 15 },
+    { day: "Thu", val: 25 },
+    { day: "Fri", val: 18 }
   ];
 
   return (
     <Box sx={{ p: 2 }}>
 
-      {/* HEADER */}
-      <Typography variant="h4" fontWeight={700} mb={3}>
-        Dashboard Overview
-      </Typography>
-
-      {/* KPI GRID */}
+      {/* KPI CARDS */}
       <Grid container spacing={3}>
-        {stats.map((s, i) => (
-          <Grid item xs={12} sm={6} md={4} key={i}>
-            <Card
-              sx={{
-                borderRadius: 3,
-                boxShadow: "0 4px 20px rgba(0,0,0,0.08)"
-              }}
-            >
+        {[
+          { title: "Programs", value: totalPrograms },
+          { title: "Sessions", value: totalSessions },
+          { title: "Attendance %", value: `${attendanceRate}%` },
+          { title: "Pending Leaves", value: pendingLeaves.length }
+        ].map((k, i) => (
+          <Grid item xs={12} sm={6} md={3} key={i}>
+            <Card sx={{ borderRadius: 3 }}>
               <CardContent>
-                <Typography color="text.secondary" fontSize={14}>
-                  {s.title}
+                <Typography color="text.secondary">
+                  {k.title}
                 </Typography>
-
-                <Typography
-                  variant="h4"
-                  fontWeight={700}
-                  sx={{ mt: 1 }}
-                >
-                  {s.value}
+                <Typography variant="h4" fontWeight={700}>
+                  {k.value}
                 </Typography>
               </CardContent>
             </Card>
@@ -2702,18 +2706,108 @@ function AdminDashboard() {
         ))}
       </Grid>
 
-      {/* OPTIONAL FUTURE SECTION */}
-      <Card sx={{ mt: 4, borderRadius: 3 }}>
-        <CardContent>
-          <Typography variant="h6">
-            Insights
-          </Typography>
+      {/* CHARTS */}
+      <Grid container spacing={3} mt={1}>
 
-          <Typography color="text.secondary">
-            Add charts (attendance trends, revenue, sessions)
-          </Typography>
-        </CardContent>
-      </Card>
+        {/* Attendance Chart */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6">
+                Attendance Trend
+              </Typography>
+
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={chartData}>
+                  <XAxis dataKey="day" />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="val" stroke="#4ade80" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Sessions Chart */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6">
+                Sessions Overview
+              </Typography>
+
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={chartData}>
+                  <XAxis dataKey="day" />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="val" stroke="#60a5fa" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+
+      </Grid>
+
+      {/* BOTTOM PANELS */}
+      <Grid container spacing={3} mt={1}>
+
+        {/* Leave Requests */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6">Leave Requests</Typography>
+
+              {pendingLeaves.slice(0, 5).map((l:any, i:number) => (
+                <Typography key={i}>
+                  {l.name} - {l.reason}
+                </Typography>
+              ))}
+
+              {pendingLeaves.length === 0 && (
+                <Typography color="text.secondary">
+                  No pending leaves
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Live Coaches */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6">Live Coaches</Typography>
+
+              {data.coaches.slice(0, 5).map((c:any, i:number) => (
+                <Typography key={i}>
+                  {c.name}
+                </Typography>
+              ))}
+
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Quick Stats */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6">Quick Insights</Typography>
+
+              <Typography>
+                Present: {present}
+              </Typography>
+
+              <Typography>
+                Absent: {absent}
+              </Typography>
+
+            </CardContent>
+          </Card>
+        </Grid>
+
+      </Grid>
 
     </Box>
   );
