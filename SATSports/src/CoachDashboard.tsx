@@ -6,7 +6,7 @@ import {
   Card,
   CardContent
 } from "@mui/material";
-
+import { Tabs, Tab } from "@mui/material";
 import EventIcon from "@mui/icons-material/Event";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
