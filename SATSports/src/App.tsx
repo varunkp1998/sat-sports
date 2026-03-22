@@ -1085,33 +1085,49 @@ function Login() {
 
   return (
     <Box
-      sx={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg,#0f172a,#111827,#1f2937)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        p: 2
-      }}
-    >
+    sx={{
+      minHeight: "100vh",
+      backgroundImage: `
+        linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)),
+        url('/tennis-bg.jpg')
+      `,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      p: 2
+    }}
+  >
       <Card
-        sx={{
-          width: "100%",
-          maxWidth: 420,
-          borderRadius: 4,
-          backdropFilter: "blur(20px)",
-          background: "rgba(255,255,255,0.08)",
-          color: "white",
-          boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
-        }}
-      >
+  sx={{
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 4,
+    backdropFilter: "blur(25px)",
+    background: "rgba(255, 255, 255, 0.08)",
+    border: "1px solid rgba(255,255,255,0.2)",
+    color: "white",
+    boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
+    transition: "0.3s",
+    "&:hover": {
+      transform: "scale(1.01)"
+    }
+  }}
+>
         <CardContent sx={{ p: 4 }}>
 
           {/* HEADER */}
           <Box textAlign="center" mb={3}>
-            <Typography variant="h4" fontWeight={800}>
-              🎾 SAT Sports
-            </Typography>
+          <Typography
+  variant="h4"
+  fontWeight={800}
+  sx={{
+    textShadow: "0 5px 20px rgba(0,0,0,0.8)"
+  }}
+>
+  🎾 SAT Sports
+</Typography>
             <Typography color="gray">
               {forgotMode ? "Reset your password" : "Login to your account"}
             </Typography>
@@ -1126,20 +1142,30 @@ function Login() {
           <Fade in={!forgotMode}>
             <Stack spacing={2} display={forgotMode ? "none" : "flex"}>
 
-              <TextField
-                label="Username / Email"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                fullWidth
-                sx={{ input: { color: "white" } }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PersonIcon />
-                    </InputAdornment>
-                  ),
-                }}
-              />
+            <TextField
+  label="Username / Email"
+  value={username}
+  onChange={e => setUsername(e.target.value)}
+  fullWidth
+  variant="outlined"
+  sx={{
+    input: { color: "white" },
+    label: { color: "#ccc" },
+    "& .MuiOutlinedInput-root": {
+      background: "rgba(255,255,255,0.05)",
+      borderRadius: 2,
+      "& fieldset": {
+        borderColor: "rgba(255,255,255,0.2)"
+      },
+      "&:hover fieldset": {
+        borderColor: "#60a5fa"
+      },
+      "&.Mui-focused fieldset": {
+        borderColor: "#3b82f6"
+      }
+    }
+  }}
+/>
 
               <TextField
                 label="Password"
@@ -1147,8 +1173,24 @@ function Login() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 fullWidth
-                sx={{ input: { color: "white" } }}
-                InputProps={{
+                variant="outlined"
+                sx={{
+                  input: { color: "white" },
+                  label: { color: "#ccc" },
+                  "& .MuiOutlinedInput-root": {
+                    background: "rgba(255,255,255,0.05)",
+                    borderRadius: 2,
+                    "& fieldset": {
+                      borderColor: "rgba(255,255,255,0.2)"
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "#60a5fa"
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#3b82f6"
+                    }
+                  }
+                }}                InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
                       <LockIcon />
@@ -1157,19 +1199,23 @@ function Login() {
                 }}
               />
 
-              <Button
-                fullWidth
-                size="large"
-                variant="contained"
-                onClick={handleLogin}
-                sx={{
-                  mt: 1,
-                  borderRadius: 3,
-                  background: "linear-gradient(90deg,#ef4444,#dc2626)",
-                  fontWeight: 700
-                }}
-                disabled={loading}
-              >
+<Button
+  fullWidth
+  size="large"
+  variant="contained"
+  onClick={handleLogin}
+  sx={{
+    mt: 1,
+    borderRadius: 3,
+    background: "linear-gradient(90deg,#3b82f6,#2563eb)",
+    fontWeight: 700,
+    boxShadow: "0 10px 30px rgba(37,99,235,0.5)",
+    "&:hover": {
+      background: "linear-gradient(90deg,#2563eb,#1d4ed8)",
+      boxShadow: "0 15px 40px rgba(37,99,235,0.7)"
+    }
+  }}
+>
                 {loading ? "Logging in..." : "Login"}
               </Button>
 
