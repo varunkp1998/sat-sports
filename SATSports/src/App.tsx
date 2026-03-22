@@ -2643,6 +2643,13 @@ import {
 
 
 
+
+
+import EventIcon from "@mui/icons-material/Event";
+import PercentIcon from "@mui/icons-material/Percent";
+import WarningIcon from "@mui/icons-material/Warning";
+
+
  function AdminDashboard() {
 
   const [data, setData] = useState<any>({
@@ -2698,187 +2705,156 @@ import {
 
   const pendingLeaves = leavesArr.filter(l => l?.status === "pending");
 
-  // =========================
-  // REAL CHART DATA
-  // =========================
-  const groupByDate = (arr:any[], key:string) => {
-    if (!Array.isArray(arr)) return [];
-
-    const map:any = {};
-
-    arr.forEach(item => {
-      if (!item || typeof item !== "object") return;
-
-      const raw = item[key];
-      if (!raw || typeof raw !== "string") return;
-
-      const d = raw.split("T")[0];
-      map[d] = (map[d] || 0) + 1;
-    });
-
-    return Object.keys(map)
-      .sort()
-      .slice(-7)
-      .map(d => ({
-        date: d.slice(5),
-        value: map[d]
-      }));
-  };
-
-  const attendanceChart = groupByDate(attendanceArr, "date");
-  const sessionsChart = groupByDate(sessionsArr, "session_date");
-
-  // =========================
-  // UI
-  // =========================
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, background: "#f9fafb", minHeight: "100vh" }}>
-  
+    <Box
+      sx={{
+        p: { xs: 2, md: 3 },
+        background: "linear-gradient(135deg,#0f172a,#020617)",
+        minHeight: "100vh",
+        color: "white"
+      }}
+    >
+
       {/* HEADER */}
       <Box mb={3}>
         <Typography variant="h4" fontWeight={800}>
           Dashboard
         </Typography>
-        <Typography color="text.secondary">
+        <Typography opacity={0.7}>
           Overview of your academy
         </Typography>
       </Box>
-  
+
       {/* KPI CARDS */}
-      <Grid container spacing={3} mb={2}>
+      <Grid container spacing={3} mb={3}>
         {[
-          { title: "Programs", value: programsArr.length, color: "#6366f1" },
-          { title: "Sessions", value: sessionsArr.length, color: "#22c55e" },
-          { title: "Attendance %", value: `${attendanceRate}%`, color: "#f59e0b" },
-          { title: "Pending Leaves", value: pendingLeaves.length, color: "#ef4444" }
+          { title: "Programs", value: programsArr.length, icon: <SportsTennisIcon />, color: "#6366f1" },
+          { title: "Sessions", value: sessionsArr.length, icon: <EventIcon />, color: "#22c55e" },
+          { title: "Attendance", value: `${attendanceRate}%`, icon: <PercentIcon />, color: "#f59e0b" },
+          { title: "Leaves", value: pendingLeaves.length, icon: <WarningIcon />, color: "#ef4444" }
         ].map((k, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card
-              sx={{
-                borderRadius: 3,
-                background: `linear-gradient(135deg, ${k.color}, #111827)`,
-                color: "white",
-                height: "100%"
-              }}
-            >
-              <CardContent>
-                <Typography fontSize={14} opacity={0.8}>
-                  {k.title}
-                </Typography>
-                <Typography variant="h4" fontWeight={800}>
-                  {k.value}
-                </Typography>
-              </CardContent>
-            </Card>
+            <motion.div whileHover={{ scale: 1.05 }}>
+              <Card
+                sx={{
+                  borderRadius: 4,
+                  background: `linear-gradient(135deg, ${k.color}, #020617)`,
+                  color: "white",
+                  boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
+                }}
+              >
+                <CardContent>
+                  <Box display="flex" justifyContent="space-between">
+                    {k.icon}
+                  </Box>
+
+                  <Typography fontSize={14} opacity={0.7}>
+                    {k.title}
+                  </Typography>
+
+                  <Typography variant="h3" fontWeight={800}>
+                    {k.value}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </motion.div>
           </Grid>
         ))}
       </Grid>
-  
-      {/* MAIN GRID */}
+
+      {/* MAIN CONTENT */}
       <Grid container spacing={3}>
-  
-        {/* RECENT LEAVES */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3, height: "100%" }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Recent Leave Requests
-              </Typography>
-  
-              {pendingLeaves.slice(0, 5).map((l:any, i:number) => (
-                <Box
-                  key={i}
-                  sx={{
-                    p: 1.2,
-                    mb: 1,
-                    borderRadius: 2,
-                    background: "#f3f4f6"
-                  }}
-                >
-                  <Typography fontWeight={600}>
-                    {l?.name || "Unknown"}
-                  </Typography>
-                  <Typography fontSize={12} color="text.secondary">
-                    {l?.reason || "-"}
-                  </Typography>
-                </Box>
-              ))}
-  
-              {pendingLeaves.length === 0 && (
-                <Typography color="text.secondary">
-                  No pending leaves
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-  
-        {/* RECENT COACHES */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3, height: "100%" }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Coaches
-              </Typography>
-  
-              {coachesArr.slice(0, 5).map((c:any, i:number) => (
-                <Box
-                  key={i}
-                  sx={{
-                    p: 1.2,
-                    mb: 1,
-                    borderRadius: 2,
-                    background: "#f3f4f6"
-                  }}
-                >
-                  <Typography>
-                    {c?.name || "No Name"}
-                  </Typography>
-                </Box>
-              ))}
-  
-            </CardContent>
-          </Card>
-        </Grid>
-  
-        {/* RECENT SESSIONS */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3, height: "100%" }}>
+
+        {/* BIG PANEL */}
+        <Grid item xs={12} md={6}>
+          <Card
+            sx={{
+              borderRadius: 4,
+              height: "100%",
+              backdropFilter: "blur(12px)",
+              background: "rgba(255,255,255,0.05)"
+            }}
+          >
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Recent Sessions
               </Typography>
-  
+
               {sessionsArr.slice(0, 5).map((s:any, i:number) => (
                 <Box
                   key={i}
                   sx={{
-                    p: 1.2,
+                    p: 1.5,
                     mb: 1,
                     borderRadius: 2,
-                    background: "#f3f4f6"
+                    background: "rgba(255,255,255,0.05)"
                   }}
                 >
-                  <Typography fontSize={14}>
-                    {s?.session_date || "No Date"}
-                  </Typography>
-                  <Typography fontSize={12} color="text.secondary">
+                  <Typography>{s?.session_date || "No Date"}</Typography>
+                  <Typography fontSize={12} opacity={0.6}>
                     {s?.start_time || ""}
                   </Typography>
                 </Box>
               ))}
-  
+
               {sessionsArr.length === 0 && (
-                <Typography color="text.secondary">
-                  No sessions
+                <Typography opacity={0.6}>
+                  No sessions available
                 </Typography>
               )}
             </CardContent>
           </Card>
         </Grid>
-  
+
+        {/* RIGHT STACK */}
+        <Grid item xs={12} md={6}>
+          <Grid container spacing={3}>
+
+            {/* LEAVES */}
+            <Grid item xs={12}>
+              <Card sx={{ borderRadius: 4, background: "rgba(255,255,255,0.05)" }}>
+                <CardContent>
+                  <Typography variant="h6" mb={2}>
+                    Pending Leaves
+                  </Typography>
+
+                  {pendingLeaves.length === 0 ? (
+                    <Typography opacity={0.6}>
+                      No pending leaves
+                    </Typography>
+                  ) : (
+                    pendingLeaves.slice(0, 3).map((l:any, i:number) => (
+                      <Typography key={i}>
+                        {l?.name || "Unknown"}
+                      </Typography>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* COACHES */}
+            <Grid item xs={12}>
+              <Card sx={{ borderRadius: 4, background: "rgba(255,255,255,0.05)" }}>
+                <CardContent>
+                  <Typography variant="h6" mb={2}>
+                    Coaches
+                  </Typography>
+
+                  {coachesArr.slice(0, 5).map((c:any, i:number) => (
+                    <Typography key={i}>
+                      {c?.name || "No Name"}
+                    </Typography>
+                  ))}
+                </CardContent>
+              </Card>
+            </Grid>
+
+          </Grid>
+        </Grid>
+
       </Grid>
-  
+
     </Box>
   );
 }
