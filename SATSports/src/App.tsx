@@ -3986,16 +3986,16 @@ function AdminLayout() {
       </Box>
 
       {/* DESKTOP SIDEBAR */}
-      <Box
-        sx={{
-          width: 250,
-          background: "#111827",
-          color: "white",
-          height: "100vh",
-          position: "fixed",
-          display: { xs: "none", md: "block" }
-        }}
-      >
+      sx={{
+  width: 250,
+  background: "#111827",
+  color: "white",
+  height: "100vh",
+  position: "fixed",
+  overflowY: "auto",
+  overflowX: "hidden",
+  display: { xs: "none", md: "block" }
+}}
         <Box sx={{ p: 2 }}>
           <img src="/logo.png" style={{ height: 40 }} />
           <h3>SAT Sports</h3>
