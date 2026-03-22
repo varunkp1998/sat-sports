@@ -2640,6 +2640,9 @@ import {
 } from "recharts";
 
 
+
+
+
  function AdminDashboard() {
 
   const [data, setData] = useState<any>({
@@ -2650,15 +2653,18 @@ import {
     coaches: []
   });
 
+  // =========================
+  // SAFE FETCH
+  // =========================
   useEffect(() => {
     const safe = (d:any) => Array.isArray(d) ? d : [];
 
     Promise.all([
-      fetch(`${API_BASE}/api/admin/programs`).then(r => r.json()),
-      fetch(`${API_BASE}/api/admin/attendance`).then(r => r.json()),
-      fetch(`${API_BASE}/api/admin/sessions`).then(r => r.json()),
-      fetch(`${API_BASE}/api/admin/leaves`).then(r => r.json()),
-      fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json())
+      fetch(`${API_BASE}/api/admin/programs`).then(r => r.json()).catch(() => []),
+      fetch(`${API_BASE}/api/admin/attendance`).then(r => r.json()).catch(() => []),
+      fetch(`${API_BASE}/api/admin/sessions`).then(r => r.json()).catch(() => []),
+      fetch(`${API_BASE}/api/admin/leaves`).then(r => r.json()).catch(() => []),
+      fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json()).catch(() => [])
     ]).then(([programs, attendance, sessions, leaves, coaches]) =>
       setData({
         programs: safe(programs),
@@ -2671,30 +2677,42 @@ import {
   }, []);
 
   // =========================
-  // 🔥 KPI CALCULATIONS
+  // SAFE ARRAYS
   // =========================
+  const attendanceArr = Array.isArray(data.attendance) ? data.attendance : [];
+  const sessionsArr = Array.isArray(data.sessions) ? data.sessions : [];
+  const leavesArr = Array.isArray(data.leaves) ? data.leaves : [];
+  const coachesArr = Array.isArray(data.coaches) ? data.coaches : [];
+  const programsArr = Array.isArray(data.programs) ? data.programs : [];
 
-  const present = data.attendance.filter((a:any) => a.status === "Present").length;
-  const absent = data.attendance.filter((a:any) => a.status === "Absent").length;
+  // =========================
+  // KPI CALCULATIONS
+  // =========================
+  const present = attendanceArr.filter(a => a?.status === "Present").length;
+  const absent = attendanceArr.filter(a => a?.status === "Absent").length;
 
   const attendanceRate =
     present + absent > 0
       ? Math.round((present / (present + absent)) * 100)
       : 0;
 
-  const pendingLeaves = data.leaves.filter((l:any) => l.status === "pending");
+  const pendingLeaves = leavesArr.filter(l => l?.status === "pending");
 
   // =========================
-  // 🔥 REAL CHART LOGIC
+  // REAL CHART DATA
   // =========================
-
   const groupByDate = (arr:any[], key:string) => {
+    if (!Array.isArray(arr)) return [];
+
     const map:any = {};
 
     arr.forEach(item => {
-      const d = item[key]?.split("T")[0];
-      if (!d) return;
+      if (!item || typeof item !== "object") return;
 
+      const raw = item[key];
+      if (!raw || typeof raw !== "string") return;
+
+      const d = raw.split("T")[0];
       map[d] = (map[d] || 0) + 1;
     });
 
@@ -2707,30 +2725,35 @@ import {
       }));
   };
 
-  const attendanceChart = groupByDate(data.attendance, "date");
-  const sessionsChart = groupByDate(data.sessions, "session_date");
+  const attendanceChart = groupByDate(attendanceArr, "date");
+  const sessionsChart = groupByDate(sessionsArr, "session_date");
 
   // =========================
   // UI
   // =========================
-
   return (
     <Box sx={{ p: 2 }}>
+
+      {/* HEADER */}
+      <Typography variant="h4" fontWeight={700} mb={3}>
+        Dashboard Overview
+      </Typography>
 
       {/* KPI CARDS */}
       <Grid container spacing={3}>
         {[
-          { title: "Programs", value: data.programs.length },
-          { title: "Sessions", value: data.sessions.length },
+          { title: "Programs", value: programsArr.length },
+          { title: "Sessions", value: sessionsArr.length },
           { title: "Attendance %", value: `${attendanceRate}%` },
           { title: "Pending Leaves", value: pendingLeaves.length }
         ].map((k, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card sx={{ borderRadius: 3 }}>
+            <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
               <CardContent>
                 <Typography color="text.secondary">
                   {k.title}
                 </Typography>
+
                 <Typography variant="h4" fontWeight={700}>
                   {k.value}
                 </Typography>
@@ -2743,12 +2766,12 @@ import {
       {/* CHARTS */}
       <Grid container spacing={3} mt={1}>
 
-        {/* Attendance Trend */}
+        {/* Attendance */}
         <Grid item xs={12} md={6}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
               <Typography variant="h6">
-                Attendance Trend (Last 7 Days)
+                Attendance Trend (7 Days)
               </Typography>
 
               <ResponsiveContainer width="100%" height={250}>
@@ -2762,12 +2785,12 @@ import {
           </Card>
         </Grid>
 
-        {/* Sessions Trend */}
+        {/* Sessions */}
         <Grid item xs={12} md={6}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
               <Typography variant="h6">
-                Sessions Trend (Last 7 Days)
+                Sessions Trend (7 Days)
               </Typography>
 
               <ResponsiveContainer width="100%" height={250}>
@@ -2790,11 +2813,15 @@ import {
         <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6">Pending Leaves</Typography>
+              <Typography variant="h6">
+                Pending Leaves
+              </Typography>
 
               {pendingLeaves.slice(0, 5).map((l:any, i:number) => (
                 <Typography key={i}>
-                  {l?.name || "Unknown"} - {l?.reason || "-"}
+                  {typeof l === "object"
+                    ? `${l?.name || "Unknown"} - ${l?.reason || "-"}`
+                    : "Invalid"}
                 </Typography>
               ))}
 
@@ -2811,11 +2838,15 @@ import {
         <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6">Coaches</Typography>
+              <Typography variant="h6">
+                Coaches
+              </Typography>
 
-              {data.coaches.slice(0, 5).map((c:any, i:number) => (
+              {coachesArr.slice(0, 5).map((c:any, i:number) => (
                 <Typography key={i}>
-                  {c?.name || "No Name"}
+                  {typeof c === "object"
+                    ? c?.name || "No Name"
+                    : "Invalid"}
                 </Typography>
               ))}
 
@@ -2823,11 +2854,13 @@ import {
           </Card>
         </Grid>
 
-        {/* Quick Insights */}
+        {/* Quick Stats */}
         <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6">Quick Insights</Typography>
+              <Typography variant="h6">
+                Quick Insights
+              </Typography>
 
               <Typography>Present: {present}</Typography>
               <Typography>Absent: {absent}</Typography>
