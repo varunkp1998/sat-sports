@@ -2810,19 +2810,6 @@ import { DataGrid } from "@mui/x-data-grid";
           {params.value || "General"}
         </span>
       )
-    },
-    {
-      field: "created_at",
-      headerName: "Joined",
-      flex: 1,
-      valueGetter: (params) => {
-        const date = new Date(params.value);
-        return date.toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric"
-        });
-      }
     }
   ];
 
