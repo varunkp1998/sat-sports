@@ -1,111 +1,42 @@
+/* ===============================
+   ROOT FIX (VERY IMPORTANT)
+================================ */
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;        /* ✅ full width */
+  margin: 0;          /* ✅ remove centering */
+  padding: 0;         /* ✅ remove spacing */
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* ===============================
+   BASIC UTILITIES
+================================ */
+
+.page {
+  width: 100%;
+  min-height: 100vh;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* ===============================
+   OPTIONAL MOBILE MENU (if needed)
+================================ */
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-/* BURGER BUTTON */
 .burger {
   display: none;
-  font-size: 24px;
+  font-size: 22px;
   background: none;
   border: none;
-  color: white;
+  cursor: pointer;
 }
 
-/* MOBILE */
+/* ===============================
+   MOBILE SUPPORT
+================================ */
+
 @media (max-width: 768px) {
 
   .burger {
     display: block;
   }
 
-  .nav {
-    position: absolute;
-    top: 70px;
-    right: 0;
-    width: 250px;
-    background: #111;
-    flex-direction: column;
-    display: none;
-    padding: 16px;
-  }
-
-  .nav.open {
-    display: flex;
-  }
-}
-/* TOPBAR (mobile only) */
-.admin-topbar {
-  display: none;
-  background: #111;
-  color: white;
-  padding: 10px;
-}
-
-/* MOBILE */
-@media (max-width: 768px) {
-
-  .admin-topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .sidebar {
-    position: fixed;
-    left: -250px;
-    top: 0;
-    height: 100%;
-    width: 250px;
-    background: #111;
-    transition: 0.3s;
-    z-index: 1000;
-  }
-
-  .sidebar.open {
-    left: 0;
-  }
-}
-.sidebar.open::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
 }
