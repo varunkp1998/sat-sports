@@ -3156,188 +3156,251 @@ function PlayerPortal() {
 }
 
 
-function AdminCoaches() {
-  const [coaches, setCoaches] = React.useState<any[]>([]);
-  const [name, setName] = React.useState("");
-  const [email, setEmail] = React.useState("");
-  const [phone, setPhone] = React.useState("");
-  const [editingId, setEditingId] = React.useState<number | null>(null);
 
-  const loadCoaches = () => {
+
+function AdminCoaches() {
+  const [coaches, setCoaches] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: ""
+  });
+
+  const isMobile = useMediaQuery("(max-width:768px)");
+
+  const load = () => {
     fetch(`${API_BASE}/api/admin/coaches`)
       .then(res => res.json())
       .then(setCoaches);
   };
 
-  React.useEffect(() => {
-    loadCoaches();
+  useEffect(() => {
+    load();
   }, []);
 
-  const resetForm = () => {
-    setEditingId(null);
-    setName("");
-    setEmail("");
-    setPhone("");
+  // 🔍 SEARCH
+  const filtered = coaches.filter(c =>
+    c.name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // ➕ ADD
+  const openAdd = () => {
+    setEditing(null);
+    setForm({ name: "", email: "", phone: "" });
+    setOpen(true);
   };
 
-  const saveCoach = () => {
-    if (!name || !email) {
-      alert("Name and email are required");
+  // ✏️ EDIT
+  const openEdit = (c: any) => {
+    setEditing(c);
+    setForm({
+      name: c.name || "",
+      email: c.email || "",
+      phone: c.phone || ""
+    });
+    setOpen(true);
+  };
+
+  // 💾 SAVE
+  const save = async () => {
+    if (!form.name || !form.email) {
+      alert("Name & Email required");
       return;
     }
 
-    const payload = { name, email, phone };
+    const url = editing
+      ? `${API_BASE}/api/admin/coaches/${editing.id}`
+      : `${API_BASE}/api/admin/coaches`;
 
-    if (editingId) {
-      fetch(`${API_BASE}/api/admin/coaches/${editingId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(() => {
-        resetForm();
-        loadCoaches();
-      });
-    } else {
-      fetch(`${API_BASE}/api/admin/coaches`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(() => {
-        resetForm();
-        loadCoaches();
-      });
+    const method = editing ? "PUT" : "POST";
+
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form)
+    });
+
+    setOpen(false);
+    load();
+  };
+
+  // ❌ DELETE
+  const remove = async (id: number) => {
+    if (!window.confirm("Delete coach?")) return;
+
+    const res = await fetch(`${API_BASE}/api/admin/coaches/${id}`, {
+      method: "DELETE"
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.message || "Delete failed");
+      return;
     }
-  };
 
-  const editCoach = (c: any) => {
-    setEditingId(c.id);
-    setName(c.name || "");
-    setEmail(c.email || "");
-    setPhone(c.phone || "");
+    load();
   };
-
-  const deleteCoach = (id: number) => {
-    if (!window.confirm("Delete this coach?")) return;
-  
-    fetch(`${API_BASE}/api/admin/coaches/${id}`, { method: "DELETE" })
-      .then(async (res) => {
-        if (!res.ok) {
-          // Try to read the error message from backend
-          let msg = "Failed to delete coach";
-          try {
-            const data = await res.json();
-            if (data?.message) msg = data.message;
-          } catch (e) {
-            // ignore JSON parse errors
-          }
-          alert(msg);
-          return;
-        }
-  
-        // Success → reload list
-        loadCoaches();
-      })
-      .catch(() => {
-        alert("Network error while deleting coach");
-      });
-  };
-  
 
   return (
-    <section>
-      <Typography variant="h4" fontWeight={700} mb={2}>
-        🎾 Coach Management
-      </Typography>
+    <Box sx={{ p: 2 }}>
 
-      {/* FORM */}
-      <Card sx={{ mb: 3, borderRadius: 3 }}>
-        <CardContent>
-          <Typography variant="h6" fontWeight={600} mb={2}>
-            {editingId ? "✏️ Edit Coach" : "➕ Add Coach"}
-          </Typography>
+      {/* HEADER */}
+      <Stack direction="row" justifyContent="space-between" mb={2}>
+        <Typography variant="h5">Coaches</Typography>
+        <Button variant="contained" onClick={openAdd}>
+          + Add Coach
+        </Button>
+      </Stack>
 
-          <Stack spacing={2} direction={{ xs: "column", md: "row" }}>
+      {/* SEARCH */}
+      <TextField
+        fullWidth
+        placeholder="Search coaches..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        sx={{ mb: 2 }}
+      />
+
+      {/* 📱 MOBILE VIEW */}
+      {isMobile ? (
+        <Stack spacing={2}>
+          {filtered.map(c => (
+            <Card key={c.id}>
+              <CardContent>
+
+                <Typography fontWeight={600}>
+                  {c.name}
+                </Typography>
+
+                <Typography color="text.secondary">
+                  {c.email}
+                </Typography>
+
+                <Typography>
+                  {c.phone || "-"}
+                </Typography>
+
+                <Stack direction="row" spacing={1} mt={1}>
+                  <Button fullWidth onClick={() => openEdit(c)}>
+                    Edit
+                  </Button>
+
+                  <Button
+                    fullWidth
+                    color="error"
+                    onClick={() => remove(c.id)}
+                  >
+                    Delete
+                  </Button>
+                </Stack>
+
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      ) : (
+        /* 💻 DESKTOP TABLE */
+        <Paper sx={{ overflowX: "auto" }}>
+          <Table sx={{ minWidth: 600 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Phone</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {filtered.map(c => (
+                <TableRow key={c.id} hover>
+
+                  <TableCell>{c.name}</TableCell>
+                  <TableCell>{c.email}</TableCell>
+                  <TableCell>{c.phone || "-"}</TableCell>
+
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Button size="small" onClick={() => openEdit(c)}>
+                        Edit
+                      </Button>
+
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => remove(c.id)}
+                      >
+                        Delete
+                      </Button>
+                    </Stack>
+                  </TableCell>
+
+                </TableRow>
+              ))}
+
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} align="center">
+                    No coaches found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
+
+      {/* MODAL */}
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
+        <DialogTitle>
+          {editing ? "Edit Coach" : "Add Coach"}
+        </DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2} mt={1}>
+
             <TextField
               label="Name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              fullWidth
+              value={form.name}
+              onChange={(e) =>
+                setForm({ ...form, name: e.target.value })
+              }
             />
 
             <TextField
               label="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              fullWidth
+              value={form.email}
+              onChange={(e) =>
+                setForm({ ...form, email: e.target.value })
+              }
             />
 
             <TextField
               label="Phone"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              fullWidth
+              value={form.phone}
+              onChange={(e) =>
+                setForm({ ...form, phone: e.target.value })
+              }
             />
 
-            <Button variant="contained" onClick={saveCoach}>
-              {editingId ? "Update" : "Add"}
-            </Button>
-
-            {editingId && (
-              <Button variant="outlined" onClick={resetForm}>
-                Cancel
-              </Button>
-            )}
           </Stack>
-        </CardContent>
-      </Card>
+        </DialogContent>
 
-      {/* TABLE */}
-      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell><strong>Name</strong></TableCell>
-              <TableCell><strong>Email</strong></TableCell>
-              <TableCell><strong>Phone</strong></TableCell>
-              <TableCell align="right"><strong>Actions</strong></TableCell>
-            </TableRow>
-          </TableHead>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={save}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-          <TableBody>
-            {coaches.map((c: any) => (
-              <TableRow key={c.id} hover>
-                <TableCell>{c.name}</TableCell>
-                <TableCell>{c.email || "-"}</TableCell>
-                <TableCell>{c.phone || "-"}</TableCell>
-                <TableCell align="right">
-                  <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    <Button size="small" variant="contained" onClick={() => editCoach(c)}>
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="error"
-                      onClick={() => deleteCoach(c.id)}
-                    >
-                      Delete
-                    </Button>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
-
-            {coaches.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} align="center">
-                  No coaches found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </section>
+    </Box>
   );
 }
 
