@@ -1121,31 +1121,19 @@ function Login() {
           <Box textAlign="center" mb={3}>
           <Box
   display="flex"
-  alignItems="center"
   justifyContent="center"
-  gap={1.5}
-  mb={1}
+  alignItems="center"
+  mb={2}
 >
   <img
     src="/logo.png"
     alt="SAT Sports"
     style={{
-      height: 40,
-      width: 40,
+      height: 60,
+      width: 60,
       objectFit: "contain"
     }}
   />
-
-  <Typography
-    variant="h4"
-    fontWeight={800}
-    sx={{
-      letterSpacing: 1,
-      textShadow: "0 5px 20px rgba(0,0,0,0.8)"
-    }}
-  >
-    SAT Sports
-  </Typography>
 </Box>
             <Typography color="gray">
               {forgotMode ? "Reset your password" : "Login to your account"}
