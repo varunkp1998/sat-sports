@@ -2715,7 +2715,7 @@ import SearchIcon from "@mui/icons-material/Search";
 
 
 
-function Dashboard() {
+function AdminDashboard() {
   const [open, setOpen] = useState(true);
   const username = localStorage.getItem("username") || "Admin";
 
