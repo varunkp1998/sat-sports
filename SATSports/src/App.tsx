@@ -59,16 +59,16 @@ import CoachLeave from "./CoachLeave";
 import CoachProfile from "./CoachProfile";
 import CoachDashboard from "./CoachDashboard";
 import {
-  
+  Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
   LineElement,
   PointElement,
-  
+  Tooltip,
   Legend,
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
 
 ChartJS.register(
   CategoryScale,
@@ -2636,9 +2636,7 @@ function AdminRevenue() {
 import {
   ResponsiveContainer,
   LineChart,
-  Line,
   XAxis,
-  Tooltip
 } from "recharts";
 
 
@@ -2779,8 +2777,6 @@ import {
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={attendanceChart}>
                   <XAxis dataKey="date" />
-                  <Tooltip />
-                  <Line dataKey="value" stroke="#22c55e" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -2798,8 +2794,6 @@ import {
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={sessionsChart}>
                   <XAxis dataKey="date" />
-                  <Tooltip />
-                  <Line dataKey="value" stroke="#3b82f6" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
