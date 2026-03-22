@@ -3600,7 +3600,7 @@ function AdminLayout() {
           <a href="/admin/leaves">📝 Leave Management</a>
           <a href="/admin/locations">📍 Locations (QR)</a>
           <a href="/admin/tournaments">🏆 Tournaments</a>
-
+          <Link to="/admin/news">📰 News & Events</Link>
           <Link to="/admin/live">🟢 Live Coaches</Link>
           <Link to="/admin/court-bookings">Court Bookings</Link>
           <a href="/admin/applications">Applications</a>
