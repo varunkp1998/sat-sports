@@ -2732,41 +2732,29 @@ import {
   // UI
   // =========================
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, background: "#f9fafb", minHeight: "100vh" }}>
-  
+    <Box sx={{ p: 2 }}>
+
       {/* HEADER */}
-      <Box mb={3}>
-        <Typography variant="h4" fontWeight={800}>
-          Dashboard
-        </Typography>
-        <Typography color="text.secondary">
-          Overview of your academy performance
-        </Typography>
-      </Box>
-  
+      <Typography variant="h4" fontWeight={700} mb={3}>
+        Dashboard Overview
+      </Typography>
+
       {/* KPI CARDS */}
       <Grid container spacing={3}>
         {[
-          { title: "Programs", value: programsArr.length, color: "#6366f1" },
-          { title: "Sessions", value: sessionsArr.length, color: "#22c55e" },
-          { title: "Attendance %", value: `${attendanceRate}%`, color: "#f59e0b" },
-          { title: "Pending Leaves", value: pendingLeaves.length, color: "#ef4444" }
+          { title: "Programs", value: programsArr.length },
+          { title: "Sessions", value: sessionsArr.length },
+          { title: "Attendance %", value: `${attendanceRate}%` },
+          { title: "Pending Leaves", value: pendingLeaves.length }
         ].map((k, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card
-              sx={{
-                borderRadius: 4,
-                background: `linear-gradient(135deg, ${k.color}, #111827)`,
-                color: "white",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
-              }}
-            >
+            <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
               <CardContent>
-                <Typography fontSize={14} opacity={0.8}>
+                <Typography color="text.secondary">
                   {k.title}
                 </Typography>
-  
-                <Typography variant="h3" fontWeight={800}>
+
+                <Typography variant="h4" fontWeight={700}>
                   {k.value}
                 </Typography>
               </CardContent>
@@ -2774,91 +2762,65 @@ import {
           </Grid>
         ))}
       </Grid>
-  
+
       {/* CHARTS */}
       <Grid container spacing={3} mt={1}>
-  
+
         {/* Attendance */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 4 }}>
+          <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6" mb={2}>
-                Attendance Trend
+              <Typography variant="h6">
+                Attendance Trend (7 Days)
               </Typography>
-  
-              <ResponsiveContainer width="100%" height={260}>
+
+              <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={attendanceChart}>
                   <XAxis dataKey="date" />
-                  <Tooltip />
-                  <Line
-                    dataKey="value"
-                    stroke="#22c55e"
-                    strokeWidth={3}
-                    dot={false}
-                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </Grid>
-  
+
         {/* Sessions */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 4 }}>
+          <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6" mb={2}>
-                Sessions Trend
+              <Typography variant="h6">
+                Sessions Trend (7 Days)
               </Typography>
-  
-              <ResponsiveContainer width="100%" height={260}>
+
+              <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={sessionsChart}>
                   <XAxis dataKey="date" />
-                  <Tooltip />
-                  <Line
-                    dataKey="value"
-                    stroke="#3b82f6"
-                    strokeWidth={3}
-                    dot={false}
-                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </Grid>
-  
+
       </Grid>
-  
-      {/* BOTTOM SECTION */}
+
+      {/* BOTTOM PANELS */}
       <Grid container spacing={3} mt={1}>
-  
+
         {/* Leaves */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 4 }}>
+          <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6" mb={2}>
+              <Typography variant="h6">
                 Pending Leaves
               </Typography>
-  
-              <Box display="flex" flexDirection="column" gap={1}>
-                {pendingLeaves.slice(0, 5).map((l:any, i:number) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      p: 1,
-                      borderRadius: 2,
-                      background: "#f3f4f6"
-                    }}
-                  >
-                    <Typography fontSize={14}>
-                      {l?.name || "Unknown"}
-                    </Typography>
-                    <Typography fontSize={12} color="text.secondary">
-                      {l?.reason || "-"}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-  
+
+              {pendingLeaves.slice(0, 5).map((l:any, i:number) => (
+                <Typography key={i}>
+                  {typeof l === "object"
+                    ? `${l?.name || "Unknown"} - ${l?.reason || "-"}`
+                    : "Invalid"}
+                </Typography>
+              ))}
+
               {pendingLeaves.length === 0 && (
                 <Typography color="text.secondary">
                   No pending leaves
@@ -2867,56 +2829,44 @@ import {
             </CardContent>
           </Card>
         </Grid>
-  
+
         {/* Coaches */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 4 }}>
+          <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6" mb={2}>
+              <Typography variant="h6">
                 Coaches
               </Typography>
-  
-              <Box display="flex" flexDirection="column" gap={1}>
-                {coachesArr.slice(0, 5).map((c:any, i:number) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      p: 1,
-                      borderRadius: 2,
-                      background: "#f3f4f6"
-                    }}
-                  >
-                    <Typography>
-                      {c?.name || "No Name"}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-  
+
+              {coachesArr.slice(0, 5).map((c:any, i:number) => (
+                <Typography key={i}>
+                  {typeof c === "object"
+                    ? c?.name || "No Name"
+                    : "Invalid"}
+                </Typography>
+              ))}
+
             </CardContent>
           </Card>
         </Grid>
-  
+
         {/* Quick Stats */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 4 }}>
+          <Card sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6" mb={2}>
+              <Typography variant="h6">
                 Quick Insights
               </Typography>
-  
-              <Box display="flex" flexDirection="column" gap={1}>
-                <Typography>Present: {present}</Typography>
-                <Typography>Absent: {absent}</Typography>
-                <Typography>Total: {attendanceArr.length}</Typography>
-              </Box>
-  
+
+              <Typography>Present: {present}</Typography>
+              <Typography>Absent: {absent}</Typography>
+
             </CardContent>
           </Card>
         </Grid>
-  
+
       </Grid>
-  
+
     </Box>
   );
 }
