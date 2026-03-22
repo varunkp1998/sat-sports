@@ -2650,85 +2650,63 @@ import PercentIcon from "@mui/icons-material/Percent";
 import WarningIcon from "@mui/icons-material/Warning";
 
 
-
-
-
-function AdminDashboard() {
+ function AdminDashboard() {
 
   const [data, setData] = useState<any>({
-    programs: [],
-    attendance: [],
+    players: [],
+    coaches: [],
     sessions: [],
-    leaves: [],
-    coaches: []
+    leaves: []
   });
 
   useEffect(() => {
     const safe = (d:any) => Array.isArray(d) ? d : [];
 
     Promise.all([
-      fetch(`${API_BASE}/api/admin/programs`).then(r => r.json()).catch(()=>[]),
-      fetch(`${API_BASE}/api/admin/attendance`).then(r => r.json()).catch(()=>[]),
-      fetch(`${API_BASE}/api/admin/sessions`).then(r => r.json()).catch(()=>[]),
-      fetch(`${API_BASE}/api/admin/leaves`).then(r => r.json()).catch(()=>[]),
-      fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json()).catch(()=>[])
-    ]).then(([programs, attendance, sessions, leaves, coaches]) =>
+      fetch(`${API_BASE}/api/admin/players`).then(r=>r.json()).catch(()=>[]),
+      fetch(`${API_BASE}/api/admin/coaches`).then(r=>r.json()).catch(()=>[]),
+      fetch(`${API_BASE}/api/admin/sessions`).then(r=>r.json()).catch(()=>[]),
+      fetch(`${API_BASE}/api/admin/leaves`).then(r=>r.json()).catch(()=>[])
+    ]).then(([players, coaches, sessions, leaves]) =>
       setData({
-        programs: safe(programs),
-        attendance: safe(attendance),
+        players: safe(players),
+        coaches: safe(coaches),
         sessions: safe(sessions),
-        leaves: safe(leaves),
-        coaches: safe(coaches)
+        leaves: safe(leaves)
       })
     );
   }, []);
 
-  const attendanceArr = data.attendance;
-  const sessionsArr = data.sessions;
-  const leavesArr = data.leaves;
-  const coachesArr = data.coaches;
-  const programsArr = data.programs;
-
-  const present = attendanceArr.filter((a:any)=>a.status==="Present").length;
-  const absent = attendanceArr.filter((a:any)=>a.status==="Absent").length;
-
-  const attendanceRate =
-    present + absent > 0
-      ? Math.round((present/(present+absent))*100)
-      : 0;
-
-  const pendingLeaves = leavesArr.filter((l:any)=>l.status==="pending");
+  const pendingLeaves = data.leaves.filter((l:any)=>l.status==="pending");
 
   return (
-    <Box sx={{ p: 3, background: "#f4f6f8", minHeight: "100vh" }}>
-  
+    <Box
+      sx={{
+        width: "100%",
+        minHeight: "100vh",
+        p: 3,
+        background: "#f4f6f8"
+      }}
+    >
+
       {/* HEADER */}
       <Typography variant="h4" fontWeight={700} mb={3}>
         Dashboard
       </Typography>
-  
-      {/* KPI CARDS */}
+
+      {/* KPI STRIP */}
       <Grid container spacing={3} mb={3}>
         {[
-          { title: "Programs", value: programsArr.length, color: "#6366f1" },
-          { title: "Sessions", value: sessionsArr.length, color: "#22c55e" },
-          { title: "Attendance", value: `${attendanceRate}%`, color: "#f59e0b" },
-          { title: "Leaves", value: pendingLeaves.length, color: "#ef4444" }
-        ].map((k, i) => (
+          { label: "Players", value: data.players.length },
+          { label: "Coaches", value: data.coaches.length },
+          { label: "Sessions", value: data.sessions.length },
+          { label: "Pending Leaves", value: pendingLeaves.length }
+        ].map((k,i)=>(
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card sx={{ borderRadius: 3 }}>
+            <Card sx={{ borderRadius: 2 }}>
               <CardContent>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 2,
-                    background: k.color,
-                    mb: 2
-                  }}
-                />
-                <Typography fontSize={14} color="text.secondary">
-                  {k.title}
+                <Typography color="text.secondary">
+                  {k.label}
                 </Typography>
                 <Typography variant="h5" fontWeight={700}>
                   {k.value}
@@ -2738,122 +2716,137 @@ function AdminDashboard() {
           </Grid>
         ))}
       </Grid>
-  
-      {/* ANALYTICS ROW */}
-      <Grid container spacing={3} mb={3}>
-  
-        <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6">Attendance Overview</Typography>
-              <Box mt={2}>
-                <Typography>Present: {present}</Typography>
-                <Typography>Absent: {absent}</Typography>
-                <Typography>Total: {attendanceArr.length}</Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-  
-        <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6">Session Summary</Typography>
-              <Box mt={2}>
-                <Typography>Total Sessions: {sessionsArr.length}</Typography>
-                <Typography>Upcoming: {sessionsArr.slice(0,3).length}</Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-  
-      </Grid>
-  
-      {/* DATA ROW */}
-      <Grid container spacing={3} mb={3}>
-  
-        {/* SESSIONS */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3 }}>
+
+      {/* MAIN TABLE ROW */}
+      <Grid container spacing={3}>
+
+        {/* PLAYERS TABLE */}
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6" mb={2}>
-                Recent Sessions
+                Recent Players
               </Typography>
-  
-              {sessionsArr.slice(0,5).map((s:any,i:number)=>(
-                <Box key={i} sx={{ mb: 1 }}>
-                  <Typography fontWeight={500}>
-                    {s.session_date}
-                  </Typography>
-                  <Typography fontSize={12} color="text.secondary">
-                    {s.start_time}
-                  </Typography>
-                </Box>
-              ))}
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Email</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.players.slice(0,5).map((p:any)=>(
+                    <TableRow key={p.id}>
+                      <TableCell>{p.name}</TableCell>
+                      <TableCell>{p.email}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
             </CardContent>
           </Card>
         </Grid>
-  
-        {/* LEAVES */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3 }}>
+
+        {/* SESSIONS TABLE */}
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6" mb={2}>
-                Pending Leaves
+                Upcoming Sessions
               </Typography>
-  
-              {pendingLeaves.length === 0 ? (
-                <Typography>No pending</Typography>
-              ) : (
-                pendingLeaves.slice(0,5).map((l:any,i:number)=>(
-                  <Typography key={i}>{l.name}</Typography>
-                ))
-              )}
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Time</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.sessions.slice(0,5).map((s:any)=>(
+                    <TableRow key={s.id}>
+                      <TableCell>{s.session_date}</TableCell>
+                      <TableCell>{s.start_time}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
             </CardContent>
           </Card>
         </Grid>
-  
+
+        {/* LEAVES TABLE */}
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ borderRadius: 2 }}>
+            <CardContent>
+              <Typography variant="h6" mb={2}>
+                Leave Requests
+              </Typography>
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.leaves.slice(0,5).map((l:any)=>(
+                    <TableRow key={l.id}>
+                      <TableCell>{l.name}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={l.status}
+                          color={
+                            l.status==="approved"
+                              ? "success"
+                              : l.status==="rejected"
+                              ? "error"
+                              : "warning"
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+            </CardContent>
+          </Card>
+        </Grid>
+
         {/* COACHES */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3 }}>
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6" mb={2}>
                 Coaches
               </Typography>
-  
-              {coachesArr.slice(0,5).map((c:any,i:number)=>(
-                <Typography key={i}>{c.name}</Typography>
-              ))}
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.coaches.slice(0,5).map((c:any)=>(
+                    <TableRow key={c.id}>
+                      <TableCell>{c.name}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
             </CardContent>
           </Card>
         </Grid>
-  
+
       </Grid>
-  
-      {/* ACTIVITY / FEED */}
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Activity Feed
-              </Typography>
-  
-              <Typography color="text.secondary">
-                • New player registered  
-              </Typography>
-              <Typography color="text.secondary">
-                • Session scheduled  
-              </Typography>
-              <Typography color="text.secondary">
-                • Leave request submitted  
-              </Typography>
-  
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-  
+
     </Box>
   );
 }
