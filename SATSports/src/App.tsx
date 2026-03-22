@@ -1971,12 +1971,20 @@ function AdminTournaments() {
     </Box>
   );
 }
-function AdminPlayers() {
+import {
+ 
+  useMediaQuery
+} from "@mui/material";
+
+
+ function AdminPlayers() {
   const [players, setPlayers] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [filter, setFilter] = useState("");
   const [file, setFile] = useState<File | null>(null);
+
+  const isMobile = useMediaQuery("(max-width:768px)");
 
   const loadPlayers = () => {
     fetch(`${API_BASE}/api/admin/players`)
@@ -1995,7 +2003,6 @@ function AdminPlayers() {
     loadPrograms();
   }, []);
 
-  // ✅ Excel Upload
   const uploadExcel = async () => {
     if (!file) return alert("Select file");
 
@@ -2012,7 +2019,6 @@ function AdminPlayers() {
     loadPlayers();
   };
 
-  // ✅ Select Players
   const toggleSelect = (id: number) => {
     setSelected(prev =>
       prev.includes(id)
@@ -2021,7 +2027,6 @@ function AdminPlayers() {
     );
   };
 
-  // ✅ Assign Program
   const assignProgram = async (playerId: number, programId: number) => {
     await fetch(`${API_BASE}/api/admin/players/${playerId}`, {
       method: "PUT",
@@ -2032,7 +2037,6 @@ function AdminPlayers() {
     loadPlayers();
   };
 
-  // ✅ Auto Assign (AGE BASED)
   const autoAssign = async (p: any) => {
     const program = programs.find(pr =>
       p.age >= pr.min_age && p.age <= pr.max_age
@@ -2046,15 +2050,12 @@ function AdminPlayers() {
     await assignProgram(p.id, program.id);
   };
 
-  // ✅ Bulk Assign
   const bulkAssign = async (programId: number) => {
     if (selected.length === 0) return alert("Select players");
 
     await fetch(`${API_BASE}/api/admin/players/bulk-assign`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         playerIds: selected,
         program_id: programId
@@ -2065,7 +2066,6 @@ function AdminPlayers() {
     loadPlayers();
   };
 
-  // ✅ Filter Logic
   const filteredPlayers = players.filter(p => {
     if (filter === "unassigned") return !p.programTitle;
     if (filter) return p.programTitle === filter;
@@ -2073,11 +2073,21 @@ function AdminPlayers() {
   });
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 2 }}>
 
       {/* HEADER */}
-      <Card sx={{ mb: 3, borderRadius: 3, background: "linear-gradient(135deg,#c31432,#240b36)", color: "#fff" }}>
-        <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <Card sx={{
+        mb: 3,
+        borderRadius: 3,
+        background: "linear-gradient(135deg,#c31432,#240b36)",
+        color: "#fff"
+      }}>
+        <CardContent sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2
+        }}>
           <SportsTennisIcon sx={{ fontSize: 40 }} />
           <Box>
             <Typography variant="h5" fontWeight={700}>
@@ -2090,14 +2100,16 @@ function AdminPlayers() {
         </CardContent>
       </Card>
 
-      {/* EXCEL UPLOAD */}
+      {/* UPLOAD */}
       <Card sx={{ mb: 3, p: 2, borderRadius: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <TextField
             type="file"
+            fullWidth
             onChange={(e: any) => setFile(e.target.files[0])}
           />
           <Button
+            fullWidth
             variant="contained"
             color="error"
             startIcon={<UploadIcon />}
@@ -2110,10 +2122,10 @@ function AdminPlayers() {
 
       {/* FILTER + BULK */}
       <Card sx={{ mb: 3, p: 2, borderRadius: 3 }}>
-        <Stack direction="row" spacing={2}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
 
-          {/* Filter */}
           <Select
+            fullWidth
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             displayEmpty
@@ -2127,8 +2139,8 @@ function AdminPlayers() {
             ))}
           </Select>
 
-          {/* Bulk Assign */}
           <Select
+            fullWidth
             displayEmpty
             onChange={(e) => bulkAssign(Number(e.target.value))}
           >
@@ -2143,77 +2155,122 @@ function AdminPlayers() {
         </Stack>
       </Card>
 
-      {/* TABLE */}
-      <Paper sx={{ borderRadius: 3 }}>
-        <Table>
-          <TableHead>
-            <TableRow sx={{ background: "#f5f5f5" }}>
-              <TableCell />
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Age</TableCell>
-              <TableCell>Program</TableCell>
-              <TableCell>Sub Category</TableCell>
-              <TableCell>Auto</TableCell>
-            </TableRow>
-          </TableHead>
+      {/* MOBILE VIEW */}
+      {isMobile ? (
+        <Stack spacing={2}>
+          {filteredPlayers.map(p => (
+            <Card key={p.id} sx={{ borderRadius: 3 }}>
+              <CardContent>
 
-          <TableBody>
-            {filteredPlayers.map(p => (
-              <TableRow key={p.id} hover>
-
-                {/* CHECKBOX */}
-                <TableCell>
-                  <Checkbox
-                    checked={selected.includes(p.id)}
-                    onChange={() => toggleSelect(p.id)}
-                  />
-                </TableCell>
-
-                <TableCell sx={{ fontWeight: 600, color: "#b11226" }}>
+                <Typography fontWeight={600}>
                   {p.name}
-                </TableCell>
+                </Typography>
 
-                <TableCell>{p.email}</TableCell>
-                <TableCell>{p.age}</TableCell>
+                <Typography color="text.secondary">
+                  {p.email}
+                </Typography>
 
-                {/* PROGRAM DROPDOWN */}
-                <TableCell>
-                  <Select
-                    size="small"
-                    value={p.program_id || ""}
-                    onChange={(e) =>
-                      assignProgram(p.id, Number(e.target.value))
-                    }
-                  >
-                    <MenuItem value="">None</MenuItem>
-                    {programs.map(pr => (
-                      <MenuItem key={pr.id} value={pr.id}>
-                        {pr.title}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </TableCell>
+                <Typography>
+                  Age: {p.age ?? "-"}
+                </Typography>
 
-                <TableCell>{p.sub_category || "-"}</TableCell>
+                <Select
+                  fullWidth
+                  size="small"
+                  sx={{ mt: 1 }}
+                  value={p.program_id || ""}
+                  onChange={(e) =>
+                    assignProgram(p.id, Number(e.target.value))
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {programs.map(pr => (
+                    <MenuItem key={pr.id} value={pr.id}>
+                      {pr.title}
+                    </MenuItem>
+                  ))}
+                </Select>
 
-                {/* AUTO ASSIGN */}
-                <TableCell>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    color="warning"
-                    onClick={() => autoAssign(p)}
-                  >
-                    Auto
-                  </Button>
-                </TableCell>
+                <Button
+                  fullWidth
+                  sx={{ mt: 1 }}
+                  variant="contained"
+                  color="warning"
+                  onClick={() => autoAssign(p)}
+                >
+                  Auto Assign
+                </Button>
 
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      ) : (
+        <Paper sx={{ borderRadius: 3, overflowX: "auto" }}>
+          <Table sx={{ minWidth: 800 }}>
+            <TableHead>
+              <TableRow sx={{ background: "#f5f5f5" }}>
+                <TableCell />
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Age</TableCell>
+                <TableCell>Program</TableCell>
+                <TableCell>Sub Category</TableCell>
+                <TableCell>Auto</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Paper>
+            </TableHead>
+
+            <TableBody>
+              {filteredPlayers.map(p => (
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.includes(p.id)}
+                      onChange={() => toggleSelect(p.id)}
+                    />
+                  </TableCell>
+
+                  <TableCell>{p.name}</TableCell>
+                  <TableCell>{p.email}</TableCell>
+                  <TableCell>{p.age ?? "-"}</TableCell>
+
+                  <TableCell>
+                    <Select
+                      size="small"
+                      value={p.program_id || ""}
+                      onChange={(e) =>
+                        assignProgram(p.id, Number(e.target.value))
+                      }
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {programs.map(pr => (
+                        <MenuItem key={pr.id} value={pr.id}>
+                          {pr.title}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </TableCell>
+
+                  <TableCell>{p.sub_category || "-"}</TableCell>
+
+                  <TableCell>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="warning"
+                      onClick={() => autoAssign(p)}
+                    >
+                      Auto
+                    </Button>
+                  </TableCell>
+
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
+
     </Box>
   );
 }
