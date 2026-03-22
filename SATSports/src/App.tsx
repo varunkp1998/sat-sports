@@ -1971,15 +1971,13 @@ function AdminTournaments() {
     </Box>
   );
 }
+
+
 import {
- 
+ Dialog, DialogTitle, DialogContent, DialogActions,
   useMediaQuery
 } from "@mui/material";
 
-
-import {
-  Dialog, DialogTitle, DialogContent, DialogActions
-} from "@mui/material";
 function AdminPlayers() {
   const [players, setPlayers] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
@@ -1995,6 +1993,8 @@ function AdminPlayers() {
     program_id: ""
   });
 
+  const isMobile = useMediaQuery("(max-width:768px)");
+
   const load = () => {
     fetch(`${API_BASE}/api/admin/players`)
       .then(res => res.json())
@@ -2009,20 +2009,20 @@ function AdminPlayers() {
     load();
   }, []);
 
-  // 🔍 SEARCH FILTER
+  // 🔍 SEARCH
   const filtered = players.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  // ➕ OPEN ADD
+  // ➕ ADD
   const openAdd = () => {
     setEditing(null);
     setForm({ name: "", email: "", age: "", program_id: "" });
     setOpen(true);
   };
 
-  // ✏️ OPEN EDIT
+  // ✏️ EDIT
   const openEdit = (p: any) => {
     setEditing(p);
     setForm({
@@ -2074,100 +2074,176 @@ function AdminPlayers() {
     load();
   };
 
+  // ⚡ AUTO ASSIGN (RESTORED)
+  const autoAssign = async (p: any) => {
+    const program = programs.find(pr =>
+      p.age >= pr.min_age && p.age <= pr.max_age
+    );
+
+    if (!program) {
+      alert("No matching program");
+      return;
+    }
+
+    await assignProgram(p.id, program.id);
+  };
+
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 2 }}>
 
       {/* HEADER */}
-      <Stack direction="row" justifyContent="space-between" mb={3}>
-        <Typography variant="h5" fontWeight={700}>
-          Players
-        </Typography>
-
+      <Stack direction="row" justifyContent="space-between" mb={2}>
+        <Typography variant="h5">Players</Typography>
         <Button variant="contained" onClick={openAdd}>
-          + Add Player
+          + Add
         </Button>
       </Stack>
 
       {/* SEARCH */}
       <TextField
         fullWidth
-        placeholder="Search players..."
+        placeholder="Search..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        sx={{ mb: 3 }}
+        sx={{ mb: 2 }}
       />
 
-      {/* TABLE */}
-      <Paper sx={{ borderRadius: 3 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Age</TableCell>
-              <TableCell>Program</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
+      {/* 📱 MOBILE VIEW */}
+      {isMobile ? (
+        <Stack spacing={2}>
+          {filtered.map(p => (
+            <Card key={p.id}>
+              <CardContent>
 
-          <TableBody>
-            {filtered.map(p => (
-              <TableRow key={p.id} hover>
+                <Typography fontWeight={600}>{p.name}</Typography>
+                <Typography color="text.secondary">{p.email}</Typography>
+                <Typography>Age: {p.age}</Typography>
 
-                <TableCell>{p.name}</TableCell>
-                <TableCell>{p.email}</TableCell>
-                <TableCell>{p.age}</TableCell>
+                <Select
+                  fullWidth
+                  size="small"
+                  sx={{ mt: 1 }}
+                  value={p.program_id || ""}
+                  onChange={(e) =>
+                    assignProgram(p.id, Number(e.target.value))
+                  }
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {programs.map(pr => (
+                    <MenuItem key={pr.id} value={pr.id}>
+                      {pr.title}
+                    </MenuItem>
+                  ))}
+                </Select>
 
-                {/* PROGRAM DROPDOWN */}
-                <TableCell>
-                  <Select
-                    size="small"
-                    value={p.program_id || ""}
-                    onChange={(e) =>
-                      assignProgram(p.id, Number(e.target.value))
-                    }
+                <Stack direction="row" spacing={1} mt={1}>
+                  <Button fullWidth onClick={() => openEdit(p)}>
+                    Edit
+                  </Button>
+
+                  <Button
+                    fullWidth
+                    color="error"
+                    onClick={() => remove(p.id)}
                   >
-                    <MenuItem value="">None</MenuItem>
-                    {programs.map(pr => (
-                      <MenuItem key={pr.id} value={pr.id}>
-                        {pr.title}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </TableCell>
+                    Delete
+                  </Button>
+                </Stack>
 
-                {/* ACTIONS */}
-                <TableCell>
-                  <Stack direction="row" spacing={1}>
-                    <Button size="small" onClick={() => openEdit(p)}>
-                      Edit
-                    </Button>
+                {/* ✅ AUTO ASSIGN BUTTON */}
+                <Button
+                  fullWidth
+                  sx={{ mt: 1 }}
+                  variant="contained"
+                  color="warning"
+                  onClick={() => autoAssign(p)}
+                >
+                  Auto Assign
+                </Button>
 
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      ) : (
+        /* 💻 DESKTOP TABLE */
+        <Paper sx={{ overflowX: "auto" }}>
+          <Table sx={{ minWidth: 800 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Age</TableCell>
+                <TableCell>Program</TableCell>
+                <TableCell>Auto</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {filtered.map(p => (
+                <TableRow key={p.id}>
+                  <TableCell>{p.name}</TableCell>
+                  <TableCell>{p.email}</TableCell>
+                  <TableCell>{p.age}</TableCell>
+
+                  <TableCell>
+                    <Select
+                      size="small"
+                      value={p.program_id || ""}
+                      onChange={(e) =>
+                        assignProgram(p.id, Number(e.target.value))
+                      }
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {programs.map(pr => (
+                        <MenuItem key={pr.id} value={pr.id}>
+                          {pr.title}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </TableCell>
+
+                  {/* ✅ AUTO BUTTON */}
+                  <TableCell>
                     <Button
                       size="small"
-                      color="error"
-                      onClick={() => remove(p.id)}
+                      variant="contained"
+                      color="warning"
+                      onClick={() => autoAssign(p)}
                     >
-                      Delete
+                      Auto
                     </Button>
-                  </Stack>
-                </TableCell>
+                  </TableCell>
 
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Paper>
+                  <TableCell>
+                    <Stack direction="row" spacing={1}>
+                      <Button size="small" onClick={() => openEdit(p)}>
+                        Edit
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => remove(p.id)}
+                      >
+                        Delete
+                      </Button>
+                    </Stack>
+                  </TableCell>
+
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
 
       {/* MODAL */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
-        <DialogTitle>
-          {editing ? "Edit Player" : "Add Player"}
-        </DialogTitle>
+        <DialogTitle>{editing ? "Edit" : "Add"} Player</DialogTitle>
 
         <DialogContent>
           <Stack spacing={2} mt={1}>
-
             <TextField
               label="Name"
               value={form.name}
@@ -2175,7 +2251,6 @@ function AdminPlayers() {
                 setForm({ ...form, name: e.target.value })
               }
             />
-
             <TextField
               label="Email"
               value={form.email}
@@ -2183,7 +2258,6 @@ function AdminPlayers() {
                 setForm({ ...form, email: e.target.value })
               }
             />
-
             <TextField
               label="Age"
               type="number"
@@ -2192,7 +2266,6 @@ function AdminPlayers() {
                 setForm({ ...form, age: e.target.value })
               }
             />
-
             <Select
               value={form.program_id}
               onChange={(e) =>
@@ -2207,7 +2280,6 @@ function AdminPlayers() {
                 </MenuItem>
               ))}
             </Select>
-
           </Stack>
         </DialogContent>
 
@@ -2222,7 +2294,6 @@ function AdminPlayers() {
     </Box>
   );
 }
-
 function PlayerProfile() {
   const params = window.location.pathname.split("/");
   const playerId = params[params.length - 1];
