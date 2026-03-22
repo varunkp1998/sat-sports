@@ -2733,10 +2733,10 @@ import {
   // 🔥 FETCH DATA
   useEffect(() => {
     Promise.all([
-      fetch("/api/admin/coaches").then(r => r.json()),
-      fetch("/api/admin/court-bookings").then(r => r.json()),
-      fetch("/api/admin/applications").then(r => r.json()),
-      fetch("/api/admin/players").then(r => r.json())
+      fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/court-bookings`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/applications`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/players`).then(r => r.json())
     ])
       .then(([c, b, a, p]) => {
         setCoaches(c);
