@@ -1977,304 +1977,251 @@ import {
 } from "@mui/material";
 
 
- function AdminPlayers() {
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions
+} from "@mui/material";
+function AdminPlayers() {
   const [players, setPlayers] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
-  const [selected, setSelected] = useState<number[]>([]);
-  const [filter, setFilter] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [search, setSearch] = useState("");
 
-  const isMobile = useMediaQuery("(max-width:768px)");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
 
-  const loadPlayers = () => {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    age: "",
+    program_id: ""
+  });
+
+  const load = () => {
     fetch(`${API_BASE}/api/admin/players`)
       .then(res => res.json())
       .then(setPlayers);
-  };
 
-  const loadPrograms = () => {
     fetch(`${API_BASE}/api/admin/programs`)
       .then(res => res.json())
       .then(setPrograms);
   };
 
   useEffect(() => {
-    loadPlayers();
-    loadPrograms();
+    load();
   }, []);
 
-  const uploadExcel = async () => {
-    if (!file) return alert("Select file");
+  // 🔍 SEARCH FILTER
+  const filtered = players.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.email.toLowerCase().includes(search.toLowerCase())
+  );
 
-    const fd = new FormData();
-    fd.append("file", file);
+  // ➕ OPEN ADD
+  const openAdd = () => {
+    setEditing(null);
+    setForm({ name: "", email: "", age: "", program_id: "" });
+    setOpen(true);
+  };
 
-    await fetch(`${API_BASE}/api/admin/players/import`, {
-      method: "POST",
-      body: fd
+  // ✏️ OPEN EDIT
+  const openEdit = (p: any) => {
+    setEditing(p);
+    setForm({
+      name: p.name,
+      email: p.email,
+      age: p.age,
+      program_id: p.program_id || ""
+    });
+    setOpen(true);
+  };
+
+  // 💾 SAVE
+  const save = async () => {
+    const url = editing
+      ? `${API_BASE}/api/admin/players/${editing.id}`
+      : `${API_BASE}/api/admin/players`;
+
+    const method = editing ? "PUT" : "POST";
+
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form)
     });
 
-    alert("Import done");
-    setFile(null);
-    loadPlayers();
+    setOpen(false);
+    load();
   };
 
-  const toggleSelect = (id: number) => {
-    setSelected(prev =>
-      prev.includes(id)
-        ? prev.filter(x => x !== id)
-        : [...prev, id]
-    );
+  // ❌ DELETE
+  const remove = async (id: number) => {
+    if (!window.confirm("Delete player?")) return;
+
+    await fetch(`${API_BASE}/api/admin/players/${id}`, {
+      method: "DELETE"
+    });
+
+    load();
   };
 
-  const assignProgram = async (playerId: number, programId: number) => {
-    await fetch(`${API_BASE}/api/admin/players/${playerId}`, {
+  // 🎯 ASSIGN PROGRAM
+  const assignProgram = async (id: number, program_id: number) => {
+    await fetch(`${API_BASE}/api/admin/players/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ program_id: programId })
+      body: JSON.stringify({ program_id })
     });
 
-    loadPlayers();
+    load();
   };
-
-  const autoAssign = async (p: any) => {
-    const program = programs.find(pr =>
-      p.age >= pr.min_age && p.age <= pr.max_age
-    );
-
-    if (!program) {
-      alert("No matching program for age");
-      return;
-    }
-
-    await assignProgram(p.id, program.id);
-  };
-
-  const bulkAssign = async (programId: number) => {
-    if (selected.length === 0) return alert("Select players");
-
-    await fetch(`${API_BASE}/api/admin/players/bulk-assign`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playerIds: selected,
-        program_id: programId
-      })
-    });
-
-    setSelected([]);
-    loadPlayers();
-  };
-
-  const filteredPlayers = players.filter(p => {
-    if (filter === "unassigned") return !p.programTitle;
-    if (filter) return p.programTitle === filter;
-    return true;
-  });
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 3 }}>
 
       {/* HEADER */}
-      <Card sx={{
-        mb: 3,
-        borderRadius: 3,
-        background: "linear-gradient(135deg,#c31432,#240b36)",
-        color: "#fff"
-      }}>
-        <CardContent sx={{
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          alignItems: { xs: "flex-start", md: "center" },
-          gap: 2
-        }}>
-          <SportsTennisIcon sx={{ fontSize: 40 }} />
-          <Box>
-            <Typography variant="h5" fontWeight={700}>
-              Players Management
-            </Typography>
-            <Typography variant="body2">
-              Manage, assign & import players
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
+      <Stack direction="row" justifyContent="space-between" mb={3}>
+        <Typography variant="h5" fontWeight={700}>
+          Players
+        </Typography>
 
-      {/* UPLOAD */}
-      <Card sx={{ mb: 3, p: 2, borderRadius: 3 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField
-            type="file"
-            fullWidth
-            onChange={(e: any) => setFile(e.target.files[0])}
-          />
-          <Button
-            fullWidth
-            variant="contained"
-            color="error"
-            startIcon={<UploadIcon />}
-            onClick={uploadExcel}
-          >
-            Import Excel
-          </Button>
-        </Stack>
-      </Card>
+        <Button variant="contained" onClick={openAdd}>
+          + Add Player
+        </Button>
+      </Stack>
 
-      {/* FILTER + BULK */}
-      <Card sx={{ mb: 3, p: 2, borderRadius: 3 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+      {/* SEARCH */}
+      <TextField
+        fullWidth
+        placeholder="Search players..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        sx={{ mb: 3 }}
+      />
 
-          <Select
-            fullWidth
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            displayEmpty
-          >
-            <MenuItem value="">All</MenuItem>
-            <MenuItem value="unassigned">Unassigned</MenuItem>
-            {programs.map(p => (
-              <MenuItem key={p.id} value={p.title}>
-                {p.title}
-              </MenuItem>
-            ))}
-          </Select>
+      {/* TABLE */}
+      <Paper sx={{ borderRadius: 3 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Age</TableCell>
+              <TableCell>Program</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
 
-          <Select
-            fullWidth
-            displayEmpty
-            onChange={(e) => bulkAssign(Number(e.target.value))}
-          >
-            <MenuItem value="">Bulk Assign</MenuItem>
-            {programs.map(p => (
-              <MenuItem key={p.id} value={p.id}>
-                {p.title}
-              </MenuItem>
-            ))}
-          </Select>
+          <TableBody>
+            {filtered.map(p => (
+              <TableRow key={p.id} hover>
 
-        </Stack>
-      </Card>
+                <TableCell>{p.name}</TableCell>
+                <TableCell>{p.email}</TableCell>
+                <TableCell>{p.age}</TableCell>
 
-      {/* MOBILE VIEW */}
-      {isMobile ? (
-        <Stack spacing={2}>
-          {filteredPlayers.map(p => (
-            <Card key={p.id} sx={{ borderRadius: 3 }}>
-              <CardContent>
+                {/* PROGRAM DROPDOWN */}
+                <TableCell>
+                  <Select
+                    size="small"
+                    value={p.program_id || ""}
+                    onChange={(e) =>
+                      assignProgram(p.id, Number(e.target.value))
+                    }
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {programs.map(pr => (
+                      <MenuItem key={pr.id} value={pr.id}>
+                        {pr.title}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </TableCell>
 
-                <Typography fontWeight={600}>
-                  {p.name}
-                </Typography>
+                {/* ACTIONS */}
+                <TableCell>
+                  <Stack direction="row" spacing={1}>
+                    <Button size="small" onClick={() => openEdit(p)}>
+                      Edit
+                    </Button>
 
-                <Typography color="text.secondary">
-                  {p.email}
-                </Typography>
-
-                <Typography>
-                  Age: {p.age ?? "-"}
-                </Typography>
-
-                <Select
-                  fullWidth
-                  size="small"
-                  sx={{ mt: 1 }}
-                  value={p.program_id || ""}
-                  onChange={(e) =>
-                    assignProgram(p.id, Number(e.target.value))
-                  }
-                >
-                  <MenuItem value="">None</MenuItem>
-                  {programs.map(pr => (
-                    <MenuItem key={pr.id} value={pr.id}>
-                      {pr.title}
-                    </MenuItem>
-                  ))}
-                </Select>
-
-                <Button
-                  fullWidth
-                  sx={{ mt: 1 }}
-                  variant="contained"
-                  color="warning"
-                  onClick={() => autoAssign(p)}
-                >
-                  Auto Assign
-                </Button>
-
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
-      ) : (
-        <Paper sx={{ borderRadius: 3, overflowX: "auto" }}>
-          <Table sx={{ minWidth: 800 }}>
-            <TableHead>
-              <TableRow sx={{ background: "#f5f5f5" }}>
-                <TableCell />
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Age</TableCell>
-                <TableCell>Program</TableCell>
-                <TableCell>Sub Category</TableCell>
-                <TableCell>Auto</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {filteredPlayers.map(p => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selected.includes(p.id)}
-                      onChange={() => toggleSelect(p.id)}
-                    />
-                  </TableCell>
-
-                  <TableCell>{p.name}</TableCell>
-                  <TableCell>{p.email}</TableCell>
-                  <TableCell>{p.age ?? "-"}</TableCell>
-
-                  <TableCell>
-                    <Select
-                      size="small"
-                      value={p.program_id || ""}
-                      onChange={(e) =>
-                        assignProgram(p.id, Number(e.target.value))
-                      }
-                    >
-                      <MenuItem value="">None</MenuItem>
-                      {programs.map(pr => (
-                        <MenuItem key={pr.id} value={pr.id}>
-                          {pr.title}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </TableCell>
-
-                  <TableCell>{p.sub_category || "-"}</TableCell>
-
-                  <TableCell>
                     <Button
                       size="small"
-                      variant="contained"
-                      color="warning"
-                      onClick={() => autoAssign(p)}
+                      color="error"
+                      onClick={() => remove(p.id)}
                     >
-                      Auto
+                      Delete
                     </Button>
-                  </TableCell>
+                  </Stack>
+                </TableCell>
 
-                </TableRow>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Paper>
+
+      {/* MODAL */}
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
+        <DialogTitle>
+          {editing ? "Edit Player" : "Add Player"}
+        </DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2} mt={1}>
+
+            <TextField
+              label="Name"
+              value={form.name}
+              onChange={(e) =>
+                setForm({ ...form, name: e.target.value })
+              }
+            />
+
+            <TextField
+              label="Email"
+              value={form.email}
+              onChange={(e) =>
+                setForm({ ...form, email: e.target.value })
+              }
+            />
+
+            <TextField
+              label="Age"
+              type="number"
+              value={form.age}
+              onChange={(e) =>
+                setForm({ ...form, age: e.target.value })
+              }
+            />
+
+            <Select
+              value={form.program_id}
+              onChange={(e) =>
+                setForm({ ...form, program_id: e.target.value })
+              }
+              displayEmpty
+            >
+              <MenuItem value="">Select Program</MenuItem>
+              {programs.map(p => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.title}
+                </MenuItem>
               ))}
-            </TableBody>
-          </Table>
-        </Paper>
-      )}
+            </Select>
+
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={save}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );
 }
-
 
 function PlayerProfile() {
   const params = window.location.pathname.split("/");

@@ -441,35 +441,22 @@ app.post("/api/admin/players", async (req, res) => {
 
 app.put("/api/admin/players/:id", async (req, res) => {
   const { id } = req.params;
-  const { program_id } = req.body;
+  const { name } = req.body;
 
-  try {
-    await db.query(
-      "UPDATE players SET program_id = ? WHERE id = ?",
-      [program_id, id]
-    );
-
-    res.json({ success: true });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Update failed" });
-  }
-});
-
-app.delete("/api/admin/players/:id", async (req, res) => {
-  const { id } = req.params;
-
-  const [[player]] = await db.query(
-    "SELECT user_id FROM players WHERE id = ?",
-    [id]
+  await db.query(
+    "UPDATE players SET name = ? WHERE id = ?",
+    [name, id]
   );
-
-  await db.query("DELETE FROM users WHERE id = ?", [player.user_id]);
 
   res.json({ success: true });
 });
-  
+app.delete("/api/admin/players/:id", async (req, res) => {
+  const { id } = req.params;
+
+  await db.query("DELETE FROM players WHERE id = ?", [id]);
+
+  res.json({ success: true });
+});  
  
   // --- COACHES ---
 
