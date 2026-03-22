@@ -2776,8 +2776,8 @@ import {
           alignItems: "center",
           p: 3,
           background: "#ffffff",
-color: "#111",
-borderBottom: "1px solid #e5e7eb"
+          color:"#6b7280",
+          borderBottom: "1px solid #e5e7eb"
         }}
       >
         <Typography variant="h5" fontWeight={700}>
