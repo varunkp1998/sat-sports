@@ -2699,26 +2699,7 @@ function AdminDashboard() {
       </Typography>
 
       {/* KPI STRIP */}
-      <Grid container spacing={2} mb={2}>
-        {[
-          { label: "Players", value: data.players.length },
-          { label: "Sessions", value: data.sessions.length },
-          { label: "Pending Leaves", value: pendingLeaves.length }
-        ].map((k,i)=>(
-          <Grid item xs={12} sm={4} key={i}>
-            <Card sx={{ borderRadius: 2 }}>
-              <CardContent>
-                <Typography color="text.secondary">
-                  {k.label}
-                </Typography>
-                <Typography variant="h5" fontWeight={700}>
-                  {k.value}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+     
 
       {/* MAIN TABLE (PLAYERS) */}
       <Card sx={{ borderRadius: 2, mb: 2 }}>
