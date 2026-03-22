@@ -1645,59 +1645,92 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
       return res.status(404).json({ message: "Application not found" });
     }
 
-    // 2️⃣ Get program_id from programs table
+    // 2️⃣ Find program
     let programId = null;
 
-    if (appData.preferred_program) {
+    if (appData.age) {
       const [[program]] = await db.query(
         `SELECT id FROM programs
          WHERE ? BETWEEN min_age AND max_age
          ORDER BY min_age DESC
          LIMIT 1`,
-        [player.age]
+        [appData.age] // ✅ FIXED
       );
+
       if (program) {
         programId = program.id;
       }
     }
 
-    // 3️⃣ Generate password
-    const password = Math.random().toString(36).slice(-8);
-
-    // 4️⃣ Create user
-    const [userResult] = await db.query(
-      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'player')",
-      [appData.name, appData.email, password]
+    // 3️⃣ Check if user already exists
+    const [existingUsers] = await db.query(
+      "SELECT id FROM users WHERE email = ?",
+      [appData.email]
     );
 
-    const userId = userResult.insertId;
+    let userId;
 
-    // 5️⃣ Create player with program_id
-    await db.query(
-      `INSERT INTO players (user_id, name, age, program_id)
-       VALUES (?, ?, ?, ?)`,
-      [userId, appData.name, appData.age, programId]
+    if (existingUsers.length > 0) {
+      // ✅ User exists → reuse
+      userId = existingUsers[0].id;
+
+      // optional: update role
+      await db.query(
+        "UPDATE users SET role = 'player' WHERE id = ?",
+        [userId]
+      );
+
+    } else {
+      // 4️⃣ Generate password
+      const password = Math.random().toString(36).slice(-8);
+
+      // 5️⃣ Create new user
+      const [userResult] = await db.query(
+        "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'player')",
+        [appData.name, appData.email, password]
+      );
+
+      userId = userResult.insertId;
+
+      // 6️⃣ Send email ONLY for new users
+      await resend.emails.send({
+        from: "SAT Sports <no-reply@sat-sports.in>",
+        to: appData.email,
+        subject: "Your SAT Sports Account",
+        html: `
+          <h3>Welcome to SAT Sports 🎾</h3>
+          <p>Email: ${appData.email}</p>
+          <p>Password: ${password}</p>
+        `
+      });
+    }
+
+    // 7️⃣ Create player (avoid duplicate)
+    const [existingPlayer] = await db.query(
+      "SELECT id FROM players WHERE user_id = ?",
+      [userId]
     );
 
-    // 6️⃣ Update application status
+    if (existingPlayer.length === 0) {
+      await db.query(
+        `INSERT INTO players (user_id, name, age, program_id)
+         VALUES (?, ?, ?, ?)`,
+        [userId, appData.name, appData.age, programId]
+      );
+    }
+
+    // 8️⃣ Update application
     await db.query(
       "UPDATE applications SET status = 'approved' WHERE id = ?",
       [id]
     );
 
-    // 7️⃣ Send email
-    await resend.emails.send({
-      from: "SAT Sports <no-reply@sat-sports.in>",
-      to: appData.email,
-      subject: "Your SAT Sports Account",
-      html: `
-        <h3>Welcome to SAT Sports 🎾</h3>
-        <p>Email: ${appData.email}</p>
-        <p>Password: ${password}</p>
-      `
+    res.json({
+      success: true,
+      message: existingUsers.length > 0
+        ? "User already existed, linked successfully"
+        : "New user created and approved"
     });
-
-    res.json({ success: true });
 
   } catch (err) {
     console.error(err);
@@ -1905,13 +1938,25 @@ app.post("/api/signup", async (req, res) => {
   const { name, email, phone, age, parentName, parentPhone } = req.body;
 
   try {
-    await db.query(
-      `INSERT INTO applications 
-       (name, email, phone, age, parent_name, parent_phone, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-      [name, email, phone, age, parentName, parentPhone]
-    );
+    // 1. Check if user exists
+const [existing] = await pool.query(
+  "SELECT id FROM users WHERE email = ?",
+  [email]
+);
 
+if (existing.length > 0) {
+  // ✅ User already exists → just update role or skip
+  await pool.query(
+    "UPDATE users SET role = ? WHERE email = ?",
+    [role, email]
+  );
+} else {
+  // ✅ Insert new user
+  await pool.query(
+    "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+    [name, email, password, role]
+  );
+}
     res.json({ success: true });
 
   } catch (err) {
