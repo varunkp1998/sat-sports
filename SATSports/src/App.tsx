@@ -178,15 +178,18 @@ function Header() {
 
   return (
     <header
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "10px 20px",
-        background: "#111827",
-        color: "white"
-      }}
-    >
+    style={{
+      position: "sticky",   // ✅ ADD THIS
+      top: 0,
+      zIndex: 1100,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "10px 20px",
+      background: "#111827",
+      color: "white"
+    }}
+  >
       {/* LOGO */}
       <Box display="flex" alignItems="center" gap={1}>
         <img src="/logo.png" alt="logo" style={{ height: 40 }} />
@@ -4042,7 +4045,6 @@ function AdminLayout() {
           flexGrow: 1,
           p: 3,
           ml: { md: "250px" },
-          mt: { xs: "50px", md: 0 }
         }}
       >
         <h2>Admin Dashboard</h2>
