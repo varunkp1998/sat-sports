@@ -2722,180 +2722,162 @@ import {
 
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 
-function AdminDashboard() {
+
+
+ function AdminDashboard() {
   const username = localStorage.getItem("username") || "Admin";
 
-  const [coaches, setCoaches] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [applications, setApplications] = useState([]);
+  const [players, setPlayers] = useState([]);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json()),
-      fetch(`${API_BASE}/api/admin/court-bookings`).then(r => r.json()),
-      fetch(`${API_BASE}/api/admin/applications`).then(r => r.json())
-    ]).then(([c, b, a]) => {
-      setCoaches(c);
-      setBookings(b);
-      setApplications(a);
-    });
+    fetch(`${API_BASE}/api/admin/players`)
+      .then((r) => r.json())
+      .then(setPlayers);
   }, []);
 
-  ///////////////////////////////////////////
-  // 📊 COLUMNS
-  ///////////////////////////////////////////
+  ///////////////////////////////////////////////////////
+  // 🎨 CARD DATA
+  ///////////////////////////////////////////////////////
 
-  const coachColumns = [
+  const stats = [
+    {
+      label: "Total Players",
+      value: players.length,
+      gradient: "linear-gradient(135deg,#6366f1,#4f46e5)"
+    },
+    {
+      label: "Revenue",
+      value: "₹54,321",
+      gradient: "linear-gradient(135deg,#ec4899,#f43f5e)"
+    },
+    {
+      label: "Messages",
+      value: 42,
+      gradient: "linear-gradient(135deg,#06b6d4,#3b82f6)"
+    },
+    {
+      label: "Growth",
+      value: "+15%",
+      gradient: "linear-gradient(135deg,#f97316,#ef4444)"
+    }
+  ];
+
+  ///////////////////////////////////////////////////////
+  // 📊 TABLE COLUMNS
+  ///////////////////////////////////////////////////////
+
+  const columns = [
     { field: "name", headerName: "Name", flex: 1 },
-    { field: "phone", headerName: "Phone", flex: 1 },
+    { field: "email", headerName: "Email", flex: 1 },
     {
       field: "status",
       headerName: "Status",
       flex: 1,
-      renderCell: (params) => (
-        <span style={{
-          padding: "4px 10px",
-          borderRadius: "999px",
-          background: "#dcfce7",
-          color: "#166534"
-        }}>
-          {params.value || "Active"}
+      renderCell: () => (
+        <span
+          style={{
+            padding: "4px 10px",
+            borderRadius: "999px",
+            background: "#dcfce7",
+            color: "#166534",
+            fontSize: "12px"
+          }}
+        >
+          Active
         </span>
       )
-    }
-  ];
-
-  const bookingColumns = [
-    { field: "player_name", headerName: "Player", flex: 1 },
-    { field: "court", headerName: "Court", flex: 1 },
-    { field: "time", headerName: "Time", flex: 1 }
-  ];
-
-  const appColumns = [
-    { field: "name", headerName: "Name", flex: 1 },
-    { field: "type", headerName: "Type", flex: 1 },
+    },
     {
-      field: "status",
-      headerName: "Status",
-      flex: 1,
-      renderCell: (params) => {
-        const color =
-          params.value === "Approved"
-            ? "#16a34a"
-            : params.value === "Pending"
-            ? "#f59e0b"
-            : "#dc2626";
-
-        return <span style={{ color }}>{params.value}</span>;
-      }
+      field: "created_at",
+      headerName: "Joined",
+      flex: 1
     }
   ];
 
-  ///////////////////////////////////////////
+  ///////////////////////////////////////////////////////
 
   return (
-    <Box sx={{ minHeight: "100vh", background: "#f5f7fb" }}>
+    <Box sx={{ background: "#f5f7fb", minHeight: "100vh", p: 2 }}>
 
-      {/* 🔝 TOPBAR */}
+      {/* 🔝 HEADER */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          p: 3,
-          background: "#fff",
-          borderBottom: "1px solid #e5e7eb"
+          mb: 3
         }}
       >
         <Typography variant="h5" fontWeight={700}>
           Welcome, {username} 👋
         </Typography>
 
-        <Avatar sx={{ bgcolor: "#2563eb" }}>
+        <Avatar sx={{ bgcolor: "#4f46e5" }}>
           {username[0]}
         </Avatar>
       </Box>
 
-      {/* 📊 CONTENT */}
-      <Box sx={{ p: 3 }}>
-
-        {/* 💎 KPI */}
-        <Grid container spacing={3} mb={3}>
-          <Stat label="Coaches" value={coaches.length} />
-          <Stat label="Bookings" value={bookings.length} />
-          <Stat label="Applications" value={applications.length} />
-        </Grid>
-
-        {/* 📋 TABLES */}
-        <Grid container spacing={3}>
-
-          <Grid item xs={12}>
-            <DataCard title="Coaches">
-              <DataGrid
-                rows={coaches}
-                columns={coachColumns}
-                getRowId={(row) => row.id}
-                slots={{ toolbar: GridToolbar }}
-                autoHeight
-              />
-            </DataCard>
+      {/* 💎 BIG CARDS */}
+      <Grid container spacing={2} mb={3}>
+        {stats.map((s) => (
+          <Grid item xs={12} sm={6} md={3} key={s.label}>
+            <Box
+              sx={{
+                p: 3,
+                borderRadius: 4,
+                color: "white",
+                background: s.gradient,
+                height: 140,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
+              }}
+            >
+              <Typography>{s.label}</Typography>
+              <Typography variant="h4" fontWeight={800}>
+                {s.value}
+              </Typography>
+            </Box>
           </Grid>
+        ))}
+      </Grid>
 
-          <Grid item xs={12} md={6}>
-            <DataCard title="Court Bookings">
-              <DataGrid
-                rows={bookings}
-                columns={bookingColumns}
-                getRowId={(row) => row.id}
-                autoHeight
-              />
-            </DataCard>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <DataCard title="Applications">
-              <DataGrid
-                rows={applications}
-                columns={appColumns}
-                getRowId={(row) => row.id}
-                autoHeight
-              />
-            </DataCard>
-          </Grid>
-
-        </Grid>
-      </Box>
-    </Box>
-  );
-}
-
-///////////////////////////////////////////////////////
-
-function Stat({ label, value }) {
-  return (
-    <Grid item xs={12} md={4}>
-      <Card sx={{ borderRadius: 3, border: "1px solid #e5e7eb" }}>
-        <CardContent>
-          <Typography color="#6b7280">{label}</Typography>
-          <Typography variant="h5" fontWeight={700}>
-            {value}
-          </Typography>
-        </CardContent>
-      </Card>
-    </Grid>
-  );
-}
-
-function DataCard({ title, children }) {
-  return (
-    <Card sx={{ borderRadius: 3, border: "1px solid #e5e7eb" }}>
-      <CardContent>
-        <Typography mb={2} fontWeight={600}>
-          {title}
+      {/* 📊 TABLE CARD */}
+      <Card
+        sx={{
+          borderRadius: 4,
+          p: 2,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.05)"
+        }}
+      >
+        <Typography variant="h6" mb={2}>
+          Players
         </Typography>
-        {children}
-      </CardContent>
-    </Card>
+
+        <Box sx={{ width: "100%" }}>
+          <DataGrid
+            rows={players}
+            columns={columns}
+            getRowId={(row) => row.id}
+            autoHeight
+            pageSize={5}
+            rowsPerPageOptions={[5, 10]}
+            sx={{
+              border: "none",
+              "& .MuiDataGrid-columnHeaders": {
+                background: "#f9fafb",
+                fontWeight: 600
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "#f3f4f6"
+              }
+            }}
+          />
+        </Box>
+      </Card>
+
+    </Box>
   );
 }
 import "jspdf-autotable";
