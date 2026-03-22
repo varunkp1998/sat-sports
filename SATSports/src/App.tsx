@@ -2757,7 +2757,7 @@ import {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          background: "#0f172a"
+          background: "#f5f7fb"
         }}
       >
         <CircularProgress />
@@ -2775,7 +2775,7 @@ import {
           justifyContent: "space-between",
           alignItems: "center",
           p: 3,
-          background: "#111827"
+          background: "#ffffff"
         }}
       >
         <Typography variant="h5" fontWeight={700}>
