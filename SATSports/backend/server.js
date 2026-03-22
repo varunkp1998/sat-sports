@@ -418,9 +418,13 @@ DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
 // --- PLAYERS ---
 app.get("/api/admin/players", async (req, res) => {
   const [rows] = await db.query(`
-    SELECT p.*, pr.title AS programTitle
+    SELECT 
+      p.*, 
+      pr.title AS programTitle,
+      u.email
     FROM players p
     LEFT JOIN programs pr ON pr.id = p.program_id
+    LEFT JOIN users u ON u.id = p.user_id
     ORDER BY p.created_at DESC
   `);
   res.json(rows);
