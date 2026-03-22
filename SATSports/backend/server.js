@@ -1938,26 +1938,30 @@ app.post("/api/signup", async (req, res) => {
   const { name, email, phone, age, parentName, parentPhone } = req.body;
 
   try {
-    // 1. Check if user exists
-const [existing] = await pool.query(
-  "SELECT id FROM users WHERE email = ?",
-  [email]
-);
+    // ✅ prevent duplicate applications
+    const [existing] = await db.query(
+      "SELECT id FROM applications WHERE email = ? AND status = 'pending'",
+      [email]
+    );
 
-if (existing.length > 0) {
-  // ✅ User already exists → just update role or skip
-  await pool.query(
-    "UPDATE users SET role = ? WHERE email = ?",
-    [role, email]
-  );
-} else {
-  // ✅ Insert new user
-  await pool.query(
-    "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-    [name, email, password, role]
-  );
-}
-    res.json({ success: true });
+    if (existing.length > 0) {
+      return res.status(400).json({
+        message: "Application already submitted"
+      });
+    }
+
+    // ✅ insert into applications
+    await db.query(
+      `INSERT INTO applications
+       (name, email, phone, age, parent_name, parent_phone, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [name, email, phone, age, parentName, parentPhone]
+    );
+
+    res.json({
+      success: true,
+      message: "Application submitted"
+    });
 
   } catch (err) {
     console.error(err);
