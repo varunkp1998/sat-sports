@@ -2733,144 +2733,41 @@ import {
   // =========================
   return (
     <Box sx={{ p: 2 }}>
-
-      {/* HEADER */}
-      <Typography variant="h4" fontWeight={700} mb={3}>
-        Dashboard Overview
+  
+      <Typography variant="h4" mb={3}>
+        Dashboard
       </Typography>
-
-      {/* KPI CARDS */}
+  
       <Grid container spacing={3}>
-        {[
-          { title: "Programs", value: programsArr.length },
-          { title: "Sessions", value: sessionsArr.length },
-          { title: "Attendance %", value: `${attendanceRate}%` },
-          { title: "Pending Leaves", value: pendingLeaves.length }
-        ].map((k, i) => (
-          <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
-              <CardContent>
-                <Typography color="text.secondary">
-                  {k.title}
-                </Typography>
-
-                <Typography variant="h4" fontWeight={700}>
-                  {k.value}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+        <Grid item xs={12} md={3}>
+          <Card><CardContent>
+            <Typography>Programs</Typography>
+            <Typography>{programsArr.length}</Typography>
+          </CardContent></Card>
+        </Grid>
+  
+        <Grid item xs={12} md={3}>
+          <Card><CardContent>
+            <Typography>Sessions</Typography>
+            <Typography>{sessionsArr.length}</Typography>
+          </CardContent></Card>
+        </Grid>
+  
+        <Grid item xs={12} md={3}>
+          <Card><CardContent>
+            <Typography>Attendance %</Typography>
+            <Typography>{attendanceRate}%</Typography>
+          </CardContent></Card>
+        </Grid>
+  
+        <Grid item xs={12} md={3}>
+          <Card><CardContent>
+            <Typography>Leaves</Typography>
+            <Typography>{pendingLeaves.length}</Typography>
+          </CardContent></Card>
+        </Grid>
       </Grid>
-
-      {/* CHARTS */}
-      <Grid container spacing={3} mt={1}>
-
-        {/* Attendance */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6">
-                Attendance Trend (7 Days)
-              </Typography>
-
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={attendanceChart}>
-                  <XAxis dataKey="date" />
-                  <Tooltip />
-                  <Line dataKey="value" stroke="#22c55e" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Sessions */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6">
-                Sessions Trend (7 Days)
-              </Typography>
-
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={sessionsChart}>
-                  <XAxis dataKey="date" />
-                  <Tooltip />
-                  <Line dataKey="value" stroke="#3b82f6" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-
-      </Grid>
-
-      {/* BOTTOM PANELS */}
-      <Grid container spacing={3} mt={1}>
-
-        {/* Leaves */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6">
-                Pending Leaves
-              </Typography>
-
-              {pendingLeaves.slice(0, 5).map((l:any, i:number) => (
-                <Typography key={i}>
-                  {typeof l === "object"
-                    ? `${l?.name || "Unknown"} - ${l?.reason || "-"}`
-                    : "Invalid"}
-                </Typography>
-              ))}
-
-              {pendingLeaves.length === 0 && (
-                <Typography color="text.secondary">
-                  No pending leaves
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Coaches */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6">
-                Coaches
-              </Typography>
-
-              {coachesArr.slice(0, 5).map((c:any, i:number) => (
-                <Typography key={i}>
-                  {typeof c === "object"
-                    ? c?.name || "No Name"
-                    : "Invalid"}
-                </Typography>
-              ))}
-
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Quick Stats */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography variant="h6">
-                Quick Insights
-              </Typography>
-
-              <Typography>Present: {present}</Typography>
-              <Typography>Absent: {absent}</Typography>
-
-            </CardContent>
-          </Card>
-        </Grid>
-
-      </Grid>
-
+  
     </Box>
   );
 }
