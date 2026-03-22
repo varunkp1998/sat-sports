@@ -2715,28 +2715,34 @@ import SearchIcon from "@mui/icons-material/Search";
 
 
 
-import {
 
-  CircularProgress
-} from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
 
-import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-
-
-
- function AdminDashboard() {
+ function Dashboard() {
   const username = localStorage.getItem("username") || "Admin";
 
   const [players, setPlayers] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [applications, setApplications] = useState([]);
+
+  ///////////////////////////////////////////////////////
+  // 🔥 FETCH REAL DATA
+  ///////////////////////////////////////////////////////
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/players`)
-      .then((r) => r.json())
-      .then(setPlayers);
+    Promise.all([
+      fetch(`${API_BASE}/api/admin/players`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/court-bookings`).then(r => r.json()),
+      fetch(`${API_BASE}/api/admin/applications`).then(r => r.json())
+    ]).then(([p, b, a]) => {
+      setPlayers(p);
+      setBookings(b);
+      setApplications(a);
+    });
   }, []);
 
   ///////////////////////////////////////////////////////
-  // 🎨 CARD DATA
+  // 📊 REAL STATS (NO DUMMY)
   ///////////////////////////////////////////////////////
 
   const stats = [
@@ -2746,18 +2752,18 @@ import { DataGrid, GridToolbar } from "@mui/x-data-grid";
       gradient: "linear-gradient(135deg,#6366f1,#4f46e5)"
     },
     {
-      label: "Revenue",
-      value: "₹54,321",
-      gradient: "linear-gradient(135deg,#ec4899,#f43f5e)"
-    },
-    {
-      label: "Messages",
-      value: 42,
+      label: "Bookings",
+      value: bookings.length,
       gradient: "linear-gradient(135deg,#06b6d4,#3b82f6)"
     },
     {
-      label: "Growth",
-      value: "+15%",
+      label: "Applications",
+      value: applications.length,
+      gradient: "linear-gradient(135deg,#ec4899,#f43f5e)"
+    },
+    {
+      label: "Programs",
+      value: [...new Set(players.map(p => p.program_id))].length,
       gradient: "linear-gradient(135deg,#f97316,#ef4444)"
     }
   ];
@@ -2770,34 +2776,30 @@ import { DataGrid, GridToolbar } from "@mui/x-data-grid";
     { field: "name", headerName: "Name", flex: 1 },
     { field: "email", headerName: "Email", flex: 1 },
     {
-      field: "status",
-      headerName: "Status",
-      flex: 1,
-      renderCell: () => (
-        <span
-          style={{
-            padding: "4px 10px",
-            borderRadius: "999px",
-            background: "#dcfce7",
-            color: "#166534",
-            fontSize: "12px"
-          }}
-        >
-          Active
-        </span>
-      )
+      field: "category",
+      headerName: "Category",
+      flex: 1
     },
     {
       field: "created_at",
       headerName: "Joined",
-      flex: 1
+      flex: 1,
+      valueGetter: (params) =>
+        new Date(params.value).toLocaleDateString()
     }
   ];
 
   ///////////////////////////////////////////////////////
 
   return (
-    <Box sx={{ background: "#f5f7fb", minHeight: "100vh", p: 2 }}>
+    <Box
+      sx={{
+        background: "#f5f7fb",
+        minHeight: "100vh",
+        px: { xs: 2, md: 5 },   // ✅ full width spacing
+        py: 3
+      }}
+    >
 
       {/* 🔝 HEADER */}
       <Box
@@ -2805,37 +2807,43 @@ import { DataGrid, GridToolbar } from "@mui/x-data-grid";
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 3
+          mb: 4
         }}
       >
-        <Typography variant="h5" fontWeight={700}>
+        <Typography variant="h4" fontWeight={700}>
           Welcome, {username} 👋
         </Typography>
 
-        <Avatar sx={{ bgcolor: "#4f46e5" }}>
+        <Avatar sx={{ bgcolor: "#4f46e5", width: 40, height: 40 }}>
           {username[0]}
         </Avatar>
       </Box>
 
-      {/* 💎 BIG CARDS */}
-      <Grid container spacing={2} mb={3}>
+      {/* 💎 BIG FULL WIDTH CARDS */}
+      <Grid container spacing={3} mb={4}>
         {stats.map((s) => (
-          <Grid item xs={12} sm={6} md={3} key={s.label}>
+          <Grid item xs={12} sm={6} lg={3} key={s.label}>
             <Box
               sx={{
                 p: 3,
                 borderRadius: 4,
                 color: "white",
                 background: s.gradient,
-                height: 140,
+                height: "100%",
+                minHeight: 170,   // ✅ BIG cards
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
+                boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+                transition: "0.3s",
+                "&:hover": {
+                  transform: "translateY(-5px)"
+                }
               }}
             >
-              <Typography>{s.label}</Typography>
-              <Typography variant="h4" fontWeight={800}>
+              <Typography fontSize={14}>{s.label}</Typography>
+
+              <Typography variant="h3" fontWeight={800}>
                 {s.value}
               </Typography>
             </Box>
@@ -2843,7 +2851,7 @@ import { DataGrid, GridToolbar } from "@mui/x-data-grid";
         ))}
       </Grid>
 
-      {/* 📊 TABLE CARD */}
+      {/* 📊 TABLE */}
       <Card
         sx={{
           borderRadius: 4,
@@ -2855,28 +2863,25 @@ import { DataGrid, GridToolbar } from "@mui/x-data-grid";
           Players
         </Typography>
 
-        <Box sx={{ width: "100%" }}>
-          <DataGrid
-            rows={players}
-            columns={columns}
-            getRowId={(row) => row.id}
-            autoHeight
-            pageSize={5}
-            rowsPerPageOptions={[5, 10]}
-            sx={{
-              border: "none",
-              "& .MuiDataGrid-columnHeaders": {
-                background: "#f9fafb",
-                fontWeight: 600
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "#f3f4f6"
-              }
-            }}
-          />
-        </Box>
+        <DataGrid
+          rows={players}
+          columns={columns}
+          getRowId={(row) => row.id}
+          autoHeight
+          pageSize={5}
+          rowsPerPageOptions={[5, 10]}
+          sx={{
+            border: "none",
+            "& .MuiDataGrid-columnHeaders": {
+              background: "#f9fafb",
+              fontWeight: 600
+            },
+            "& .MuiDataGrid-row:hover": {
+              backgroundColor: "#f3f4f6"
+            }
+          }}
+        />
       </Card>
-
     </Box>
   );
 }
