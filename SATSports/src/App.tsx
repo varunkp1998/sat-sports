@@ -3973,13 +3973,15 @@ function AdminLayout() {
       <Box
   sx={{
     display: { xs: "flex", md: "none" },
-    position: "relative",
+    position: "sticky",   // ✅ FIX
+    top: 0,               // ✅ stick to top
+    zIndex: 1000,         // ✅ stay above content
     width: "100%",
     background: "#111827",
     color: "white",
     p: 1,
     alignItems: "center",
-    justifyContent: "space-between"   // ✅ ADD
+    justifyContent: "space-between"
   }}
 >
   <span style={{ fontWeight: 600 }}>Admin</span>
