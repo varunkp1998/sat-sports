@@ -2773,19 +2773,56 @@ import { DataGrid } from "@mui/x-data-grid";
   ///////////////////////////////////////////////////////
 
   const columns = [
-    { field: "name", headerName: "Name", flex: 1 },
-    { field: "email", headerName: "Email", flex: 1 },
+    {
+      field: "name",
+      headerName: "Name",
+      flex: 1
+    },
+    {
+      field: "email",
+      headerName: "Email",
+      flex: 1,
+      renderCell: (params) => (
+        <span style={{ color: "#2563eb" }}>
+          {params.value || "-"}
+        </span>
+      )
+    },
+    {
+      field: "programTitle",
+      headerName: "Program",
+      flex: 1,
+      renderCell: (params) => params.value || "-"
+    },
     {
       field: "category",
       headerName: "Category",
-      flex: 1
+      flex: 1,
+      renderCell: (params) => (
+        <span
+          style={{
+            padding: "4px 10px",
+            borderRadius: "999px",
+            background: "#f3f4f6",
+            fontSize: "12px"
+          }}
+        >
+          {params.value || "General"}
+        </span>
+      )
     },
     {
       field: "created_at",
       headerName: "Joined",
       flex: 1,
-      valueGetter: (params) =>
-        new Date(params.value).toLocaleDateString()
+      valueGetter: (params) => {
+        const date = new Date(params.value);
+        return date.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        });
+      }
     }
   ];
 
