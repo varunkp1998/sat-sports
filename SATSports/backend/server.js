@@ -52,7 +52,7 @@ app.post("/api/login", async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      "SELECT id, email, role FROM users WHERE email = ? AND password = ?",
+      "SELECT id, email, role,name FROM users WHERE email = ? AND password = ?",
       [username, password]
     );
 
@@ -90,7 +90,6 @@ app.post("/api/login", async (req, res) => {
       coachId,
       playerId
     });
-console.log(username);
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     res.status(500).json({ message: "Login failed" });
