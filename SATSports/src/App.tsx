@@ -2714,183 +2714,140 @@ import SearchIcon from "@mui/icons-material/Search";
 
 
 
-function AdminDashboard() {
 
-  const [data, setData] = useState<any>({
-    players: [],
-    sessions: [],
-    leaves: []
-  });
-
-  useEffect(() => {
-    const safe = (d:any) => Array.isArray(d) ? d : d?.data || [];
-
-    Promise.all([
-      fetch(`${API_BASE}/api/admin/players`).then(r=>r.json()).catch(()=>[]),
-      fetch(`${API_BASE}/api/admin/sessions`).then(r=>r.json()).catch(()=>[]),
-      fetch(`${API_BASE}/api/admin/leaves`).then(r=>r.json()).catch(()=>[])
-    ]).then(([players, sessions, leaves]) =>
-      setData({
-        players: safe(players),
-        sessions: safe(sessions),
-        leaves: safe(leaves)
-      })
-    );
-  }, []);
-
-  const pendingLeaves = data.leaves.filter((l:any)=>l.status==="pending");
+function Dashboard() {
+  const [open, setOpen] = useState(true);
+  const username = localStorage.getItem("username") || "Admin";
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        p: 2,
-        background: "#f4f6f8",
-        minHeight: "100vh"
-      }}
-    >
+    <Box sx={{ display: "flex", minHeight: "100vh", background: "#0f172a" }}>
+      
+      {/* SIDEBAR */}
+      <Box
+        sx={{
+          width: open ? 240 : 70,
+          background: "#111827",
+          color: "white",
+          transition: "0.3s",
+          p: 2
+        }}
+      >
+        <Typography variant="h6" mb={3}>
+          🎾 SAT
+        </Typography>
 
-      {/* HEADER */}
-      <Typography variant="h4" fontWeight={700} mb={2}>
-        Dashboard
-      </Typography>
+        {["Dashboard", "Players", "Coaches", "Revenue", "Reports"].map((item) => (
+          <Box
+            key={item}
+            sx={{
+              py: 1,
+              px: 2,
+              borderRadius: 2,
+              cursor: "pointer",
+              "&:hover": { background: "#1f2937" }
+            }}
+          >
+            {open ? item : item[0]}
+          </Box>
+        ))}
+      </Box>
 
-      {/* KPI STRIP */}
-     
+      {/* MAIN AREA */}
+      <Box sx={{ flexGrow: 1 }}>
 
-      {/* MAIN TABLE (PLAYERS) */}
-      <Card sx={{ borderRadius: 2, mb: 2 }}>
-        <CardContent>
-          <Typography variant="h6" mb={2}>
-            Players
-          </Typography>
+        {/* TOPBAR */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            p: 2,
+            background: "#111827",
+            color: "white"
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={1}>
+            <IconButton onClick={() => setOpen(!open)} sx={{ color: "white" }}>
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6">Dashboard</Typography>
+          </Box>
 
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Age</TableCell>
-              </TableRow>
-            </TableHead>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Typography>Hi, {username} 👋</Typography>
+            <Avatar />
+          </Box>
+        </Box>
 
-            <TableBody>
-              {data.players.slice(0,10).map((p:any)=>(
-                <TableRow
-                  key={p.id}
+        {/* CONTENT */}
+        <Box sx={{ p: 3 }}>
+
+          {/* STATS */}
+          <Grid container spacing={2} mb={3}>
+            {[
+              { label: "Players", value: 120 },
+              { label: "Coaches", value: 15 },
+              { label: "Revenue", value: "₹1.2L" },
+              { label: "Sessions", value: 45 }
+            ].map((item) => (
+              <Grid item xs={12} md={3} key={item.label}>
+                <Card
                   sx={{
-                    "&:nth-of-type(odd)": {
-                      backgroundColor: "#f9fafb"
-                    }
+                    background: "#1f2937",
+                    color: "white",
+                    borderRadius: 3
                   }}
                 >
-                  <TableCell>{p.name}</TableCell>
-                  <TableCell>{p.email}</TableCell>
-                  <TableCell>{p.age || "-"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  <CardContent>
+                    <Typography color="gray">{item.label}</Typography>
+                    <Typography variant="h5" fontWeight={700}>
+                      {item.value}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
 
-        </CardContent>
-      </Card>
-
-      {/* SECOND ROW */}
-      <Grid container spacing={2}>
-
-        {/* SESSIONS */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 2 }}>
+          {/* TABLE SECTION */}
+          <Card
+            sx={{
+              background: "#1f2937",
+              color: "white",
+              borderRadius: 3
+            }}
+          >
             <CardContent>
               <Typography variant="h6" mb={2}>
-                Sessions
+                Recent Players
               </Typography>
 
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Time</TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {data.sessions.slice(0,5).map((s:any)=>(
-                    <TableRow key={s.id}>
-                      <TableCell>{s.session_date}</TableCell>
-                      <TableCell>{s.start_time}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
+              <table style={{ width: "100%", color: "white" }}>
+                <thead>
+                  <tr style={{ textAlign: "left" }}>
+                    <th>Name</th>
+                    <th>Program</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Varun</td>
+                    <td>BA2</td>
+                    <td>Active</td>
+                  </tr>
+                  <tr>
+                    <td>Tarun</td>
+                    <td>BA1</td>
+                    <td>Pending</td>
+                  </tr>
+                </tbody>
+              </table>
             </CardContent>
           </Card>
-        </Grid>
 
-        {/* LEAVES */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ borderRadius: 2 }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Leave Requests
-              </Typography>
-
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Status</TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {data.leaves.slice(0,5).map((l:any)=>(
-                    <TableRow key={l.id}>
-                      <TableCell>{l.name}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={l.status}
-                          color={
-                            l.status==="approved"
-                              ? "success"
-                              : l.status==="rejected"
-                              ? "error"
-                              : "warning"
-                          }
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-            </CardContent>
-          </Card>
-        </Grid>
-
-      </Grid>
-
-      {/* ACTIVITY FEED */}
-      <Card sx={{ borderRadius: 2, mt: 2 }}>
-        <CardContent>
-          <Typography variant="h6" mb={1}>
-            Activity
-          </Typography>
-
-          <Typography color="text.secondary">
-            • New player registered
-          </Typography>
-          <Typography color="text.secondary">
-            • Session created
-          </Typography>
-          <Typography color="text.secondary">
-            • Leave request submitted
-          </Typography>
-
-        </CardContent>
-      </Card>
-
+        </Box>
+      </Box>
     </Box>
   );
 }
