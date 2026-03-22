@@ -441,14 +441,38 @@ app.post("/api/admin/players", async (req, res) => {
 
 app.put("/api/admin/players/:id", async (req, res) => {
   const { id } = req.params;
-  const { name } = req.body;
+  const { name, email, age, program_id } = req.body;
 
-  await db.query(
-    "UPDATE players SET name = ? WHERE id = ?",
-    [name, id]
-  );
+  try {
+    // 1️⃣ Update players table
+    await db.query(
+      `UPDATE players
+       SET name = ?, age = ?, program_id = ?
+       WHERE id = ?`,
+      [name, age, program_id || null, id]
+    );
 
-  res.json({ success: true });
+    // 2️⃣ Update users table (for email)
+    if (email) {
+      const [[player]] = await db.query(
+        "SELECT user_id FROM players WHERE id = ?",
+        [id]
+      );
+
+      if (player?.user_id) {
+        await db.query(
+          "UPDATE users SET email = ? WHERE id = ?",
+          [email, player.user_id]
+        );
+      }
+    }
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Update failed" });
+  }
 });
 app.delete("/api/admin/players/:id", async (req, res) => {
   const { id } = req.params;
