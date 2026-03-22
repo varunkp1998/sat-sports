@@ -441,14 +441,20 @@ app.post("/api/admin/players", async (req, res) => {
 
 app.put("/api/admin/players/:id", async (req, res) => {
   const { id } = req.params;
-  const { program_id, sub_category, age } = req.body;
+  const { program_id } = req.body;
 
-  await db.query(
-    `UPDATE players SET program_id = ?, sub_category = ?, age = ? WHERE id = ?`,
-    [program_id, sub_category, age, id]
-  );
+  try {
+    await db.query(
+      "UPDATE players SET program_id = ? WHERE id = ?",
+      [program_id, id]
+    );
 
-  res.json({ success: true });
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Update failed" });
+  }
 });
 
 app.delete("/api/admin/players/:id", async (req, res) => {
