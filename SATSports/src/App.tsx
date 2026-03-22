@@ -146,40 +146,77 @@ export default function App() {
 }
 
 /* ---------- NAVBAR ---------- */
+import {
+  IconButton,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 function Header() {
   const role = localStorage.getItem("role");
   const username = localStorage.getItem("username");
 
+  const [open, setOpen] = useState(false);
+
   const handleLogout = () => {
-    localStorage.removeItem("role");
-    localStorage.removeItem("username");
+    localStorage.clear();
     window.location.href = "/";
   };
 
-  return (
-    <header className="header">
-      <div className="header-brand">
-        <img src="/logo.png" alt="SAT Sports" className="header-logo" />
-        <h2>SAT Sports PVT LTD</h2>
-      </div>
+  const menuItems = [
+    { label: "Home", path: "/" },
+    { label: "About", path: "/about" },
+    { label: "Programs", path: "/programs" },
+    { label: "News", path: "/news" },
+    { label: "Tournaments", path: "/tournaments" },
+    { label: "Contact", path: "/contact" },
+    { label: "Book Court", path: "/book-court" },
+    { label: "Join Academy", path: "/register-player" }
+  ];
 
-      <nav>
-        <Link to="/">Home</Link>
-        <Link to="/about">About</Link>
-        <Link to="/programs">Programs</Link>
-        <Link to="/news">News</Link>
-        <Link to="/tournaments">Tournaments</Link>
-        <Link to="/contact">Contact</Link>
-        <Link to="/book-court">Book a Court</Link>
-        <Link to="/register-player">Join Academy</Link>
+  return (
+    <header
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "10px 20px",
+        background: "#111827",
+        color: "white"
+      }}
+    >
+      {/* LOGO */}
+      <Box display="flex" alignItems="center" gap={1}>
+        <img src="/logo.png" alt="logo" style={{ height: 40 }} />
+        <span style={{ fontWeight: 700 }}>SAT Sports</span>
+      </Box>
+
+      {/* DESKTOP MENU */}
+      <Box
+        sx={{
+          display: { xs: "none", md: "flex" },
+          gap: 2,
+          alignItems: "center"
+        }}
+      >
+        {menuItems.map(item => (
+          <Link key={item.path} to={item.path} style={{ color: "white" }}>
+            {item.label}
+          </Link>
+        ))}
 
         {!role ? (
-          <button onClick={() => (window.location.href = "/login")}>
+          <Button
+            variant="contained"
+            onClick={() => (window.location.href = "/login")}
+          >
             Login
-          </button>
+          </Button>
         ) : (
-          <div className="auth-actions">
-            <span className="username">Hi, {username}</span>
+          <>
+            <span>Hi, {username}</span>
 
             <Link
               to={
@@ -193,16 +230,74 @@ function Header() {
               Profile
             </Link>
 
-            <button className="outline" onClick={handleLogout}>
+            <Button variant="outlined" onClick={handleLogout}>
               Logout
-            </button>
-          </div>
+            </Button>
+          </>
         )}
-      </nav>
+      </Box>
+
+      {/* MOBILE MENU BUTTON */}
+      <IconButton
+        sx={{ display: { xs: "block", md: "none" }, color: "white" }}
+        onClick={() => setOpen(true)}
+      >
+        <MenuIcon />
+      </IconButton>
+
+      {/* MOBILE DRAWER */}
+      <Drawer anchor="right" open={open} onClose={() => setOpen(false)}>
+        <Box sx={{ width: 250, p: 2 }}>
+          <List>
+
+            {menuItems.map(item => (
+              <ListItem
+                button
+                key={item.path}
+                component={Link}
+                to={item.path}
+                onClick={() => setOpen(false)}
+              >
+                <ListItemText primary={item.label} />
+              </ListItem>
+            ))}
+
+            {!role ? (
+              <ListItem button onClick={() => (window.location.href = "/login")}>
+                <ListItemText primary="Login" />
+              </ListItem>
+            ) : (
+              <>
+                <ListItem>
+                  <ListItemText primary={`Hi, ${username}`} />
+                </ListItem>
+
+                <ListItem
+                  button
+                  component={Link}
+                  to={
+                    role === "admin"
+                      ? "/admin"
+                      : role === "coach"
+                      ? "/coach/profile"
+                      : "/portal"
+                  }
+                >
+                  <ListItemText primary="Profile" />
+                </ListItem>
+
+                <ListItem button onClick={handleLogout}>
+                  <ListItemText primary="Logout" />
+                </ListItem>
+              </>
+            )}
+
+          </List>
+        </Box>
+      </Drawer>
     </header>
   );
 }
-
 const adminCardStyle = {
   borderRadius: 3,
   boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
