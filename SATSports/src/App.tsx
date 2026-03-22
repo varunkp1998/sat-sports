@@ -1119,15 +1119,34 @@ function Login() {
 
           {/* HEADER */}
           <Box textAlign="center" mb={3}>
-          <Typography
-  variant="h4"
-  fontWeight={800}
-  sx={{
-    textShadow: "0 5px 20px rgba(0,0,0,0.8)"
-  }}
+          <Box
+  display="flex"
+  alignItems="center"
+  justifyContent="center"
+  gap={1.5}
+  mb={1}
 >
-  🎾 SAT Sports
-</Typography>
+  <img
+    src="/logo.png"
+    alt="SAT Sports"
+    style={{
+      height: 40,
+      width: 40,
+      objectFit: "contain"
+    }}
+  />
+
+  <Typography
+    variant="h4"
+    fontWeight={800}
+    sx={{
+      letterSpacing: 1,
+      textShadow: "0 5px 20px rgba(0,0,0,0.8)"
+    }}
+  >
+    SAT Sports
+  </Typography>
+</Box>
             <Typography color="gray">
               {forgotMode ? "Reset your password" : "Login to your account"}
             </Typography>
