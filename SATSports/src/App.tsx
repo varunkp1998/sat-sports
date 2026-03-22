@@ -670,7 +670,12 @@ function AdminNews() {
       method: "DELETE",
     }).then(() => loadNews());
   };
-
+  const inputStyle = {
+    width: "100%",
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #ddd"
+  };
   const resetForm = () => {
     setEditingId(null);
     setTitle("");
@@ -680,71 +685,194 @@ function AdminNews() {
   };
 
   return (
-    <section className="section">
-      <h3>Admin Dashboard – Manage News & Events</h3>
-
-      {/* FORM */}
-      <div className="card">
+    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
+  
+      {/* HEADER */}
+      <Typography variant="h5" fontWeight={700} mb={2}>
+        Events & News
+      </Typography>
+  
+      {/* FILTER BAR */}
+      <Box display="flex" gap={2} mb={3}>
         <input
-          placeholder="Title"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
+          placeholder="Search..."
+          style={{
+            flex: 1,
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ddd"
+          }}
         />
-        <textarea
-          placeholder="Content"
-          value={body}
-          onChange={e => setBody(e.target.value)}
-        />
-
-        <select value={category} onChange={e => setCategory(e.target.value)}>
+  
+        <select
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+          style={{
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ddd"
+          }}
+        >
           <option value="News">News</option>
           <option value="Event">Event</option>
         </select>
-
-        <label style={{ display: "block", margin: "8px 0" }}>
-          <input
-            type="checkbox"
-            checked={isPublished}
-            onChange={e => setIsPublished(e.target.checked)}
-          />{" "}
-          Published
-        </label>
-
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button onClick={saveItem}>
-            {editingId ? "Update" : "Add"}
-          </button>
-          {editingId && (
-            <button className="outline" onClick={resetForm}>
-              Cancel
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* LIST */}
-      <div className="grid">
-        {items.map(n => (
-          <div key={n.id} className="card">
-            <strong>{n.title}</strong>
-            <p className="muted">{n.category}</p>
-            <p>{n.body}</p>
-            <p>
-              Status: {n.isPublished ? "Published" : "Draft"}
-            </p>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => editItem(n)}>Edit</button>
-              <button className="outline" onClick={() => deleteItem(n.id)}>
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+      </Box>
+  
+      {/* FORM */}
+      <Card sx={{ mb: 4, borderRadius: 3 }}>
+        <CardContent>
+  
+          <Typography fontWeight={600} mb={2}>
+            {editingId ? "Edit Item" : "Add New"}
+          </Typography>
+  
+          <Grid container spacing={2}>
+  
+            <Grid item xs={12} md={4}>
+              <input
+                placeholder="Title"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                style={inputStyle}
+              />
+            </Grid>
+  
+            <Grid item xs={12} md={6}>
+              <input
+                placeholder="Content"
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                style={inputStyle}
+              />
+            </Grid>
+  
+            <Grid item xs={12} md={2}>
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="News">News</option>
+                <option value="Event">Event</option>
+              </select>
+            </Grid>
+  
+          </Grid>
+  
+          <Box mt={2} display="flex" justifyContent="space-between">
+  
+            <label>
+              <input
+                type="checkbox"
+                checked={isPublished}
+                onChange={e => setIsPublished(e.target.checked)}
+              />{" "}
+              Published
+            </label>
+  
+            <Box display="flex" gap={1}>
+              <Button variant="contained" onClick={saveItem}>
+                {editingId ? "Update" : "Add"}
+              </Button>
+  
+              {editingId && (
+                <Button variant="outlined" onClick={resetForm}>
+                  Cancel
+                </Button>
+              )}
+            </Box>
+  
+          </Box>
+  
+        </CardContent>
+      </Card>
+  
+      {/* LIST (LIKE IMAGE STYLE) */}
+      <Grid container spacing={3}>
+  
+        {items.map(n => {
+          const date = new Date(n.created_at || Date.now());
+          const day = date.getDate();
+          const month = date.toLocaleString("default", { month: "short" });
+  
+          return (
+            <Grid item xs={12} md={6} key={n.id}>
+  
+              <Card sx={{ borderRadius: 3 }}>
+                <CardContent sx={{ display: "flex", gap: 2 }}>
+  
+                  {/* DATE BOX */}
+                  <Box
+                    sx={{
+                      minWidth: 70,
+                      height: 70,
+                      background: "#6d28d9",
+                      color: "white",
+                      borderRadius: 2,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    <Typography fontWeight={700}>
+                      {day}
+                    </Typography>
+                    <Typography fontSize={12}>
+                      {month}
+                    </Typography>
+                  </Box>
+  
+                  {/* CONTENT */}
+                  <Box flex={1}>
+  
+                    <Typography fontWeight={600}>
+                      {n.title}
+                    </Typography>
+  
+                    <Typography color="text.secondary" fontSize={14}>
+                      {n.body}
+                    </Typography>
+  
+                    <Box mt={1} display="flex" gap={1}>
+                      <Chip
+                        label={n.category}
+                        size="small"
+                        color="primary"
+                      />
+                      <Chip
+                        label={n.isPublished ? "Published" : "Draft"}
+                        size="small"
+                        color={n.isPublished ? "success" : "default"}
+                      />
+                    </Box>
+  
+                    <Box mt={2} display="flex" gap={1}>
+                      <Button size="small" onClick={() => editItem(n)}>
+                        Edit
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => deleteItem(n.id)}
+                      >
+                        Delete
+                      </Button>
+                    </Box>
+  
+                  </Box>
+  
+                </CardContent>
+              </Card>
+  
+            </Grid>
+          );
+        })}
+  
+      </Grid>
+  
+    </Box>
   );
-}
-
 import {
  
   Alert,
