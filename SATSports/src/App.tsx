@@ -2718,7 +2718,7 @@ import SearchIcon from "@mui/icons-material/Search";
 
 import { DataGrid } from "@mui/x-data-grid";
 
- function Dashboard() {
+ function AdminDashboard() {
   const username = localStorage.getItem("username") || "Admin";
 
   const [players, setPlayers] = useState([]);
