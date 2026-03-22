@@ -2817,13 +2817,14 @@ import { DataGrid } from "@mui/x-data-grid";
 
   return (
     <Box
-      sx={{
-        background: "#f5f7fb",
-        minHeight: "100vh",
-        px: { xs: 2, md: 5 },   // ✅ full width spacing
-        py: 3
-      }}
-    >
+    sx={{
+      width: "100%",
+      maxWidth: "100vw",
+      overflowX: "hidden",   // ✅ prevent horizontal scroll
+      px: { xs: 2, md: 4 },
+      py: 2
+    }}
+  >
 
       {/* 🔝 HEADER */}
       <Box
@@ -2844,27 +2845,22 @@ import { DataGrid } from "@mui/x-data-grid";
       </Box>
 
       {/* 💎 BIG FULL WIDTH CARDS */}
-      <Grid container spacing={3} mb={4}>
-        {stats.map((s) => (
-          <Grid item xs={12} sm={6} lg={3} key={s.label}>
+      <Grid container spacing={2}>
+  {stats.map((s) => (
+    <Grid item xs={12} sm={6} lg={3} key={s.label}>
             <Box
-              sx={{
-                p: 3,
-                borderRadius: 4,
-                color: "white",
-                background: s.gradient,
-                height: "100%",
-                minHeight: 170,   // ✅ BIG cards
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
-                transition: "0.3s",
-                "&:hover": {
-                  transform: "translateY(-5px)"
-                }
-              }}
-            >
+  sx={{
+    width: "100%",           // ✅ FULL WIDTH
+    minHeight: 160,
+    p: 3,
+    borderRadius: 4,
+    color: "white",
+    background: s.gradient,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between"
+  }}
+>
               <Typography fontSize={14}>{s.label}</Typography>
 
               <Typography variant="h3" fontWeight={800}>
@@ -2887,24 +2883,26 @@ import { DataGrid } from "@mui/x-data-grid";
           Players
         </Typography>
 
-        <DataGrid
-          rows={players}
-          columns={columns}
-          getRowId={(row) => row.id}
-          autoHeight
-          pageSize={5}
-          rowsPerPageOptions={[5, 10]}
-          sx={{
-            border: "none",
-            "& .MuiDataGrid-columnHeaders": {
-              background: "#f9fafb",
-              fontWeight: 600
-            },
-            "& .MuiDataGrid-row:hover": {
-              backgroundColor: "#f3f4f6"
-            }
-          }}
-        />
+        <Box sx={{ width: "100%", overflowX: "auto" }}>
+  <Box sx={{ minWidth: 600 }}>  {/* force scroll instead of break */}
+    <DataGrid
+      rows={players}
+      columns={columns}
+      getRowId={(row) => row.id}
+      autoHeight
+      pageSize={5}
+      sx={{
+        border: "none",
+        "& .MuiDataGrid-columnHeaders": {
+          background: "#f9fafb"
+        },
+        "& .MuiDataGrid-cell": {
+          whiteSpace: "nowrap"   // ✅ prevents breaking
+        }
+      }}
+    />
+  </Box>
+</Box>
       </Card>
     </Box>
   );
