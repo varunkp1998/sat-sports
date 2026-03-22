@@ -973,26 +973,34 @@ app.get("/api/admin/sessions/:sessionId/attendance", async (req, res) => {
   res.json(rows);
 });
 app.post("/api/coach/leaves", async (req, res) => {
-  console.log("REQ BODY:", req.body); // keep this for debugging
+  const { userId, start_date, end_date, leave_type, reason } = req.body;
 
-  const { userId, start_date, end_date, reason } = req.body;
+  // ❗ CHECK CONFLICT
+  const [existing] = await db.query(
+    `SELECT * FROM coach_leaves 
+     WHERE coach_id = ? 
+     AND status != 'Rejected'
+     AND (
+       (start_date <= ? AND end_date >= ?) OR
+       (start_date <= ? AND end_date >= ?)
+     )`,
+    [userId, end_date, start_date, start_date, end_date]
+  );
 
-  if (!userId || !start_date || !end_date) {
-    return res.status(400).json({ message: "Missing required fields" });
+  if (existing.length > 0) {
+    return res.status(400).json({
+      message: "Leave conflict detected"
+    });
   }
 
-  try {
-    await db.execute(
-      `INSERT INTO coach_leaves (coach_id, from_date, to_date, reason)
-       VALUES (?, ?, ?, ?)`,
-      [userId, start_date, end_date, reason || null]
-    );
+  await db.query(
+    `INSERT INTO coach_leaves 
+     (coach_id, start_date, end_date, leave_type, reason, status)
+     VALUES (?, ?, ?, ?, ?, 'Pending')`,
+    [userId, start_date, end_date, leave_type, reason]
+  );
 
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to apply leave" });
-  }
+  res.json({ success: true });
 });
 app.get("/api/admin/leaves", async (req, res) => {
   try {
@@ -2436,6 +2444,23 @@ app.post("/api/admin/leaves/:id/approve", async (req, res) => {
   await db.query(
     "UPDATE coach_leaves SET status='Approved' WHERE id=?",
     [id]
+  );
+
+  res.json({ success: true });
+});
+// GET
+app.get("/api/admin/leave-settings", async (req, res) => {
+  const [[row]] = await db.query("SELECT * FROM leave_settings LIMIT 1");
+  res.json(row);
+});
+
+// UPDATE
+app.put("/api/admin/leave-settings", async (req, res) => {
+  const { casual, medical } = req.body;
+
+  await db.query(
+    "UPDATE leave_settings SET casual=?, medical=? WHERE id=1",
+    [casual, medical]
   );
 
   res.json({ success: true });
