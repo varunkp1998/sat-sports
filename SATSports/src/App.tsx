@@ -2919,6 +2919,7 @@ import {
   
     </Box>
   );
+}
 import "jspdf-autotable";
 
 function AdminReports() {
