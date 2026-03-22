@@ -3673,43 +3673,113 @@ function AdminSessions() {
   );
 }
 
+
+
 function AdminLayout() {
+  const [open, setOpen] = useState(false);
+
+  const menuItems = [
+    { label: "📘 Programs", path: "/admin" },
+    { label: "👤 Players", path: "/admin/players" },
+    { label: "🎾 Coaches", path: "/admin/coaches" },
+    { label: "📅 Attendance", path: "/admin/attendance" },
+    { label: "💰 Revenue", path: "/admin/revenue" },
+    { label: "📊 Reports", path: "/admin/reports" },
+    { label: "📅 Sessions", path: "/admin/sessions" },
+    { label: "📝 Leave Management", path: "/admin/leaves" },
+    { label: "📍 Locations", path: "/admin/locations" },
+    { label: "🏆 Tournaments", path: "/admin/tournaments" },
+    { label: "📰 News", path: "/admin/news" },
+    { label: "🟢 Live Coaches", path: "/admin/live" },
+    { label: "Court Bookings", path: "/admin/court-bookings" },
+    { label: "📄 Applications", path: "/admin/applications" },
+    { label: "💼 Payroll", path: "/admin/payroll" }
+  ];
+
   return (
-    <div className="admin-layout">
-      
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="logo-box">
-          <img src="/logo.png" alt="SAT Sports" className="logo" />
-          <h2>SAT Sports</h2>
-        </div>
+    <Box sx={{ display: "flex" }}>
 
-        <nav>
-          <a href="/admin">📘 Programs</a>
-          <a href="/admin/players">👤 Players</a>
-          <a href="/admin/coaches">🎾 Coaches</a>
-          <a href="/admin/attendance">📅 Attendance</a>
-          <a href="/admin/revenue">💰 Revenue</a>
-          <a href="/admin/reports">📊 Reports</a>
-          <a href="/admin/sessions">📅 Sessions</a>
-          <a href="/admin/leaves">📝 Leave Management</a>
-          <a href="/admin/locations">📍 Locations (QR)</a>
-          <a href="/admin/tournaments">🏆 Tournaments</a>
-          <Link to="/admin/news">📰 News & Events</Link>
-          <Link to="/admin/live">🟢 Live Coaches</Link>
-          <Link to="/admin/court-bookings">Court Bookings</Link>
-          <a href="/admin/applications">Applications</a>
-          <a href="/admin/payroll">Payroll</a>
+      {/* MOBILE TOP BAR */}
+      <Box
+        sx={{
+          display: { xs: "flex", md: "none" },
+          position: "fixed",
+          top: 0,
+          width: "100%",
+          background: "#111827",
+          color: "white",
+          p: 1,
+          zIndex: 1000,
+          alignItems: "center"
+        }}
+      >
+        <IconButton onClick={() => setOpen(true)} sx={{ color: "white" }}>
+          <MenuIcon />
+        </IconButton>
+        <span style={{ marginLeft: 10 }}>Admin</span>
+      </Box>
 
+      {/* DESKTOP SIDEBAR */}
+      <Box
+        sx={{
+          width: 250,
+          background: "#111827",
+          color: "white",
+          height: "100vh",
+          position: "fixed",
+          display: { xs: "none", md: "block" }
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <img src="/logo.png" style={{ height: 40 }} />
+          <h3>SAT Sports</h3>
+        </Box>
 
-        </nav>
-      </aside>
+        <List>
+          {menuItems.map(item => (
+            <ListItem
+              button
+              key={item.path}
+              component={Link}
+              to={item.path}
+            >
+              <ListItemText primary={item.label} />
+            </ListItem>
+          ))}
+        </List>
+      </Box>
 
-      {/* Main Content */}
-      <div className="admin-content">
+      {/* MOBILE DRAWER */}
+      <Drawer open={open} onClose={() => setOpen(false)}>
+        <Box sx={{ width: 250 }}>
+          <List>
+            {menuItems.map(item => (
+              <ListItem
+                button
+                key={item.path}
+                component={Link}
+                to={item.path}
+                onClick={() => setOpen(false)}
+              >
+                <ListItemText primary={item.label} />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Drawer>
+
+      {/* MAIN CONTENT */}
+      <Box
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          ml: { md: "250px" },
+          mt: { xs: "50px", md: 0 }
+        }}
+      >
         <h2>Admin Dashboard</h2>
-{/* Breadcrumbs */}
-<AdminBreadcrumbs />
+
+        <AdminBreadcrumbs />
 
         <Routes>
           <Route
@@ -3722,10 +3792,9 @@ function AdminLayout() {
             }
           />
           <Route path="news" element={<AdminNews />} />
-          <Route path="tournaments" element={<AdminTournaments />} />
-          <Route path="attendance" element={<AdminAttendance />} />
           <Route path="players" element={<AdminPlayers />} />
           <Route path="coaches" element={<AdminCoaches />} />
+          <Route path="attendance" element={<AdminAttendance />} />
           <Route path="revenue" element={<AdminRevenue />} />
           <Route path="reports" element={<AdminReports />} />
           <Route path="sessions" element={<AdminSessions />} />
@@ -3736,15 +3805,13 @@ function AdminLayout() {
           <Route path="live" element={<AdminLivePresence />} />
           <Route path="court-bookings" element={<AdminCourtBookings />} />
           <Route path="applications" element={<AdminApplications />} />
-          <Route path="/admin/payroll" element={<AdminCoachPayroll />} />
-
+          <Route path="payroll" element={<AdminCoachPayroll />} />
         </Routes>
-      </div>
+      </Box>
 
-    </div>
+    </Box>
   );
 }
-
 /* ---------- CONTACT ---------- */
 function Contact() {
   return (
