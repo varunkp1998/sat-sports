@@ -1,32 +1,24 @@
 import React, { useEffect, useState } from "react";
 import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  Button,
-  Stack,
-  Chip,
-  Select,
-  MenuItem,
+  Box, Typography, Grid, Card, CardContent,
+  Button, Stack, Chip
 } from "@mui/material";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import API_BASE from "./api";
 
-function AdminLeaves() {
+export default function AdminLeaves() {
   const [leaves, setLeaves] = useState([]);
   const [filter, setFilter] = useState("all");
 
-  const loadLeaves = () => {
+  const load = () => {
     fetch(`${API_BASE}/api/admin/leaves`)
-      .then((res) => res.json())
-      .then((data) => setLeaves(Array.isArray(data) ? data : []));
+      .then(res => res.json())
+      .then(setLeaves);
   };
 
   useEffect(() => {
-    loadLeaves();
+    load();
   }, []);
 
   const updateStatus = async (id, status) => {
@@ -35,54 +27,42 @@ function AdminLeaves() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-
-    loadLeaves();
+    load();
   };
 
-  // FILTER
   const filtered =
-    filter === "all"
-      ? leaves
-      : leaves.filter((l) => l.status === filter);
+    filter === "all" ? leaves : leaves.filter(l => l.status === filter);
 
-  // SUMMARY
   const stats = {
-    pending: leaves.filter((l) => l.status === "Pending").length,
-    approved: leaves.filter((l) => l.status === "Approved").length,
-    rejected: leaves.filter((l) => l.status === "Rejected").length,
+    pending: leaves.filter(l => l.status === "Pending").length,
+    approved: leaves.filter(l => l.status === "Approved").length,
+    rejected: leaves.filter(l => l.status === "Rejected").length,
   };
 
   return (
     <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
 
-      {/* HEADER */}
       <Typography variant="h4" fontWeight={800} mb={3}>
-        Leave Management Dashboard
+        Leave Dashboard
       </Typography>
 
-      {/* SUMMARY CARDS */}
+      {/* STATS */}
       <Grid container spacing={2} mb={3}>
-        {[
-          { label: "Pending", value: stats.pending, color: "#f59e0b" },
-          { label: "Approved", value: stats.approved, color: "#22c55e" },
-          { label: "Rejected", value: stats.rejected, color: "#ef4444" },
-        ].map((s, i) => (
-          <Grid item xs={12} md={4} key={i}>
-            <Card sx={{ borderRadius: 3 }}>
+        {Object.entries(stats).map(([k, v]) => (
+          <Grid item xs={4} key={k}>
+            <Card>
               <CardContent>
-                <Typography color="text.secondary">{s.label}</Typography>
-                <Typography variant="h4" fontWeight={800}>
-                  {s.value}
-                </Typography>
+                <Typography>{k}</Typography>
+                <Typography variant="h4">{v}</Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      {/* FILTERS */}
+      {/* FILTER */}
       <Stack direction="row" spacing={1} mb={3}>
-        {["all", "Pending", "Approved", "Rejected"].map((f) => (
+        {["all", "Pending", "Approved", "Rejected"].map(f => (
           <Chip
             key={f}
             label={f}
@@ -94,64 +74,41 @@ function AdminLeaves() {
       </Stack>
 
       {/* CALENDAR */}
-      <Card sx={{ mb: 3, borderRadius: 3 }}>
+      <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography fontWeight={700} mb={2}>
-            Leave Calendar
-          </Typography>
-
+          <Typography fontWeight={700}>Calendar</Typography>
           <Calendar
             tileContent={({ date }) => {
               const found = leaves.find(
-                (l) =>
+                l =>
                   new Date(date) >= new Date(l.start_date) &&
                   new Date(date) <= new Date(l.end_date)
               );
-
-              return found ? (
-                <div style={{ color: "red", fontSize: 12 }}>●</div>
-              ) : null;
+              return found ? <span style={{ color: "red" }}>●</span> : null;
             }}
           />
         </CardContent>
       </Card>
 
-      {/* LEAVE CARDS */}
-      <Grid container spacing={3}>
-        {filtered.map((l) => (
+      {/* LEAVES */}
+      <Grid container spacing={2}>
+        {filtered.map(l => (
           <Grid item xs={12} md={6} key={l.id}>
-            <Card
-              sx={{
-                borderRadius: 4,
-                transition: "0.3s",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                },
-              }}
-            >
+            <Card>
               <CardContent>
 
-                {/* COACH */}
                 <Typography fontWeight={700}>
                   {l.username}
                 </Typography>
 
-                {/* DATES */}
-                <Typography mt={1}>
-                  📅 {l.start_date} → {l.end_date}
-                </Typography>
-
-                {/* TYPE */}
                 <Typography>
-                  🏷 {l.leave_type || "casual"}
+                  {l.start_date} → {l.end_date}
                 </Typography>
 
-                {/* REASON */}
-                <Typography color="text.secondary" mt={1}>
-                  {l.reason || "No reason provided"}
+                <Typography>
+                  {l.leave_type}
                 </Typography>
 
-                {/* STATUS */}
                 <Chip
                   label={l.status}
                   color={
@@ -161,14 +118,11 @@ function AdminLeaves() {
                       ? "error"
                       : "warning"
                   }
-                  sx={{ mt: 2 }}
                 />
 
-                {/* ACTIONS */}
                 {l.status === "Pending" && (
                   <Stack direction="row" spacing={1} mt={2}>
                     <Button
-                      fullWidth
                       variant="contained"
                       color="success"
                       onClick={() => updateStatus(l.id, "Approved")}
@@ -177,7 +131,6 @@ function AdminLeaves() {
                     </Button>
 
                     <Button
-                      fullWidth
                       variant="outlined"
                       color="error"
                       onClick={() => updateStatus(l.id, "Rejected")}
@@ -193,15 +146,6 @@ function AdminLeaves() {
         ))}
       </Grid>
 
-      {/* EMPTY STATE */}
-      {filtered.length === 0 && (
-        <Typography mt={4} color="text.secondary">
-          No leave requests found
-        </Typography>
-      )}
-
     </Box>
   );
 }
-
-export default AdminLeaves;

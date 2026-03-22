@@ -1,24 +1,19 @@
 import React, { useEffect, useState } from "react";
 import {
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Stack,
-  Typography,
-  Chip,
-  Box,
-  Grid,
-  Select,
-  MenuItem,
-  Paper
+  Box, Typography, Grid, Card, CardContent,
+  TextField, Button, Stack, Select, MenuItem,
+  Chip, Divider
 } from "@mui/material";
-import API_BASE from "./api";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-function CoachLeave() {
+import API_BASE from "./api";
+
+export default function CoachLeave() {
   const coachId = localStorage.getItem("userId");
 
+  const [tab, setTab] = useState("apply");
+  const [leaves, setLeaves] = useState([]);
+  const [balance, setBalance] = useState({});
   const [form, setForm] = useState({
     startDate: "",
     endDate: "",
@@ -26,10 +21,6 @@ function CoachLeave() {
     leaveType: "casual"
   });
 
-  const [leaves, setLeaves] = useState([]);
-  const [balance, setBalance] = useState<any>({});
-
-  // LOAD DATA
   const load = () => {
     fetch(`${API_BASE}/api/coach/leaves/${coachId}`)
       .then(res => res.json())
@@ -44,9 +35,8 @@ function CoachLeave() {
     load();
   }, []);
 
-  // SUBMIT
   const submit = async () => {
-    await fetch(`${API_BASE}/api/coach/leaves`, {
+    const res = await fetch(`${API_BASE}/api/coach/leaves`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -60,159 +50,187 @@ function CoachLeave() {
       })
     });
 
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.message);
+      return;
+    }
+
     alert("Leave submitted");
     setForm({ startDate: "", endDate: "", reason: "", leaveType: "casual" });
     load();
   };
 
+  const calculateDays = () => {
+    if (!form.startDate || !form.endDate) return 0;
+    const diff =
+      (new Date(form.endDate) - new Date(form.startDate)) /
+      (1000 * 60 * 60 * 24);
+    return diff + 1;
+  };
+
   return (
-    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", background: "#f5f7fb" }}>
 
-      <Typography variant="h4" fontWeight={800} mb={3}>
-        Leave Dashboard
-      </Typography>
+      {/* SIDEBAR */}
+      <Box sx={{ width: 220, background: "#fff", p: 2 }}>
+        <Typography fontWeight={700}>Leave</Typography>
+        <Stack spacing={2} mt={2}>
+          <Button onClick={() => setTab("apply")}>Apply</Button>
+          <Button onClick={() => setTab("pending")}>Pending</Button>
+          <Button onClick={() => setTab("history")}>History</Button>
+        </Stack>
+      </Box>
 
-      {/* BALANCE CARDS */}
-      <Grid container spacing={2} mb={3}>
-        {[
-          { label: "Casual", value: balance.casual },
-          { label: "Medical", value: balance.medical },
-          { label: "LOP", value: "Unlimited" }
-        ].map((b, i) => (
-          <Grid item xs={4} key={i}>
-            <Card>
-              <CardContent>
-                <Typography fontWeight={700}>{b.label}</Typography>
-                <Typography variant="h5">{b.value || 0}</Typography>
-              </CardContent>
-            </Card>
+      {/* MAIN */}
+      <Box sx={{ flex: 1, p: 3 }}>
+
+        <Typography variant="h4" fontWeight={800} mb={3}>
+          Leave Apply
+        </Typography>
+
+        {/* APPLY */}
+        {tab === "apply" && (
+          <Grid container spacing={3}>
+
+            {/* FORM */}
+            <Grid item xs={12} md={8}>
+              <Card>
+                <CardContent>
+
+                  <Typography fontWeight={700} mb={2}>
+                    Applying for Leave
+                  </Typography>
+
+                  <Stack spacing={2}>
+
+                    <Select
+                      fullWidth
+                      value={form.leaveType}
+                      onChange={(e) =>
+                        setForm({ ...form, leaveType: e.target.value })
+                      }
+                    >
+                      <MenuItem value="casual">Casual</MenuItem>
+                      <MenuItem value="medical">Medical</MenuItem>
+                      <MenuItem value="lop">LOP</MenuItem>
+                    </Select>
+
+                    <TextField
+                      type="date"
+                      label="From"
+                      InputLabelProps={{ shrink: true }}
+                      value={form.startDate}
+                      onChange={(e) =>
+                        setForm({ ...form, startDate: e.target.value })
+                      }
+                    />
+
+                    <TextField
+                      type="date"
+                      label="To"
+                      InputLabelProps={{ shrink: true }}
+                      value={form.endDate}
+                      onChange={(e) =>
+                        setForm({ ...form, endDate: e.target.value })
+                      }
+                    />
+
+                    <TextField
+                      multiline
+                      rows={3}
+                      placeholder="Reason"
+                      value={form.reason}
+                      onChange={(e) =>
+                        setForm({ ...form, reason: e.target.value })
+                      }
+                    />
+
+                    <Button variant="contained" onClick={submit}>
+                      Apply Leave
+                    </Button>
+
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* RIGHT PANEL */}
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <Typography fontWeight={700}>Leave Balance</Typography>
+                  <Typography>Casual: {balance.casual}</Typography>
+                  <Typography>Medical: {balance.medical}</Typography>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography>Total: {(balance.casual || 0) + (balance.medical || 0)}</Typography>
+                  <Typography>Applying: {calculateDays()} days</Typography>
+                </CardContent>
+              </Card>
+
+              <Card sx={{ mt: 2 }}>
+                <CardContent>
+                  <Typography fontWeight={700}>Calendar</Typography>
+                  <Calendar
+                    tileContent={({ date }) => {
+                      const found = leaves.find(
+                        l =>
+                          new Date(date) >= new Date(l.start_date) &&
+                          new Date(date) <= new Date(l.end_date)
+                      );
+                      return found ? <span style={{ color: "red" }}>●</span> : null;
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            </Grid>
+
           </Grid>
-        ))}
-      </Grid>
+        )}
 
-      {/* APPLY */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography fontWeight={700} mb={2}>
-            Apply Leave
-          </Typography>
-
+        {/* PENDING */}
+        {tab === "pending" && (
           <Grid container spacing={2}>
-            <Grid item xs={6}>
-              <TextField
-                type="date"
-                fullWidth
-                value={form.startDate}
-                onChange={(e) =>
-                  setForm({ ...form, startDate: e.target.value })
-                }
-              />
-            </Grid>
-
-            <Grid item xs={6}>
-              <TextField
-                type="date"
-                fullWidth
-                value={form.endDate}
-                onChange={(e) =>
-                  setForm({ ...form, endDate: e.target.value })
-                }
-              />
-            </Grid>
-
-            <Grid item xs={6}>
-              <Select
-                fullWidth
-                value={form.leaveType}
-                onChange={(e) =>
-                  setForm({ ...form, leaveType: e.target.value })
-                }
-              >
-                <MenuItem value="casual">Casual Leave</MenuItem>
-                <MenuItem value="medical">Medical Leave</MenuItem>
-                <MenuItem value="lop">Loss of Pay</MenuItem>
-              </Select>
-            </Grid>
-
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                placeholder="Reason"
-                value={form.reason}
-                onChange={(e) =>
-                  setForm({ ...form, reason: e.target.value })
-                }
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Button fullWidth variant="contained" onClick={submit}>
-                Submit Leave
-              </Button>
-            </Grid>
+            {leaves.filter(l => l.status === "Pending").map(l => (
+              <Grid item xs={12} md={6} key={l.id}>
+                <Card>
+                  <CardContent>
+                    <Typography>{l.start_date} → {l.end_date}</Typography>
+                    <Chip label="Pending" color="warning" />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
-        </CardContent>
-      </Card>
-      <Box mb={3}>
-  <Typography fontWeight={700} mb={1}>
-    Leave Calendar
-  </Typography>
+        )}
 
-  <Calendar
-    tileContent={({ date }) => {
-      const leave = leaves.find(
-        (l) =>
-          new Date(l.start_date) <= date &&
-          new Date(l.end_date) >= date
-      );
-
-      return leave ? (
-        <div style={{ fontSize: 10, color: "red" }}>●</div>
-      ) : null;
-    }}
-  />
-</Box>
-      {/* LEAVE LIST */}
-      <Typography fontWeight={700} mb={1}>
-        Leave History
-      </Typography>
-
-      <Grid container spacing={2}>
-        {leaves.map((l: any) => (
-          <Grid item xs={12} md={6} key={l.id}>
-            <Card>
-              <CardContent>
-
-                <Typography fontWeight={700}>
-                  {l.start_date} → {l.end_date}
-                </Typography>
-
-                <Typography>{l.reason}</Typography>
-
-                <Typography mt={1}>
-                  Type: {l.leave_type}
-                </Typography>
-
-                <Chip
-                  label={l.status}
-                  color={
-                    l.status === "Approved"
-                      ? "success"
-                      : l.status === "Rejected"
-                      ? "error"
-                      : "warning"
-                  }
-                  sx={{ mt: 1 }}
-                />
-
-              </CardContent>
-            </Card>
+        {/* HISTORY */}
+        {tab === "history" && (
+          <Grid container spacing={2}>
+            {leaves.map(l => (
+              <Grid item xs={12} md={6} key={l.id}>
+                <Card>
+                  <CardContent>
+                    <Typography>{l.start_date} → {l.end_date}</Typography>
+                    <Typography>{l.leave_type}</Typography>
+                    <Chip
+                      label={l.status}
+                      color={
+                        l.status === "Approved"
+                          ? "success"
+                          : l.status === "Rejected"
+                          ? "error"
+                          : "warning"
+                      }
+                    />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
-        ))}
-      </Grid>
+        )}
 
+      </Box>
     </Box>
   );
 }
-
-export default CoachLeave;
