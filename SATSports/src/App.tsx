@@ -1183,6 +1183,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 }
 
 /* ---------- NEWS ---------- */
+import { Tabs, Tab } from "@mui/material";
 function NewsPage() {
   const [news, setNews] = React.useState<any[]>([]);
   const [tab, setTab] = React.useState(0);
