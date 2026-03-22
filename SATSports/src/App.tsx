@@ -2935,7 +2935,7 @@ function Row({ data }) {
   return (
     <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
       {data.map((d, i) => (
-        <td key={i} style={{ padding: "12px" }}>
+        <td key={i} style={{ padding: "12px" ,color: "#ffff"}}>
           {d}
         </td>
       ))}
