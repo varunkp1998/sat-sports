@@ -1182,22 +1182,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 }
 
 /* ---------- NEWS ---------- */
-import React from "react";
-import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  Tabs,
-  Tab,
-  TextField,
-  Chip
-} from "@mui/material";
-
-import API_BASE from "./api";
-
-export default function NewsPage() {
+function NewsPage() {
   const [news, setNews] = React.useState<any[]>([]);
   const [tab, setTab] = React.useState(0);
   const [search, setSearch] = React.useState("");
