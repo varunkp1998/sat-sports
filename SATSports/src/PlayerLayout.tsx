@@ -14,7 +14,7 @@ import PlayerDashboard from "./PlayerDashboard";
 import PlayerAttendance from "./PlayerAttendance";
 import PlayerLeave from "./PlayerLeave";
 
-export default function PlayerLayout() {
+function PlayerLayout() {
   const [open, setOpen] = useState(false);
 
   const menuItems = [
