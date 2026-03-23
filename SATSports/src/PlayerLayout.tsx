@@ -9,7 +9,9 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Routes, Route, Link } from "react-router-dom";
-
+import PlayerDashboard from "./PlayerDashboard";
+import PlayerAttendance from "./PlayerAttendance";
+import PlayerLeave from "./PlayerLeave";
 export default function PlayerLayout() {
   const [open, setOpen] = useState(false);
 
