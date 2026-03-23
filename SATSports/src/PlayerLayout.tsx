@@ -1,67 +1,124 @@
-import { Box, IconButton, Drawer } from "@mui/material";
-import MenuIcon from "@mui/icons-material/Menu";
 import { useState } from "react";
+import {
+  Box,
+  IconButton,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 import { Routes, Route, Link } from "react-router-dom";
-import PlayerAttendance from "./PlayerAttendance";
+
 import PlayerDashboard from "./PlayerDashboard";
+import PlayerAttendance from "./PlayerAttendance";
 import PlayerLeave from "./PlayerLeave";
-function PlayerLayout() {
+
+export default function PlayerLayout() {
   const [open, setOpen] = useState(false);
 
-  return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+  const menuItems = [
+    { label: "🏠 Dashboard", path: "/player" },
+    { label: "📅 Attendance", path: "/player/attendance" },
+    { label: "📝 Apply Leave", path: "/player/leave" }
+  ];
 
-      {/* MOBILE TOPBAR */}
+  return (
+    <Box sx={{ display: "flex", minHeight: "100vh", width: "100%" }}>
+
+      {/* 🔝 MOBILE TOP BAR */}
       <Box
         sx={{
           display: { xs: "flex", md: "none" },
-          alignItems: "center",
-          p: 1,
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
           background: "#111827",
           color: "white",
-          width: "100%"
+          p: 1.5,
+          zIndex: 1200,
+          alignItems: "center"
         }}
       >
         <IconButton onClick={() => setOpen(true)} sx={{ color: "white" }}>
           <MenuIcon />
         </IconButton>
-        <span style={{ marginLeft: 10 }}>Player Panel</span>
+
+        <span style={{ marginLeft: 10, fontWeight: 600 }}>
+          Player Panel
+        </span>
       </Box>
 
-      {/* DESKTOP SIDEBAR */}
+      {/* 🖥️ DESKTOP SIDEBAR */}
       <Box
         sx={{
-          width: 220,
+          width: 240,
           background: "#111827",
           color: "white",
           p: 2,
           display: { xs: "none", md: "block" }
         }}
       >
-        <h3>👤 Player Panel</h3>
+        <h3 style={{ marginBottom: 20 }}>👤 Player Panel</h3>
 
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Link to="/player">Dashboard</Link>
-          <Link to="/player/attendance">Attendance</Link>
-          <Link to="/player/leave">Apply Leave</Link>
-        </Box>
+        <List>
+          {menuItems.map((item) => (
+            <ListItem
+              button
+              key={item.path}
+              component={Link}
+              to={item.path}
+            >
+              <ListItemText primary={item.label} />
+            </ListItem>
+          ))}
+        </List>
       </Box>
 
-      {/* MOBILE DRAWER */}
-      <Drawer open={open} onClose={() => setOpen(false)}>
-        <Box sx={{ width: 220, p: 2 }}>
-          <h3>👤 Player Panel</h3>
+      {/* 📱 MOBILE DRAWER (RIGHT SIDE) */}
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={() => setOpen(false)}
+      >
+        <Box
+          sx={{
+            width: 240,
+            background: "#111827",
+            color: "white",
+            height: "100%",
+            p: 2
+          }}
+        >
+          <h3 style={{ marginBottom: 20 }}>👤 Player Panel</h3>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Link to="/player" onClick={() => setOpen(false)}>Dashboard</Link>
-            <Link to="/player/attendance" onClick={() => setOpen(false)}>Attendance</Link>
-            <Link to="/player/leave" onClick={() => setOpen(false)}>Apply Leave</Link>
-          </Box>
+          <List>
+            {menuItems.map((item) => (
+              <ListItem
+                button
+                key={item.path}
+                component={Link}
+                to={item.path}
+                onClick={() => setOpen(false)}
+              >
+                <ListItemText primary={item.label} />
+              </ListItem>
+            ))}
+          </List>
         </Box>
       </Drawer>
 
-      {/* CONTENT */}
-      <Box sx={{ flex: 1, p: 2 }}>
+      {/* 📄 MAIN CONTENT */}
+      <Box
+        sx={{
+          flex: 1,
+          width: "100%",
+          mt: { xs: "60px", md: 0 },   // ✅ prevents overlap with topbar
+          p: { xs: 2, md: 3 },
+          background: "#f5f7fb"
+        }}
+      >
         <Routes>
           <Route path="/" element={<PlayerDashboard />} />
           <Route path="attendance" element={<PlayerAttendance />} />
