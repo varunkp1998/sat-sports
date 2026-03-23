@@ -30,7 +30,7 @@ function PlayerLayout() {
       <Box
         sx={{
           display: { xs: "flex", md: "none" },
-          position: "fixed",
+          position: "relative",
           top: 0,
           left: 0,
           width: "100%",
@@ -114,7 +114,6 @@ function PlayerLayout() {
         sx={{
           flex: 1,
           width: "100%",
-          mt: { xs: "60px", md: 0 },   // ✅ prevents overlap with topbar
           p: { xs: 2, md: 3 },
           background: "#f5f7fb"
         }}
