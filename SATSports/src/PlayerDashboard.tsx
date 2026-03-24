@@ -10,7 +10,9 @@ import {
   Chip,
   Stack
 } from "@mui/material";
-
+import EventIcon from "@mui/icons-material/Event";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -95,98 +97,172 @@ export default function PlayerDashboard() {
         <Tab label="Activity" />
       </Tabs>
 
-      {/* ================= MAIN ================= */}
-      {tab === 0 && (
-        <>
-          {/* BIG CARDS */}
-          <Grid container spacing={2} mb={3}>
 
-            {/* NEXT SESSION (HIGHLIGHT) */}
-            <Grid item xs={12}>
-              <Card sx={{ borderRadius: 3, background: "#0f172a", color: "#fff" }}>
-                <CardContent>
 
-                  <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
-                    Next Session
-                  </Typography>
+{/* ================= MAIN ================= */}
+{tab === 0 && (
+  <>
+    {/* HERO NEXT SESSION */}
+    <Card
+      sx={{
+        borderRadius: 4,
+        mb: 3,
+        p: 2,
+        background: "linear-gradient(135deg, #1e3a8a, #2563eb)",
+        color: "#fff",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
+      }}
+    >
+      <CardContent>
 
-                  {nextSession ? (
-                    <>
-                      <Typography variant="h5" fontWeight={700}>
-                        {new Date(nextSession.date).toDateString()}
-                      </Typography>
+        <Typography sx={{ opacity: 0.8 }}>
+          Next Session
+        </Typography>
 
-                      <Typography>
-                        ⏰ {nextSession.start_time} – {nextSession.end_time}
-                      </Typography>
+        {nextSession ? (
+          <>
+            <Typography variant="h4" fontWeight={800}>
+              {new Date(nextSession.date).toDateString()}
+            </Typography>
 
-                      <Typography>
-                        📍 {nextSession.location}
-                      </Typography>
+            <Typography sx={{ mt: 1 }}>
+              ⏰ {nextSession.start_time} – {nextSession.end_time}
+            </Typography>
 
-                      <Typography>
-                        🎾 {nextSession.program}
-                      </Typography>
-                    </>
-                  ) : (
-                    <Typography>No upcoming sessions</Typography>
-                  )}
+            <Typography>
+              📍 {nextSession.location}
+            </Typography>
 
-                </CardContent>
-              </Card>
-            </Grid>
+            <Typography>
+              🎾 {nextSession.program}
+            </Typography>
+          </>
+        ) : (
+          <Typography>No upcoming sessions</Typography>
+        )}
 
-            {/* STATS */}
-            <Grid item xs={12} md={6}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Typography color="text.secondary">
-                    Total Sessions
-                  </Typography>
-                  <Typography variant="h3">
-                    {sessions.length}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+      </CardContent>
+    </Card>
 
-            <Grid item xs={12} md={6}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Typography color="text.secondary">
-                    This Week
-                  </Typography>
-                  <Typography variant="h3">
-                    {weekly.reduce((a, b) => a + b, 0)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+    {/* KPI CARDS */}
+    <Grid container spacing={2} mb={3}>
 
-          </Grid>
+      {/* TOTAL */}
+      <Grid item xs={12} md={4}>
+        <Card
+          sx={{
+            borderRadius: 4,
+            p: 2,
+            height: "100%",
+            background: "linear-gradient(135deg, #f59e0b, #fbbf24)",
+            color: "#111",
+            boxShadow: "0 8px 25px rgba(0,0,0,0.08)"
+          }}
+        >
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography>Total Sessions</Typography>
+              <EventIcon />
+            </Stack>
 
-          {/* CHART */}
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography mb={2}>Weekly Sessions</Typography>
+            <Typography variant="h3" fontWeight={800} mt={2}>
+              {sessions.length}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
 
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart
-                  data={weekly.map((v, i) => ({
-                    day: i,
-                    value: v
-                  }))}
-                >
-                  <XAxis dataKey="day" />
-                  <Tooltip />
-                  <Area dataKey="value" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </>
-      )}
+      {/* WEEK */}
+      <Grid item xs={12} md={4}>
+        <Card
+          sx={{
+            borderRadius: 4,
+            p: 2,
+            height: "100%",
+            background: "linear-gradient(135deg, #10b981, #34d399)",
+            color: "#fff",
+            boxShadow: "0 8px 25px rgba(0,0,0,0.08)"
+          }}
+        >
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography>This Week</Typography>
+              <FitnessCenterIcon />
+            </Stack>
 
+            <Typography variant="h3" fontWeight={800} mt={2}>
+              {weekly.reduce((a, b) => a + b, 0)}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* NEXT COUNTDOWN */}
+      <Grid item xs={12} md={4}>
+        <Card
+          sx={{
+            borderRadius: 4,
+            p: 2,
+            height: "100%",
+            background: "linear-gradient(135deg, #ec4899, #f472b6)",
+            color: "#fff",
+            boxShadow: "0 8px 25px rgba(0,0,0,0.08)"
+          }}
+        >
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography>Next In</Typography>
+              <ScheduleIcon />
+            </Stack>
+
+            <Typography variant="h4" fontWeight={800} mt={2}>
+              {nextSession
+                ? Math.max(
+                    0,
+                    Math.floor(
+                      (new Date(nextSession.date) - new Date()) /
+                        (1000 * 60 * 60)
+                    )
+                  ) + " hrs"
+                : "--"}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+    </Grid>
+
+    {/* CHART */}
+    <Card
+      sx={{
+        borderRadius: 4,
+        p: 2,
+        background: "#fff",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.05)"
+      }}
+    >
+      <CardContent>
+        <Typography mb={2} fontWeight={600}>
+          Weekly Performance
+        </Typography>
+
+        <ResponsiveContainer width="100%" height={250}>
+          <AreaChart
+            data={weekly.map((v, i) => ({
+              day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
+              value: v
+            }))}
+          >
+            <XAxis dataKey="day" />
+            <Tooltip />
+            <Area dataKey="value" stroke="#2563eb" fill="#93c5fd" />
+          </AreaChart>
+        </ResponsiveContainer>
+
+      </CardContent>
+    </Card>
+  </>
+)}
       {/* ================= SESSIONS ================= */}
       {tab === 1 && (
         <Stack spacing={2}>
