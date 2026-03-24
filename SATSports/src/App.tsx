@@ -1837,7 +1837,13 @@ const isPresent = r.checkout_time === null;
 
 
 
+
+
  function AdminTournaments() {
+
+  ///////////////////////////////////////////////////////
+  // STATE
+  ///////////////////////////////////////////////////////
 
   const [players, setPlayers] = useState([]);
   const [selectedPlayers, setSelectedPlayers] = useState([]);
@@ -1846,10 +1852,7 @@ const isPresent = r.checkout_time === null;
 
   const [items, setItems] = useState([]);
   const [activeTournament, setActiveTournament] = useState(null);
-
-  const [matches, setMatches] = useState({
-    round1: [], semi: [], final: null
-  });
+  const [matches, setMatches] = useState([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -1860,7 +1863,7 @@ const isPresent = r.checkout_time === null;
   });
 
   ///////////////////////////////////////////////////////
-  // LOAD
+  // LOAD DATA
   ///////////////////////////////////////////////////////
 
   useEffect(() => {
@@ -1904,6 +1907,10 @@ const isPresent = r.checkout_time === null;
     setExternalName("");
   };
 
+  const removePlayer = (id) => {
+    setSelectedPlayers(prev => prev.filter(p => p.id !== id));
+  };
+
   ///////////////////////////////////////////////////////
   // CREATE TOURNAMENT
   ///////////////////////////////////////////////////////
@@ -1920,11 +1927,17 @@ const isPresent = r.checkout_time === null;
     });
 
     const data = await res.json();
-    const id = data.id;
 
-    await fetch(`${API_BASE}/api/admin/tournaments/${id}/players`, {
+    if (!res.ok) {
+      alert("Failed to create tournament");
+      return;
+    }
+
+    const tournamentId = data.id;
+
+    await fetch(`${API_BASE}/api/admin/tournaments/${tournamentId}/players`, {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         players: selectedPlayers.map(p => ({
           player_id: p.external ? null : p.id,
@@ -1933,41 +1946,43 @@ const isPresent = r.checkout_time === null;
       })
     });
 
-    alert("Created 🎉");
+    alert("Tournament Created 🎉");
 
     setSelectedPlayers([]);
     loadTournaments();
   };
 
   ///////////////////////////////////////////////////////
-  // BRACKETS
+  // BRACKETS (FIXED)
   ///////////////////////////////////////////////////////
 
-  const generateBrackets = async (id) => {
+  const openDashboard = async (id) => {
+
+    // generate if not already
     await fetch(`${API_BASE}/api/admin/tournaments/${id}/generate-brackets`, {
       method: "POST"
     });
 
+    // fetch matches
     const res = await fetch(`${API_BASE}/api/admin/tournaments/${id}/matches`);
     const data = await res.json();
 
-    setMatches({
-      round1: data.filter(m=>m.round==="round1"),
-      semi: data.filter(m=>m.round==="semi"),
-      final: data.find(m=>m.round==="final")
-    });
-
-    setActiveTournament(id);
+    setMatches(data);
+    setActiveTournament(id); // 🔥 THIS FIXES YOUR ISSUE
   };
+
+  ///////////////////////////////////////////////////////
+  // WINNER
+  ///////////////////////////////////////////////////////
 
   const pickWinner = async (matchId, player) => {
     await fetch(`${API_BASE}/api/admin/matches/${matchId}/winner`, {
-      method:"PUT",
-      headers: {"Content-Type":"application/json"},
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ winner: player })
     });
 
-    generateBrackets(activeTournament);
+    openDashboard(activeTournament); // refresh
   };
 
   ///////////////////////////////////////////////////////
@@ -1976,7 +1991,7 @@ const isPresent = r.checkout_time === null;
     <Box sx={{ p: 3 }}>
 
       <Typography variant="h4" fontWeight={800} mb={3}>
-        🏆 Tournament System
+        🏆 Tournament Management System
       </Typography>
 
       {/* ================= CREATE ================= */}
@@ -1987,28 +2002,23 @@ const isPresent = r.checkout_time === null;
 
           <Grid container spacing={2} mt={1}>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <TextField fullWidth label="Title"
                 onChange={e=>setForm({...form,title:e.target.value})}/>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <TextField fullWidth label="Location"
                 onChange={e=>setForm({...form,location:e.target.value})}/>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <TextField type="date" fullWidth
                 InputLabelProps={{ shrink:true }}
                 onChange={e=>setForm({...form,date:e.target.value})}/>
             </Grid>
 
-            <Grid item xs={12}>
-              <TextField fullWidth multiline label="Description"
-                onChange={e=>setForm({...form,description:e.target.value})}/>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={3}>
               <Select fullWidth value={form.status}
                 onChange={e=>setForm({...form,status:e.target.value})}>
                 <MenuItem value="upcoming">Upcoming</MenuItem>
@@ -2017,8 +2027,13 @@ const isPresent = r.checkout_time === null;
               </Select>
             </Grid>
 
-            <Grid item xs={12} md={6}>
-              <Button component="label" fullWidth>
+            <Grid item xs={12}>
+              <TextField fullWidth multiline label="Description"
+                onChange={e=>setForm({...form,description:e.target.value})}/>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Button component="label">
                 Upload Image
                 <input hidden type="file" onChange={e=>setImage(e.target.files[0])}/>
               </Button>
@@ -2053,7 +2068,11 @@ const isPresent = r.checkout_time === null;
           {/* SELECTED */}
           <Stack direction="row" flexWrap="wrap" gap={1} mt={2}>
             {selectedPlayers.map(p=>(
-              <Chip key={p.id} label={p.name}/>
+              <Chip
+                key={p.id}
+                label={p.name}
+                onDelete={()=>removePlayer(p.id)}
+              />
             ))}
           </Stack>
 
@@ -2077,7 +2096,8 @@ const isPresent = r.checkout_time === null;
                 <Button
                   fullWidth
                   sx={{ mt:1 }}
-                  onClick={()=>generateBrackets(t.id)}
+                  variant="contained"
+                  onClick={()=>openDashboard(t.id)}
                 >
                   Open Dashboard
                 </Button>
@@ -2088,21 +2108,46 @@ const isPresent = r.checkout_time === null;
         ))}
       </Grid>
 
-      {/* ================= BRACKETS ================= */}
+      {/* ================= BRACKETS (VISIBLE FIX) ================= */}
       {activeTournament && (
-        <Box mt={4}>
-          <Typography variant="h5">Brackets</Typography>
+        <Box mt={5}>
 
-          {matches.round1.map(m=>(
-            <Card key={m.id} sx={{ p:2, mt:1 }}>
-              <Button onClick={()=>pickWinner(m.id,m.player1)}>
-                {m.player1}
-              </Button>
-              <Button onClick={()=>pickWinner(m.id,m.player2)}>
-                {m.player2}
-              </Button>
+          <Typography variant="h5" fontWeight={700} mb={2}>
+            🧩 Tournament Brackets
+          </Typography>
+
+          {matches.length === 0 && (
+            <Typography>No matches found</Typography>
+          )}
+
+          {matches.map(m => (
+            <Card key={m.id} sx={{ p:2, mb:2 }}>
+              <Typography fontWeight={600}>
+                {m.round}
+              </Typography>
+
+              <Stack direction="row" spacing={2} mt={1}>
+                <Button
+                  variant={m.winner === m.player1 ? "contained" : "outlined"}
+                  onClick={()=>pickWinner(m.id,m.player1)}
+                >
+                  {m.player1}
+                </Button>
+
+                <Button
+                  variant={m.winner === m.player2 ? "contained" : "outlined"}
+                  onClick={()=>pickWinner(m.id,m.player2)}
+                >
+                  {m.player2}
+                </Button>
+              </Stack>
+
+              <Typography mt={1}>
+                Winner: {m.winner || "-"}
+              </Typography>
             </Card>
           ))}
+
         </Box>
       )}
 
