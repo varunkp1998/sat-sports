@@ -180,3 +180,14 @@ select:focus {
   padding: 20px;
   background: #f5f7fb;
 }
+.mobile-calendar {
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .mobile-calendar {
+    font-size: 11px;
+  }
+}

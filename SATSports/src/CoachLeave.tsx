@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Box, Typography, Grid, Card, CardContent,
   TextField, Button, Stack, Select, MenuItem,
-  Chip, Divider
+  Chip, Divider, Tabs, Tab, useTheme, useMediaQuery
 } from "@mui/material";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
@@ -11,7 +11,10 @@ import API_BASE from "./api";
 export default function CoachLeave() {
   const coachId = localStorage.getItem("userId");
 
-  const [tab, setTab] = useState("apply");
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  const [tab, setTab] = useState(0);
   const [leaves, setLeaves] = useState([]);
   const [balance, setBalance] = useState({});
   const [form, setForm] = useState({
@@ -38,9 +41,7 @@ export default function CoachLeave() {
   const submit = async () => {
     const res = await fetch(`${API_BASE}/api/coach/leaves`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: coachId,
         start_date: form.startDate,
@@ -70,167 +71,172 @@ export default function CoachLeave() {
   };
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", background: "#f5f7fb" }}>
+    <Box sx={{ minHeight: "100vh", background: "#f5f7fb", p: { xs: 1.5, md: 3 } }}>
 
-      {/* SIDEBAR */}
-      <Box sx={{ width: 220, background: "#fff", p: 2 }}>
-        <Typography fontWeight={700}>Leave</Typography>
-        <Stack spacing={2} mt={2}>
-          <Button onClick={() => setTab("apply")}>Apply</Button>
-          <Button onClick={() => setTab("pending")}>Pending</Button>
-          <Button onClick={() => setTab("history")}>History</Button>
-        </Stack>
-      </Box>
+      <Typography variant="h5" fontWeight={800} mb={2}>
+        Leave Management
+      </Typography>
 
-      {/* MAIN */}
-      <Box sx={{ flex: 1, p: 3 }}>
+      {/* ✅ MOBILE TABS */}
+      <Tabs
+        value={tab}
+        onChange={(e, v) => setTab(v)}
+        variant="fullWidth"
+        sx={{ mb: 2 }}
+      >
+        <Tab label="Apply" />
+        <Tab label="Pending" />
+        <Tab label="History" />
+      </Tabs>
 
-        <Typography variant="h4" fontWeight={800} mb={3}>
-          Leave Apply
-        </Typography>
+      {/* APPLY */}
+      {tab === 0 && (
+        <Grid container spacing={2}>
 
-        {/* APPLY */}
-        {tab === "apply" && (
-          <Grid container spacing={3}>
+          {/* FORM */}
+          <Grid item xs={12} md={8}>
+            <Card>
+              <CardContent>
+                <Typography fontWeight={700} mb={2}>
+                  Apply Leave
+                </Typography>
 
-            {/* FORM */}
-            <Grid item xs={12} md={8}>
-              <Card>
-                <CardContent>
+                <Stack spacing={2}>
+                  <Select
+                    fullWidth
+                    value={form.leaveType}
+                    onChange={(e) =>
+                      setForm({ ...form, leaveType: e.target.value })
+                    }
+                  >
+                    <MenuItem value="casual">Casual</MenuItem>
+                    <MenuItem value="medical">Medical</MenuItem>
+                    <MenuItem value="lop">LOP</MenuItem>
+                  </Select>
 
-                  <Typography fontWeight={700} mb={2}>
-                    Applying for Leave
-                  </Typography>
+                  <TextField
+                    type="date"
+                    label="From"
+                    InputLabelProps={{ shrink: true }}
+                    value={form.startDate}
+                    onChange={(e) =>
+                      setForm({ ...form, startDate: e.target.value })
+                    }
+                  />
 
-                  <Stack spacing={2}>
+                  <TextField
+                    type="date"
+                    label="To"
+                    InputLabelProps={{ shrink: true }}
+                    value={form.endDate}
+                    onChange={(e) =>
+                      setForm({ ...form, endDate: e.target.value })
+                    }
+                  />
 
-                    <Select
-                      fullWidth
-                      value={form.leaveType}
-                      onChange={(e) =>
-                        setForm({ ...form, leaveType: e.target.value })
-                      }
-                    >
-                      <MenuItem value="casual">Casual</MenuItem>
-                      <MenuItem value="medical">Medical</MenuItem>
-                      <MenuItem value="lop">LOP</MenuItem>
-                    </Select>
+                  <TextField
+                    multiline
+                    rows={3}
+                    placeholder="Reason"
+                    value={form.reason}
+                    onChange={(e) =>
+                      setForm({ ...form, reason: e.target.value })
+                    }
+                  />
 
-                    <TextField
-                      type="date"
-                      label="From"
-                      InputLabelProps={{ shrink: true }}
-                      value={form.startDate}
-                      onChange={(e) =>
-                        setForm({ ...form, startDate: e.target.value })
-                      }
-                    />
+                  <Button variant="contained" size="large" onClick={submit}>
+                    Apply Leave
+                  </Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
 
-                    <TextField
-                      type="date"
-                      label="To"
-                      InputLabelProps={{ shrink: true }}
-                      value={form.endDate}
-                      onChange={(e) =>
-                        setForm({ ...form, endDate: e.target.value })
-                      }
-                    />
+          {/* SIDE PANEL */}
+          <Grid item xs={12} md={4}>
+            <Stack spacing={2}>
 
-                    <TextField
-                      multiline
-                      rows={3}
-                      placeholder="Reason"
-                      value={form.reason}
-                      onChange={(e) =>
-                        setForm({ ...form, reason: e.target.value })
-                      }
-                    />
-
-                    <Button variant="contained" onClick={submit}>
-                      Apply Leave
-                    </Button>
-
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* RIGHT PANEL */}
-            <Grid item xs={12} md={4}>
+              {/* BALANCE */}
               <Card>
                 <CardContent>
                   <Typography fontWeight={700}>Leave Balance</Typography>
-                  <Typography>Casual: {balance.casual}</Typography>
-                  <Typography>Medical: {balance.medical}</Typography>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography>Total: {(balance.casual || 0) + (balance.medical || 0)}</Typography>
-                  <Typography>Applying: {calculateDays()} days</Typography>
+                  <Typography>Casual: {balance.casual || 0}</Typography>
+                  <Typography>Medical: {balance.medical || 0}</Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography fontWeight={600}>
+                    Total: {(balance.casual || 0) + (balance.medical || 0)}
+                  </Typography>
+                  <Typography>
+                    Applying: {calculateDays()} days
+                  </Typography>
                 </CardContent>
               </Card>
 
-              <Card sx={{ mt: 2 }}>
+              {/* CALENDAR */}
+              <Card>
                 <CardContent>
-                  <Typography fontWeight={700}>Calendar</Typography>
-                  <Calendar
-                    tileContent={({ date }) => {
-                      const found = leaves.find(
-                        l =>
-                          new Date(date) >= new Date(l.start_date) &&
-                          new Date(date) <= new Date(l.end_date)
-                      );
-                      return found ? <span style={{ color: "red" }}>●</span> : null;
-                    }}
-                  />
+                  <Typography fontWeight={700} mb={1}>
+                    Calendar
+                  </Typography>
+
+                  <Box sx={{ width: "100%", overflowX: "auto" }}>
+                    <Calendar
+                      className="mobile-calendar"
+                      tileContent={({ date }) => {
+                        const found = leaves.find(
+                          l =>
+                            new Date(date) >= new Date(l.start_date) &&
+                            new Date(date) <= new Date(l.end_date)
+                        );
+                        return found ? <span style={{ color: "red" }}>●</span> : null;
+                      }}
+                    />
+                  </Box>
                 </CardContent>
               </Card>
-            </Grid>
 
+            </Stack>
           </Grid>
-        )}
+        </Grid>
+      )}
 
-        {/* PENDING */}
-        {tab === "pending" && (
-          <Grid container spacing={2}>
-            {leaves.filter(l => l.status === "Pending").map(l => (
-              <Grid item xs={12} md={6} key={l.id}>
-                <Card>
-                  <CardContent>
-                    <Typography>{l.start_date} → {l.end_date}</Typography>
-                    <Chip label="Pending" color="warning" />
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
+      {/* PENDING */}
+      {tab === 1 && (
+        <Stack spacing={2}>
+          {leaves.filter(l => l.status === "Pending").map(l => (
+            <Card key={l.id}>
+              <CardContent>
+                <Typography>{l.start_date} → {l.end_date}</Typography>
+                <Chip label="Pending" color="warning" />
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      )}
 
-        {/* HISTORY */}
-        {tab === "history" && (
-          <Grid container spacing={2}>
-            {leaves.map(l => (
-              <Grid item xs={12} md={6} key={l.id}>
-                <Card>
-                  <CardContent>
-                    <Typography>{l.start_date} → {l.end_date}</Typography>
-                    <Typography>{l.leave_type}</Typography>
-                    <Chip
-                      label={l.status}
-                      color={
-                        l.status === "Approved"
-                          ? "success"
-                          : l.status === "Rejected"
-                          ? "error"
-                          : "warning"
-                      }
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-
-      </Box>
+      {/* HISTORY */}
+      {tab === 2 && (
+        <Stack spacing={2}>
+          {leaves.map(l => (
+            <Card key={l.id}>
+              <CardContent>
+                <Typography>{l.start_date} → {l.end_date}</Typography>
+                <Typography>{l.leave_type}</Typography>
+                <Chip
+                  label={l.status}
+                  color={
+                    l.status === "Approved"
+                      ? "success"
+                      : l.status === "Rejected"
+                      ? "error"
+                      : "warning"
+                  }
+                />
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      )}
     </Box>
   );
 }
