@@ -1,7 +1,7 @@
 
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
-
+const jwt = require("jsonwebtoken");   // ✅ FIX
 const xlsx = require("xlsx");
 const express = require("express");
 const cors = require("cors");
@@ -9,6 +9,7 @@ const mysql = require("mysql2");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const app = express();
+require("dotenv").config();
 app.use(express.json());
 
 const { Resend } = require("resend");
@@ -47,7 +48,6 @@ const db = connection.promise();   // ✅ create db variable
 
 let sessions = [];
 // LOGIN
-import jwt from "jsonwebtoken";
 
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
