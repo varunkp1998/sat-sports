@@ -363,33 +363,17 @@ app.get("/api/tournaments", (req, res) => {
   });
   
   // READ (Admin)
-  app.get("/api/admin/tournaments",  (req, res) => {
-    res.json(tournaments);
-  });
+  const upload = multer({ dest: "uploads/" });
+
+  app.post("/api/admin/tournaments", upload.single("image"), async (req, res) => {
+    const { title, description, date, location, status } = req.body;
+    const image = req.file?.filename;
   
-  // CREATE
-  app.post("/api/tournaments",  (req, res) => {
-    const newItem = {
-      id: Date.now(),
-      ...req.body,
-    };
-    tournaments.push(newItem);
-    res.json(newItem);
-  });
+    await db.query(`
+      INSERT INTO tournaments (title, description, image, date, location, status)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [title, description, image, date, location, status]);
   
-  // UPDATE
-  app.put("/api/tournaments/:id",  (req, res) => {
-    const id = req.params.id;
-    tournaments = tournaments.map(t =>
-      t.id == id ? { ...t, ...req.body } : t
-    );
-    res.json({ success: true });
-  });
-  
-  // DELETE
-  app.delete("/api/tournaments/:id",  (req, res) => {
-    const id = req.params.id;
-    tournaments = tournaments.filter(t => t.id != id);
     res.json({ success: true });
   });
 // --- ATTENDANCE ---
@@ -2328,51 +2312,13 @@ app.post("/api/tournaments/:id/register", async (req, res) => {
 
   res.json({ success: true });
 });
-app.post("/api/matches/:id/winner", async (req, res) => {
+app.put("/api/admin/matches/:id/winner", async (req, res) => {
   const { id } = req.params;
-  const { winnerId } = req.body;
+  const { winner } = req.body;
 
-  // 1. update winner
-  await db.query(
-    "UPDATE matches SET winner_id = ? WHERE id = ?",
-    [winnerId, id]
-  );
-
-  // 2. get match details
-  const [[match]] = await db.query(
-    "SELECT * FROM matches WHERE id = ?",
-    [id]
-  );
-
-  const nextRound = match.round + 1;
-
-  // 3. find next match
-  const [[nextMatch]] = await db.query(
-    `SELECT * FROM matches 
-     WHERE tournament_id = ? 
-     AND round = ? 
-     AND match_order = ?`,
-    [
-      match.tournament_id,
-      nextRound,
-      Math.floor(match.match_order / 2)
-    ]
-  );
-
-  if (nextMatch) {
-    // fill player1 or player2
-    if (!nextMatch.player1_id) {
-      await db.query(
-        "UPDATE matches SET player1_id = ? WHERE id = ?",
-        [winnerId, nextMatch.id]
-      );
-    } else {
-      await db.query(
-        "UPDATE matches SET player2_id = ? WHERE id = ?",
-        [winnerId, nextMatch.id]
-      );
-    }
-  }
+  await db.query(`
+    UPDATE matches SET winner = ? WHERE id = ?
+  `, [winner, id]);
 
   res.json({ success: true });
 });
@@ -2446,38 +2392,27 @@ app.post("/api/matches/:id/score", async (req, res) => {
 app.post("/api/admin/tournaments/:id/generate-brackets", async (req, res) => {
   const { id } = req.params;
 
-  const [players] = await db.query(
-    "SELECT player_id FROM tournament_players WHERE tournament_id = ?",
-    [id]
-  );
+  const [players] = await db.query(`
+    SELECT * FROM tournament_players
+    WHERE tournament_id = ?
+    ORDER BY seed ASC
+  `, [id]);
 
-  if (players.length < 2) {
-    return res.status(400).json({ message: "Not enough players" });
+  // clear old matches
+  await db.query("DELETE FROM matches WHERE tournament_id = ?", [id]);
+
+  // round 1
+  for (let i = 0; i < players.length; i += 2) {
+    await db.query(`
+      INSERT INTO matches (tournament_id, round, match_order, player1, player2)
+      VALUES (?, 'round1', ?, ?, ?)
+    `, [
+      id,
+      i / 2,
+      players[i].name,
+      players[i + 1]?.name
+    ]);
   }
-
-  // shuffle players
-  const shuffled = players.sort(() => 0.5 - Math.random());
-
-  const matches = [];
-
-  for (let i = 0; i < shuffled.length; i += 2) {
-    if (shuffled[i + 1]) {
-      matches.push([
-        id,
-        shuffled[i].player_id,
-        shuffled[i + 1].player_id,
-        1,
-        i / 2 + 1
-      ]);
-    }
-  }
-
-  await db.query(
-    `INSERT INTO matches 
-     (tournament_id, player1_id, player2_id, round, match_order)
-     VALUES ?`,
-    [matches]
-  );
 
   res.json({ success: true });
 });
@@ -2502,13 +2437,16 @@ app.post("/api/admin/tournaments/:id/players", async (req, res) => {
   const { id } = req.params;
   const { players } = req.body;
 
-  const values = players.map(p => [id, p]);
-
-  await db.query(
-    `INSERT INTO tournament_players (tournament_id, player_id)
-     VALUES ?`,
-    [values]
-  );
+  for (let p of players) {
+    await db.query(`
+      INSERT INTO tournament_players (tournament_id, player_id, name)
+      VALUES (?, ?, ?)
+    `, [
+      id,
+      p.player_id || null,
+      p.name
+    ]);
+  }
 
   res.json({ success: true });
 });
@@ -2622,4 +2560,29 @@ app.get("/api/player/sessions/:userId", async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "Failed to load sessions" });
   }
+});
+app.put("/api/admin/tournaments/:id/seeding", async (req, res) => {
+  const { id } = req.params;
+  const { seeds } = req.body;
+
+  for (let i = 0; i < seeds.length; i++) {
+    await db.query(`
+      UPDATE tournament_players
+      SET seed = ?
+      WHERE id = ?
+    `, [i + 1, seeds[i].id]);
+  }
+
+  res.json({ success: true });
+});
+app.get("/api/admin/tournaments/:id/matches", async (req, res) => {
+  const { id } = req.params;
+
+  const [rows] = await db.query(`
+    SELECT * FROM matches
+    WHERE tournament_id = ?
+    ORDER BY round, match_order
+  `, [id]);
+
+  res.json(rows);
 });

@@ -1835,219 +1835,252 @@ const isPresent = r.checkout_time === null;
 
 
 
-function AdminTournaments() {
+
+
+ function AdminTournaments() {
+
+  const [players, setPlayers] = useState([]);
+  const [selectedPlayers, setSelectedPlayers] = useState([]);
+  const [externalName, setExternalName] = useState("");
+  const [image, setImage] = useState(null);
 
   const [items, setItems] = useState([]);
-  const navigate = useNavigate();
+  const [activeTournament, setActiveTournament] = useState(null);
+
+  const [matches, setMatches] = useState({
+    round1: [], semi: [], final: null
+  });
 
   const [form, setForm] = useState({
-    name: "",
+    title: "",
+    description: "",
     date: "",
     location: "",
     status: "upcoming"
   });
 
-  const loadItems = () => {
+  ///////////////////////////////////////////////////////
+  // LOAD
+  ///////////////////////////////////////////////////////
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/admin/players`)
+      .then(res => res.json())
+      .then(setPlayers);
+
+    loadTournaments();
+  }, []);
+
+  const loadTournaments = () => {
     fetch(`${API_BASE}/api/admin/tournaments`)
       .then(res => res.json())
       .then(setItems);
   };
 
-  useEffect(() => {
-    loadItems();
-  }, []);
+  ///////////////////////////////////////////////////////
+  // PLAYER LOGIC
+  ///////////////////////////////////////////////////////
 
-  const save = async () => {
-    await fetch(`${API_BASE}/api/tournaments`, {
+  const togglePlayer = (p) => {
+    if (selectedPlayers.find(sp => sp.id === p.id)) {
+      setSelectedPlayers(prev => prev.filter(sp => sp.id !== p.id));
+    } else {
+      setSelectedPlayers(prev => [...prev, p]);
+    }
+  };
+
+  const selectAll = () => {
+    setSelectedPlayers(players);
+  };
+
+  const addExternal = () => {
+    if (!externalName) return;
+
+    setSelectedPlayers(prev => [
+      ...prev,
+      { id: Date.now(), name: externalName, external: true }
+    ]);
+
+    setExternalName("");
+  };
+
+  ///////////////////////////////////////////////////////
+  // CREATE TOURNAMENT
+  ///////////////////////////////////////////////////////
+
+  const saveTournament = async () => {
+    const formData = new FormData();
+
+    Object.entries(form).forEach(([k, v]) => formData.append(k, v));
+    if (image) formData.append("image", image);
+
+    const res = await fetch(`${API_BASE}/api/admin/tournaments`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(form)
+      body: formData
     });
 
-    setForm({ name: "", date: "", location: "", status: "upcoming" });
-    loadItems();
-  };
+    const data = await res.json();
+    const id = data.id;
 
-  const deleteItem = async (id) => {
-    if (!window.confirm("Delete tournament?")) return;
-
-    await fetch(`${API_BASE}/api/tournaments/${id}`, {
-      method: "DELETE"
+    await fetch(`${API_BASE}/api/admin/tournaments/${id}/players`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        players: selectedPlayers.map(p => ({
+          player_id: p.external ? null : p.id,
+          name: p.name
+        }))
+      })
     });
 
-    loadItems();
+    alert("Created 🎉");
+
+    setSelectedPlayers([]);
+    loadTournaments();
   };
+
+  ///////////////////////////////////////////////////////
+  // BRACKETS
+  ///////////////////////////////////////////////////////
 
   const generateBrackets = async (id) => {
     await fetch(`${API_BASE}/api/admin/tournaments/${id}/generate-brackets`, {
       method: "POST"
     });
 
-    alert("Brackets generated 🎯");
+    const res = await fetch(`${API_BASE}/api/admin/tournaments/${id}/matches`);
+    const data = await res.json();
+
+    setMatches({
+      round1: data.filter(m=>m.round==="round1"),
+      semi: data.filter(m=>m.round==="semi"),
+      final: data.find(m=>m.round==="final")
+    });
+
+    setActiveTournament(id);
   };
-  const shuffleSeeding = () => {
-    setSelected(prev => [...prev].sort(() => Math.random() - 0.5));
+
+  const pickWinner = async (matchId, player) => {
+    await fetch(`${API_BASE}/api/admin/matches/${matchId}/winner`, {
+      method:"PUT",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ winner: player })
+    });
+
+    generateBrackets(activeTournament);
   };
-  const statusColor = (status) => {
-    if (status === "live") return "error";
-    if (status === "upcoming") return "warning";
-    return "success";
-  };
+
+  ///////////////////////////////////////////////////////
 
   return (
     <Box sx={{ p: 3 }}>
 
-      {/* HEADER */}
       <Typography variant="h4" fontWeight={800} mb={3}>
-        🏆 Tournament Management
+        🏆 Tournament System
       </Typography>
 
-      {/* CREATE FORM */}
-      <Card sx={{ mb: 4, borderRadius: 3 }}>
+      {/* ================= CREATE ================= */}
+      <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography fontWeight={700} mb={2}>
-            Create Tournament
-          </Typography>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="Name"
-                value={form.name}
-                onChange={(e) =>
-                  setForm({ ...form, name: e.target.value })
-                }
-              />
+          <Typography fontWeight={700}>Create Tournament</Typography>
+
+          <Grid container spacing={2} mt={1}>
+
+            <Grid item xs={12} md={4}>
+              <TextField fullWidth label="Title"
+                onChange={e=>setForm({...form,title:e.target.value})}/>
             </Grid>
 
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                type="date"
-                value={form.date}
-                onChange={(e) =>
-                  setForm({ ...form, date: e.target.value })
-                }
-              />
+            <Grid item xs={12} md={4}>
+              <TextField fullWidth label="Location"
+                onChange={e=>setForm({...form,location:e.target.value})}/>
             </Grid>
 
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="Location"
-                value={form.location}
-                onChange={(e) =>
-                  setForm({ ...form, location: e.target.value })
-                }
-              />
+            <Grid item xs={12} md={4}>
+              <TextField type="date" fullWidth
+                InputLabelProps={{ shrink:true }}
+                onChange={e=>setForm({...form,date:e.target.value})}/>
             </Grid>
 
-            <Grid item xs={12} md={3}>
-              <Button
-                fullWidth
-                variant="contained"
-                sx={{ height: "56px" }}
-                onClick={save}
-              >
-                Create
+            <Grid item xs={12}>
+              <TextField fullWidth multiline label="Description"
+                onChange={e=>setForm({...form,description:e.target.value})}/>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Select fullWidth value={form.status}
+                onChange={e=>setForm({...form,status:e.target.value})}>
+                <MenuItem value="upcoming">Upcoming</MenuItem>
+                <MenuItem value="live">Live</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+              </Select>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Button component="label" fullWidth>
+                Upload Image
+                <input hidden type="file" onChange={e=>setImage(e.target.files[0])}/>
               </Button>
             </Grid>
+
           </Grid>
+
+          {/* PLAYERS */}
+          <Typography mt={3}>Players</Typography>
+
+          <Button onClick={selectAll}>Select All</Button>
+
+          <Stack direction="row" flexWrap="wrap" gap={1} mt={1}>
+            {players.map(p => (
+              <Chip
+                key={p.id}
+                label={p.name}
+                color={selectedPlayers.find(sp=>sp.id===p.id)?"primary":"default"}
+                onClick={()=>togglePlayer(p)}
+              />
+            ))}
+          </Stack>
+
+          {/* EXTERNAL */}
+          <Stack direction="row" mt={2}>
+            <TextField fullWidth placeholder="External player"
+              value={externalName}
+              onChange={e=>setExternalName(e.target.value)}/>
+            <Button onClick={addExternal}>Add</Button>
+          </Stack>
+
+          {/* SELECTED */}
+          <Stack direction="row" flexWrap="wrap" gap={1} mt={2}>
+            {selectedPlayers.map(p=>(
+              <Chip key={p.id} label={p.name}/>
+            ))}
+          </Stack>
+
+          <Button variant="contained" fullWidth sx={{ mt:2 }}
+            onClick={saveTournament}>
+            Create Tournament
+          </Button>
+
         </CardContent>
       </Card>
 
-      {/* LIST */}
-      <Grid container spacing={3}>
-        {items.map((t) => (
+      {/* ================= LIST ================= */}
+      <Grid container spacing={2}>
+        {items.map(t => (
           <Grid item xs={12} md={4} key={t.id}>
-            <Card
-              sx={{
-                borderRadius: 4,
-                transition: "0.3s",
-                "&:hover": {
-                  transform: "translateY(-6px)"
-                }
-              }}
-            >
+            <Card>
               <CardContent>
 
-                {/* TITLE */}
-                <Typography fontWeight={700} fontSize={18}>
-                  {t.name}
-                </Typography>
+                <Typography fontWeight={700}>{t.title}</Typography>
 
-                {/* META */}
-                <Typography mt={1}>
-                  📅 {t.date}
-                </Typography>
-
-                <Typography>
-                  📍 {t.location}
-                </Typography>
-
-                {/* STATUS */}
-                <Chip
-                  label={t.status}
-                  color={statusColor(t.status)}
-                  size="small"
-                  sx={{ mt: 1 }}
-                />
-<Select
-  size="small"
-  fullWidth
-  value={t.status}
-  onChange={async (e) => {
-    await fetch(`${API_BASE}/api/tournaments/${t.id}/status`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: e.target.value })
-    });
-
-    loadItems();
-  }}
-  sx={{ mt: 2 }}
->
-  <MenuItem value="upcoming">Upcoming</MenuItem>
-  <MenuItem value="live">Live</MenuItem>
-  <MenuItem value="completed">Completed</MenuItem>
-</Select>
-                {/* ACTIONS */}
-                <Stack spacing={1} mt={2}>
-
-                  <Button
-                    variant="contained"
-                    onClick={() => generateBrackets(t.id)}
-                  >
-                    Generate Brackets
-                  </Button>
-                  <Button
-  variant="outlined"
-  onClick={() => navigate(`/admin/tournaments/${t.id}/players`)}
->
-  Manage Players
-</Button>
-<Button onClick={shuffleSeeding}>Auto Seed</Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() =>
-                      navigate(`/admin/tournaments/${t.id}/matches`)
-                    }
-                  >
-                    View Matches
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => deleteItem(t.id)}
-                  >
-                    Delete
-                  </Button>
-
-                </Stack>
+                <Button
+                  fullWidth
+                  sx={{ mt:1 }}
+                  onClick={()=>generateBrackets(t.id)}
+                >
+                  Open Dashboard
+                </Button>
 
               </CardContent>
             </Card>
@@ -2055,10 +2088,27 @@ function AdminTournaments() {
         ))}
       </Grid>
 
+      {/* ================= BRACKETS ================= */}
+      {activeTournament && (
+        <Box mt={4}>
+          <Typography variant="h5">Brackets</Typography>
+
+          {matches.round1.map(m=>(
+            <Card key={m.id} sx={{ p:2, mt:1 }}>
+              <Button onClick={()=>pickWinner(m.id,m.player1)}>
+                {m.player1}
+              </Button>
+              <Button onClick={()=>pickWinner(m.id,m.player2)}>
+                {m.player2}
+              </Button>
+            </Card>
+          ))}
+        </Box>
+      )}
+
     </Box>
   );
 }
-
 
 import {
  Dialog, DialogTitle, DialogContent, DialogActions,
