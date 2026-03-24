@@ -49,12 +49,12 @@ let sessions = [];
 // LOGIN
 
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
   try {
     const [rows] = await db.query(
       "SELECT id, email, role, name FROM users WHERE email = ? AND password = ?",
-      [username, password]
+      [email, password]
     );
 
     if (rows.length === 0) {
