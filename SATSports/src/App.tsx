@@ -1977,13 +1977,21 @@ const isPresent = r.checkout_time === null;
   ///////////////////////////////////////////////////////
 
   const pickWinner = async (matchId, player) => {
+
     await fetch(`${API_BASE}/api/admin/matches/${matchId}/winner`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ winner: player })
     });
-
-    openDashboard(activeTournament); // refresh
+  
+    // 🔥 RE-FETCH MATCHES (NOT generate again blindly)
+    const res = await fetch(
+      `${API_BASE}/api/admin/tournaments/${activeTournament}/matches`
+    );
+  
+    const data = await res.json();
+  
+    setMatches(data); // ✅ THIS UPDATES UI
   };
 
   ///////////////////////////////////////////////////////
