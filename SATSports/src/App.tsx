@@ -18,6 +18,7 @@ import API_BASE from "./api";
 import { useNavigate } from "react-router-dom";
 import { Avatar } from "@mui/material";
 import Signup from "./Signup.tsx";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 import {
   Card,
   CardContent,
