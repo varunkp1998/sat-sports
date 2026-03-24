@@ -213,7 +213,7 @@ app.delete("/api/programs/:id", async (req, res) => {
   try {
     // 🔍 CHECK IN SESSIONS
     const [sessions] = await db.query(
-      "SELECT id FROM sessions WHERE program_id = ? LIMIT 1",
+      "SELECT id FROM training_sessions WHERE program_id = ? LIMIT 1",
       [id]
     );
 
