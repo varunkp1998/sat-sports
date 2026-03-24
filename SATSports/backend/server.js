@@ -2591,3 +2591,21 @@ app.get("/api/admin/tournaments/:id/matches", async (req, res) => {
 
   res.json(rows);
 });
+app.get("/api/tournaments/:id/matches", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [rows] = await db.query(`
+      SELECT *
+      FROM matches
+      WHERE tournament_id = ?
+      ORDER BY match_order
+    `, [id]);
+
+    res.json(rows);
+
+  } catch (err) {
+    console.error("PUBLIC MATCH ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch matches" });
+  }
+});
