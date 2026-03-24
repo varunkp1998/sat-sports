@@ -2582,3 +2582,39 @@ app.put("/api/admin/leave-settings", async (req, res) => {
 
   res.json({ success: true });
 });
+app.get("/api/player/sessions/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const [[player]] = await db.query(
+      "SELECT id FROM players WHERE user_id = ?",
+      [userId]
+    );
+
+    if (!player) return res.json([]);
+
+    const [rows] = await db.query(`
+      SELECT 
+        ts.id,
+        DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS date,
+        ts.start_time,
+        ts.end_time,
+        l.name AS location,
+        c.name AS coach,
+        p.title AS program
+      FROM session_players sp
+      JOIN training_sessions ts ON ts.id = sp.session_id
+      JOIN locations l ON l.id = ts.location_id
+      JOIN coaches c ON c.id = ts.coach_id
+      JOIN programs p ON p.id = ts.program_id
+      WHERE sp.player_id = ?
+      ORDER BY ts.session_date ASC
+    `, [player.id]);
+
+    res.json(rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to load sessions" });
+  }
+});

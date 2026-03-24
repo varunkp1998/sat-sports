@@ -8,12 +8,9 @@ import {
   Tabs,
   Tab,
   Button,
-  Chip
+  Chip,
+  Stack
 } from "@mui/material";
-
-import EventIcon from "@mui/icons-material/Event";
-import ScheduleIcon from "@mui/icons-material/Schedule";
-import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
 
 import {
   ResponsiveContainer,
@@ -30,12 +27,15 @@ export default function PlayerDashboard() {
 
   const [tab, setTab] = useState(0);
 
-  const [data, setData] = useState<any>({
+  const [data, setData] = useState({
     weeklySessions: [],
     lastSessions: [],
     recentActivities: []
   });
 
+  const [sessions, setSessions] = useState([]);
+
+  // 🔥 Load overview
   useEffect(() => {
     fetch(`${API_BASE}/api/player/overview/${userId}`)
       .then(res => res.json())
@@ -49,10 +49,27 @@ export default function PlayerDashboard() {
       );
   }, []);
 
+  // 🔥 Load sessions when tab opens
+  useEffect(() => {
+    if (tab === 1) {
+      fetch(`${API_BASE}/api/player/sessions/${userId}`)
+        .then(res => res.json())
+        .then(setSessions);
+    }
+  }, [tab]);
+
   const weekly = data.weeklySessions || [];
 
+  // 🔥 Helpers
+  const isToday = (date) =>
+    new Date(date).toDateString() === new Date().toDateString();
+
+  const upcoming = sessions.filter(
+    (s) => new Date(s.date) >= new Date()
+  );
+
   return (
-    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, background: "#f5f7fb", minHeight: "100vh" }}>
 
       {/* HEADER */}
       <Typography variant="h5" fontWeight={700} mb={2}>
@@ -60,7 +77,12 @@ export default function PlayerDashboard() {
       </Typography>
 
       {/* TABS */}
-      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
+      <Tabs
+        value={tab}
+        onChange={(e, v) => setTab(v)}
+        variant="fullWidth"
+        sx={{ mb: 3 }}
+      >
         <Tab label="Main" />
         <Tab label="Sessions" />
         <Tab label="Activity" />
@@ -90,7 +112,7 @@ export default function PlayerDashboard() {
                   <Typography color="text.secondary">
                     Next Session
                   </Typography>
-                  <Typography variant="h6">
+                  <Typography variant="body1">
                     {data.nextSession
                       ? `${data.nextSession.start_time} - ${data.nextSession.end_time}`
                       : "None"}
@@ -106,7 +128,7 @@ export default function PlayerDashboard() {
                     This Week
                   </Typography>
                   <Typography variant="h4">
-                    {weekly.reduce((a: number, b: number) => a + b, 0)}
+                    {weekly.reduce((a, b) => a + b, 0)}
                   </Typography>
                 </CardContent>
               </Card>
@@ -118,13 +140,11 @@ export default function PlayerDashboard() {
             <Grid item xs={12}>
               <Card>
                 <CardContent>
-                  <Typography mb={2}>
-                    Weekly Sessions
-                  </Typography>
+                  <Typography mb={2}>Weekly Sessions</Typography>
 
                   <ResponsiveContainer width="100%" height={250}>
                     <AreaChart
-                      data={weekly.map((v: number, i: number) => ({
+                      data={weekly.map((v, i) => ({
                         day: i,
                         value: v
                       }))}
@@ -134,37 +154,28 @@ export default function PlayerDashboard() {
                       <Area dataKey="value" />
                     </AreaChart>
                   </ResponsiveContainer>
-
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
 
-          {/* 2 COLUMN */}
+          {/* ACTIVITY + LAST */}
           <Grid container spacing={3}>
-
-            {/* RECENT ACTIVITY */}
             <Grid item xs={12} md={6}>
               <Typography fontWeight={600} mb={1}>
                 Recent Activity
               </Typography>
 
-              {(data.recentActivities || []).map((a: string, i: number) => (
+              {(data.recentActivities || []).map((a, i) => (
                 <Card key={i} sx={{ mb: 2 }}>
                   <CardContent>
                     <Typography>{a}</Typography>
-                    <Chip
-                      label="Completed"
-                      color="success"
-                      size="small"
-                      sx={{ mt: 1 }}
-                    />
+                    <Chip label="Completed" color="success" size="small" sx={{ mt: 1 }} />
                   </CardContent>
                 </Card>
               ))}
             </Grid>
 
-            {/* LAST SESSIONS */}
             <Grid item xs={12} md={6}>
               <Typography fontWeight={600} mb={1}>
                 Last Sessions
@@ -174,45 +185,68 @@ export default function PlayerDashboard() {
                 <Typography>No sessions yet</Typography>
               )}
 
-              {(data.lastSessions || []).map((s: any, i: number) => (
+              {(data.lastSessions || []).map((s, i) => (
                 <Card key={i} sx={{ mb: 2 }}>
                   <CardContent>
-
-                    <Typography fontWeight={600}>
-                      Session
-                    </Typography>
-
-                    <Typography color="text.secondary">
-                      {s.date}
-                    </Typography>
-
-                    <Typography color="text.secondary">
-                      {s.time}
-                    </Typography>
-
-                    <Chip
-                      label="Completed"
-                      color="success"
-                      size="small"
-                      sx={{ mt: 1 }}
-                    />
-
-                    <Box mt={2}>
-                      <Button size="small">View Details</Button>
-                    </Box>
-
+                    <Typography fontWeight={600}>Session</Typography>
+                    <Typography color="text.secondary">{s.date}</Typography>
+                    <Typography color="text.secondary">{s.time}</Typography>
+                    <Chip label="Completed" color="success" size="small" sx={{ mt: 1 }} />
                   </CardContent>
                 </Card>
               ))}
             </Grid>
-
           </Grid>
         </>
       )}
 
       {/* ================= SESSIONS TAB ================= */}
       {tab === 1 && (
-        <Typography>All sessions coming soon...</Typography>
+        <Stack spacing={2}>
+
+          {/* EMPTY */}
+          {sessions.length === 0 && (
+            <Typography>No sessions scheduled</Typography>
+          )}
+
+          {/* SESSION CARDS */}
+          {sessions.map((s) => (
+            <Card key={s.id}>
+              <CardContent>
+
+                <Stack spacing={1}>
+
+                  <Typography fontWeight={700}>
+                    {new Date(s.date).toDateString()}
+                  </Typography>
+
+                  {isToday(s.date) && (
+                    <Chip label="Today" color="success" size="small" />
+                  )}
+
+                  <Typography>
+                    ⏰ {s.start_time} – {s.end_time}
+                  </Typography>
+
+                  <Typography>
+                    📍 {s.location}
+                  </Typography>
+
+                  <Typography>
+                    👨‍🏫 {s.coach}
+                  </Typography>
+
+                  <Typography>
+                    🎾 {s.program}
+                  </Typography>
+
+                </Stack>
+
+              </CardContent>
+            </Card>
+          ))}
+
+        </Stack>
       )}
 
       {/* ================= ACTIVITY TAB ================= */}
