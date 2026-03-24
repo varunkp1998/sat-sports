@@ -549,9 +549,15 @@ function About() {
 
   const deleteProgram = (id: number) => {
     if (!window.confirm("Delete this program?")) return;
-    fetch(`${API_BASE}/api/programs/${id}`, { method: "DELETE" }).then(
-      () => loadPrograms()
-    );
+    fetch(`/api/programs/${id}`, {
+      method: "DELETE"
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          alert(data.message);   // 🔥 show reason
+        }
+      });
   };
 
   const resetForm = () => {
@@ -1005,41 +1011,53 @@ function Login() {
   const [newPassword, setNewPassword] = useState("");
 
   // 🔐 LOGIN
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError("");
     setLoading(true);
-
-    fetch(`${API_BASE}/api/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        setLoading(false);
-
-        if (!data.success) {
-          setError(data.message || "Invalid credentials");
-          return;
-        }
-
-        localStorage.setItem("role", data.role);
-        localStorage.setItem("userId", String(data.userId));
-        localStorage.setItem("username", data.username || data.name || "User");
-        console.log(data.username );
-        if (data.coachId) localStorage.setItem("coachId", String(data.coachId));
-        if (data.playerId) localStorage.setItem("playerId", String(data.playerId));
-
-        if (data.role === "admin") window.location.href = "/admin";
-        if (data.role === "coach") window.location.href = "/coach";
-        if (data.role === "player") window.location.href = "/player";
-      })
-      .catch(() => {
-        setLoading(false);
-        setError("Network error. Please try again.");
+  
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: username,   // 🔥 backend should expect email
+          password
+        })
       });
+  
+      const data = await res.json();
+      setLoading(false);
+  
+      if (!res.ok) {
+        setError(data.message || "Invalid credentials");
+        return;
+      }
+  
+      // 🔐 SAVE JWT TOKEN
+      localStorage.setItem("token", data.token);
+  
+      // 🔓 DECODE TOKEN (to get role, name etc.)
+      const payload = JSON.parse(atob(data.token.split(".")[1]));
+  
+      localStorage.setItem("role", payload.role);
+      localStorage.setItem("userId", String(payload.id));
+      localStorage.setItem("username", payload.name || "User");
+  
+      console.log("JWT Payload:", payload);
+  
+      // 🚀 REDIRECT BASED ON ROLE
+      if (payload.role === "admin") window.location.href = "/admin";
+      else if (payload.role === "coach") window.location.href = "/coach";
+      else if (payload.role === "player") window.location.href = "/player";
+      else window.location.href = "/dashboard"; // for viewer or others
+  
+    } catch (err) {
+      setLoading(false);
+      setError("Network error. Please try again.");
+    }
   };
-
   // 🔥 SEND OTP
   const sendOtp = async () => {
     await fetch(`${API_BASE}/api/auth/send-otp`, {
