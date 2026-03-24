@@ -549,17 +549,28 @@ function About() {
 
   const deleteProgram = (id: number) => {
     if (!window.confirm("Delete this program?")) return;
-    fetch(`/api/programs/${id}`, {
+  
+    fetch(`${API_BASE}/api/programs/${id}`, {
       method: "DELETE"
     })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.success) {
-          alert(data.message);   // 🔥 show reason
+      .then(async (res) => {
+        const data = await res.json();
+  
+        if (!res.ok) {
+          // 🔥 handle backend errors (400, 500, etc.)
+          throw new Error(data.message || "Delete failed");
         }
+  
+        return data;
+      })
+      .then(() => {
+        alert("Deleted successfully ✅");
+        // optionally refresh list
+      })
+      .catch((err) => {
+        alert(err.message); // 🔥 NOW this will show your message
       });
   };
-
   const resetForm = () => {
     setEditingId(null);
     setTitle("");
