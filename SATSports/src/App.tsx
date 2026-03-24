@@ -550,8 +550,8 @@ function About() {
   const deleteProgram = (id: number) => {
     if (!window.confirm("Delete this program?")) return;
   
-    fetch(`${API_BASE}/api/admin/programs/${id}`, {
-      method: "DELETE"
+    fetch(`${API_BASE}/api/programs/${id}`, {
+            method: "DELETE"
     })
       .then(async (res) => {
         const data = await res.json();
