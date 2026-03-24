@@ -1835,9 +1835,7 @@ const isPresent = r.checkout_time === null;
 
 
 
-
-
- function AdminTournaments() {
+function AdminTournaments() {
 
   const [items, setItems] = useState([]);
   const navigate = useNavigate();
@@ -1849,10 +1847,6 @@ const isPresent = r.checkout_time === null;
     status: "upcoming"
   });
 
-  ///////////////////////////////////////////////////////
-  // LOAD
-  ///////////////////////////////////////////////////////
-
   const loadItems = () => {
     fetch(`${API_BASE}/api/admin/tournaments`)
       .then(res => res.json())
@@ -1863,12 +1857,8 @@ const isPresent = r.checkout_time === null;
     loadItems();
   }, []);
 
-  ///////////////////////////////////////////////////////
-  // CREATE (FIXED API)
-  ///////////////////////////////////////////////////////
-
   const save = async () => {
-    const res = await fetch(`${API_BASE}/api/admin/tournaments`, {
+    await fetch(`${API_BASE}/api/tournaments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -1876,40 +1866,35 @@ const isPresent = r.checkout_time === null;
       body: JSON.stringify(form)
     });
 
-    if (!res.ok) {
-      alert("Failed to create tournament");
-      return;
-    }
-
     setForm({ name: "", date: "", location: "", status: "upcoming" });
     loadItems();
   };
 
-  ///////////////////////////////////////////////////////
-  // DELETE (FIXED API)
-  ///////////////////////////////////////////////////////
-
   const deleteItem = async (id) => {
     if (!window.confirm("Delete tournament?")) return;
 
-    await fetch(`${API_BASE}/api/admin/tournaments/${id}`, {
+    await fetch(`${API_BASE}/api/tournaments/${id}`, {
       method: "DELETE"
     });
 
     loadItems();
   };
 
-  ///////////////////////////////////////////////////////
-  // STATUS COLOR
-  ///////////////////////////////////////////////////////
+  const generateBrackets = async (id) => {
+    await fetch(`${API_BASE}/api/admin/tournaments/${id}/generate-brackets`, {
+      method: "POST"
+    });
 
+    alert("Brackets generated 🎯");
+  };
+  const shuffleSeeding = () => {
+    setSelected(prev => [...prev].sort(() => Math.random() - 0.5));
+  };
   const statusColor = (status) => {
     if (status === "live") return "error";
     if (status === "upcoming") return "warning";
     return "success";
   };
-
-  ///////////////////////////////////////////////////////
 
   return (
     <Box sx={{ p: 3 }}>
@@ -1919,16 +1904,14 @@ const isPresent = r.checkout_time === null;
         🏆 Tournament Management
       </Typography>
 
-      {/* ================= CREATE ================= */}
-      <Card sx={{ mb: 4 }}>
+      {/* CREATE FORM */}
+      <Card sx={{ mb: 4, borderRadius: 3 }}>
         <CardContent>
-
           <Typography fontWeight={700} mb={2}>
             Create Tournament
           </Typography>
 
           <Grid container spacing={2}>
-
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
@@ -1944,8 +1927,6 @@ const isPresent = r.checkout_time === null;
               <TextField
                 fullWidth
                 type="date"
-                label="Date"
-                InputLabelProps={{ shrink: true }}
                 value={form.date}
                 onChange={(e) =>
                   setForm({ ...form, date: e.target.value })
@@ -1964,101 +1945,102 @@ const isPresent = r.checkout_time === null;
               />
             </Grid>
 
-            {/* 🔥 STATUS DROPDOWN (FIXED) */}
             <Grid item xs={12} md={3}>
-              <Select
+              <Button
                 fullWidth
-                value={form.status}
-                onChange={(e) =>
-                  setForm({ ...form, status: e.target.value })
-                }
+                variant="contained"
+                sx={{ height: "56px" }}
+                onClick={save}
               >
-                <MenuItem value="upcoming">Upcoming</MenuItem>
-                <MenuItem value="live">Live</MenuItem>
-                <MenuItem value="completed">Completed</MenuItem>
-              </Select>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Button fullWidth variant="contained" onClick={save}>
-                Create Tournament
+                Create
               </Button>
             </Grid>
-
           </Grid>
-
         </CardContent>
       </Card>
 
-      {/* ================= LIST ================= */}
+      {/* LIST */}
       <Grid container spacing={3}>
         {items.map((t) => (
           <Grid item xs={12} md={4} key={t.id}>
-
-            <Card sx={{ borderRadius: 4 }}>
+            <Card
+              sx={{
+                borderRadius: 4,
+                transition: "0.3s",
+                "&:hover": {
+                  transform: "translateY(-6px)"
+                }
+              }}
+            >
               <CardContent>
 
-                <Typography fontWeight={700}>
+                {/* TITLE */}
+                <Typography fontWeight={700} fontSize={18}>
                   {t.name}
                 </Typography>
 
-                <Typography>📅 {t.date}</Typography>
-                <Typography>📍 {t.location}</Typography>
+                {/* META */}
+                <Typography mt={1}>
+                  📅 {t.date}
+                </Typography>
 
+                <Typography>
+                  📍 {t.location}
+                </Typography>
+
+                {/* STATUS */}
                 <Chip
                   label={t.status}
                   color={statusColor(t.status)}
                   size="small"
                   sx={{ mt: 1 }}
                 />
+<Select
+  size="small"
+  fullWidth
+  value={t.status}
+  onChange={async (e) => {
+    await fetch(`${API_BASE}/api/tournaments/${t.id}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: e.target.value })
+    });
 
-                {/* 🔥 STATUS UPDATE FIXED */}
-                <Select
-                  size="small"
-                  fullWidth
-                  value={t.status}
-                  sx={{ mt: 2 }}
-                  onChange={async (e) => {
-                    await fetch(`${API_BASE}/api/admin/tournaments/${t.id}/status`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ status: e.target.value })
-                    });
-
-                    loadItems();
-                  }}
-                >
-                  <MenuItem value="upcoming">Upcoming</MenuItem>
-                  <MenuItem value="live">Live</MenuItem>
-                  <MenuItem value="completed">Completed</MenuItem>
-                </Select>
-
-                {/* 🔥 ACTIONS */}
+    loadItems();
+  }}
+  sx={{ mt: 2 }}
+>
+  <MenuItem value="upcoming">Upcoming</MenuItem>
+  <MenuItem value="live">Live</MenuItem>
+  <MenuItem value="completed">Completed</MenuItem>
+</Select>
+                {/* ACTIONS */}
                 <Stack spacing={1} mt={2}>
 
-                  {/* ⭐ MAIN FIX */}
                   <Button
                     variant="contained"
-                    onClick={() => navigate(`/admin/tournaments/${t.id}`)}
+                    onClick={() => generateBrackets(t.id)}
                   >
-                    Open Dashboard
+                    Generate Brackets
                   </Button>
-
+                  <Button
+  variant="outlined"
+  onClick={() => navigate(`/admin/tournaments/${t.id}/players`)}
+>
+  Manage Players
+</Button>
+<Button onClick={shuffleSeeding}>Auto Seed</Button>
                   <Button
                     variant="outlined"
-                    onClick={() => navigate(`/admin/tournaments/${t.id}/players`)}
-                  >
-                    Manage Players
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    onClick={() => navigate(`/admin/tournaments/${t.id}/matches`)}
+                    onClick={() =>
+                      navigate(`/admin/tournaments/${t.id}/matches`)
+                    }
                   >
                     View Matches
                   </Button>
 
                   <Button
+                    variant="outlined"
                     color="error"
                     onClick={() => deleteItem(t.id)}
                   >
@@ -2069,7 +2051,6 @@ const isPresent = r.checkout_time === null;
 
               </CardContent>
             </Card>
-
           </Grid>
         ))}
       </Grid>
@@ -2077,6 +2058,8 @@ const isPresent = r.checkout_time === null;
     </Box>
   );
 }
+
+
 import {
  Dialog, DialogTitle, DialogContent, DialogActions,
   useMediaQuery
