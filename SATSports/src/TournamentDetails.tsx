@@ -3,9 +3,9 @@ import { useParams } from "react-router-dom";
 import {
   Box,
   Typography,
-  Grid,
   Card,
   CardContent,
+  Stack,
   Chip
 } from "@mui/material";
 import API_BASE from "./api";
@@ -13,61 +13,148 @@ import API_BASE from "./api";
 export default function TournamentDetails() {
   const { id } = useParams();
 
-  const [matches, setMatches] = useState([]);
+  const [rounds, setRounds] = useState({
+    round1: [],
+    semi: [],
+    final: []
+  });
 
   useEffect(() => {
     fetch(`${API_BASE}/api/tournaments/${id}/matches`)
       .then(res => res.json())
-      .then(setMatches);
+      .then(data => {
+        const grouped = {
+          round1: [],
+          semi: [],
+          final: []
+        };
+
+        data.forEach(m => {
+          if (m.round === "round1") grouped.round1.push(m);
+          else if (m.round === "semi") grouped.semi.push(m);
+          else if (m.round === "final") grouped.final.push(m);
+        });
+
+        setRounds(grouped);
+      });
   }, [id]);
 
-  return (
-    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
+  ///////////////////////////////////////////////////////
+  // MATCH CARD
+  ///////////////////////////////////////////////////////
 
-      <Typography variant="h4" fontWeight={800} mb={3}>
-        🏆 Tournament Matches
+  const MatchCard = ({ m }) => (
+    <Card
+      sx={{
+        borderRadius: 3,
+        p: 1.5,
+        minWidth: 180,
+        background: "#fff",
+        boxShadow: "0 6px 16px rgba(0,0,0,0.05)"
+      }}
+    >
+      <Stack spacing={1}>
+
+        <Box
+          sx={{
+            p: 1,
+            borderRadius: 2,
+            background: m.winner === m.player1 ? "#d1fae5" : "#f9fafb"
+          }}
+        >
+          <Typography fontWeight={600}>{m.player1}</Typography>
+          <Typography fontSize={12}>
+            {m.score1 || "-"}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            p: 1,
+            borderRadius: 2,
+            background: m.winner === m.player2 ? "#d1fae5" : "#f9fafb"
+          }}
+        >
+          <Typography fontWeight={600}>{m.player2}</Typography>
+          <Typography fontSize={12}>
+            {m.score2 || "-"}
+          </Typography>
+        </Box>
+
+        <Chip
+          label={m.status || "scheduled"}
+          size="small"
+        />
+
+      </Stack>
+    </Card>
+  );
+
+  ///////////////////////////////////////////////////////
+
+  return (
+    <Box sx={{ p: 2, background: "#f5f7fb", minHeight: "100vh" }}>
+
+      <Typography variant="h5" fontWeight={800} mb={2}>
+        🏆 Tournament Brackets
       </Typography>
 
-      <Grid container spacing={3}>
-        {matches.map((m) => (
-          <Grid item xs={12} md={6} key={m.id}>
-            <Card sx={{ borderRadius: 4 }}>
-              <CardContent>
+      <Box sx={{ overflowX: "auto" }}>
+        <Stack direction="row" spacing={4}>
 
-                {/* ROUND */}
+          {/* ROUND 1 */}
+          <Stack spacing={2}>
+            <Typography fontWeight={700}>Round 1</Typography>
+
+            {rounds.round1.map(m => (
+              <MatchCard key={m.id} m={m} />
+            ))}
+          </Stack>
+
+          {/* SEMI */}
+          <Stack spacing={4} mt={4}>
+            <Typography fontWeight={700}>Semi Final</Typography>
+
+            {rounds.semi.map(m => (
+              <MatchCard key={m.id} m={m} />
+            ))}
+          </Stack>
+
+          {/* FINAL */}
+          <Stack spacing={8} mt={8}>
+            <Typography fontWeight={700}>Final</Typography>
+
+            {rounds.final.map(m => (
+              <MatchCard key={m.id} m={m} />
+            ))}
+
+            {/* CHAMPION */}
+            {rounds.final[0]?.winner && (
+              <Card
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  background: "#16a34a",
+                  color: "#fff",
+                  textAlign: "center"
+                }}
+              >
                 <Typography fontWeight={700}>
-                  Round {m.round}
+                  🏆 Champion
                 </Typography>
 
-                {/* MATCH */}
-                <Typography mt={1}>
-                  {m.player1} vs {m.player2}
+                <Typography variant="h6">
+                  {rounds.final[0].winner}
                 </Typography>
+              </Card>
+            )}
 
-                {/* SCORE */}
-                <Typography mt={1}>
-                  {m.score1 || "-"} : {m.score2 || "-"}
-                </Typography>
+          </Stack>
 
-                {/* STATUS */}
-                <Chip
-                  label={m.status || "scheduled"}
-                  size="small"
-                  sx={{ mt: 1 }}
-                />
+        </Stack>
+      </Box>
 
-                {/* WINNER */}
-                <Typography mt={1}>
-                  🏆 Winner: {m.winner || "-"}
-                </Typography>
-
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {matches.length === 0 && (
+      {rounds.round1.length === 0 && (
         <Typography mt={3}>
           No matches yet
         </Typography>
