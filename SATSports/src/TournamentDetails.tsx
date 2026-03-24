@@ -18,27 +18,29 @@ export default function TournamentDetails() {
     semi: [],
     final: []
   });
-
+  const [tournament, setTournament] = useState(null);
   useEffect(() => {
+    // matches
     fetch(`${API_BASE}/api/tournaments/${id}/matches`)
       .then(res => res.json())
       .then(data => {
-        const grouped = {
-          round1: [],
-          semi: [],
-          final: []
-        };
-
+        const grouped = { round1: [], semi: [], final: [] };
+  
         data.forEach(m => {
           if (m.round === "round1") grouped.round1.push(m);
           else if (m.round === "semi") grouped.semi.push(m);
           else if (m.round === "final") grouped.final.push(m);
         });
-
+  
         setRounds(grouped);
       });
+  
+    // 🔥 tournament details (NEW)
+    fetch(`${API_BASE}/api/tournaments/${id}`)
+      .then(res => res.json())
+      .then(setTournament);
+  
   }, [id]);
-
   ///////////////////////////////////////////////////////
   // MATCH CARD
   ///////////////////////////////////////////////////////
@@ -94,7 +96,37 @@ export default function TournamentDetails() {
 
   return (
     <Box sx={{ p: 2, background: "#f5f7fb", minHeight: "100vh" }}>
+{tournament && (
+  <Card sx={{ mb: 3, borderRadius: 4 }}>
+    <CardContent>
 
+      {/* IMAGE */}
+      {tournament.image && (
+        <Box
+          component="img"
+          src={`${API_BASE}/uploads/${tournament.image}`} // 🔥 IMPORTANT
+          alt="tournament"
+          sx={{
+            width: "100%",
+            height: 200,
+            objectFit: "cover",
+            borderRadius: 2,
+            mb: 2
+          }}
+        />
+      )}
+
+      <Typography variant="h5" fontWeight={800}>
+        {tournament.title}
+      </Typography>
+
+      <Typography color="text.secondary">
+        {tournament.description}
+      </Typography>
+
+    </CardContent>
+  </Card>
+)}
       <Typography variant="h5" fontWeight={800} mb={2}>
         🏆 Tournament Brackets
       </Typography>
