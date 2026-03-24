@@ -47,12 +47,14 @@ const db = connection.promise();   // ✅ create db variable
 
 let sessions = [];
 // LOGIN
+import jwt from "jsonwebtoken";
+
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
     const [rows] = await db.query(
-      "SELECT id, email, role,name FROM users WHERE email = ? AND password = ?",
+      "SELECT id, email, role, name FROM users WHERE email = ? AND password = ?",
       [username, password]
     );
 
@@ -81,21 +83,29 @@ app.post("/api/login", async (req, res) => {
       if (p.length > 0) playerId = p[0].id;
     }
 
-    // ✅ admin just works via role === "admin"
+    // 🔐 CREATE JWT TOKEN
+    const token = jwt.sign(
+      {
+        id: user.id,
+        role: user.role,
+        name: user.name,
+        coachId,
+        playerId
+      },
+      process.env.JWT_SECRET || "secret123",
+      { expiresIn: "7d" }
+    );
+
     res.json({
       success: true,
-      role: user.role,   // "admin" | "coach" | "player"
-      userId: user.id,
-      username: user.name ,
-      coachId,
-      playerId
+      token   // ✅ ONLY send token
     });
+
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     res.status(500).json({ message: "Login failed" });
   }
 });
-
 
 // LOGOUT
 app.post("/api/logout", (req, res) => {
