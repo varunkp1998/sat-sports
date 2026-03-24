@@ -1945,8 +1945,9 @@ const isPresent = r.checkout_time === null;
         }))
       })
     });
-  
     alert("Tournament Created ✅");
+    openDashboard(tournamentId);
+
   };
   ///////////////////////////////////////////////////////
   // BRACKETS (FIXED)
@@ -1954,19 +1955,23 @@ const isPresent = r.checkout_time === null;
 
   const openDashboard = async (id) => {
 
-    // generate if not already
-    await fetch(`${API_BASE}/api/admin/tournaments/${id}/generate-brackets`, {
-      method: "POST"
-    });
-
-    // fetch matches
+    // 🔥 FIRST: check if matches already exist
     const res = await fetch(`${API_BASE}/api/admin/tournaments/${id}/matches`);
-    const data = await res.json();
-
+    let data = await res.json();
+  
+    // 🔥 IF EMPTY → generate
+    if (!data || data.length === 0) {
+      await fetch(`${API_BASE}/api/admin/tournaments/${id}/generate-brackets`, {
+        method: "POST"
+      });
+  
+      const res2 = await fetch(`${API_BASE}/api/admin/tournaments/${id}/matches`);
+      data = await res2.json();
+    }
+  
     setMatches(data);
-    setActiveTournament(id); // 🔥 THIS FIXES YOUR ISSUE
+    setActiveTournament(id);
   };
-
   ///////////////////////////////////////////////////////
   // WINNER
   ///////////////////////////////////////////////////////
