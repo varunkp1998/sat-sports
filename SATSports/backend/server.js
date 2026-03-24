@@ -202,8 +202,35 @@ app.delete("/api/programs/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
+    // 🔍 CHECK IN SESSIONS
+    const [sessions] = await db.query(
+      "SELECT id FROM sessions WHERE program_id = ? LIMIT 1",
+      [id]
+    );
+
+    if (sessions.length > 0) {
+      return res.status(400).json({
+        message: "Cannot delete: Program is used in sessions"
+      });
+    }
+
+    // 🔍 CHECK IN PLAYERS
+    const [players] = await db.query(
+      "SELECT id FROM players WHERE program_id = ? LIMIT 1",
+      [id]
+    );
+
+    if (players.length > 0) {
+      return res.status(400).json({
+        message: "Cannot delete: Program is assigned to players"
+      });
+    }
+
+    // ✅ SAFE TO DELETE
     await db.query("DELETE FROM programs WHERE id = ?", [id]);
+
     res.json({ success: true });
+
   } catch (err) {
     console.error("DELETE PROGRAM ERROR:", err);
     res.status(500).json({ message: "Failed to delete program" });
