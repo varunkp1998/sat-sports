@@ -2747,16 +2747,19 @@ import SearchIcon from "@mui/icons-material/Search";
 
 import { DataGrid } from "@mui/x-data-grid";
 
+
+
+import PeopleIcon from "@mui/icons-material/People";
+
+
  function AdminDashboard() {
   const username = localStorage.getItem("username") || "Admin";
+
+  const [tab, setTab] = useState(0);
 
   const [players, setPlayers] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [applications, setApplications] = useState([]);
-
-  ///////////////////////////////////////////////////////
-  // 🔥 FETCH REAL DATA
-  ///////////////////////////////////////////////////////
 
   useEffect(() => {
     Promise.all([
@@ -2770,170 +2773,170 @@ import { DataGrid } from "@mui/x-data-grid";
     });
   }, []);
 
-  ///////////////////////////////////////////////////////
-  // 📊 REAL STATS (NO DUMMY)
-  ///////////////////////////////////////////////////////
-
   const stats = [
     {
-      label: "Total Players",
+      label: "Players",
       value: players.length,
+      icon: <PeopleIcon />,
       gradient: "linear-gradient(135deg,#6366f1,#4f46e5)"
     },
     {
       label: "Bookings",
       value: bookings.length,
+      icon: <EventIcon />,
       gradient: "linear-gradient(135deg,#06b6d4,#3b82f6)"
     },
     {
       label: "Applications",
       value: applications.length,
+      icon: <AssignmentIcon />,
       gradient: "linear-gradient(135deg,#ec4899,#f43f5e)"
     },
     {
       label: "Programs",
       value: [...new Set(players.map(p => p.program_id))].length,
+      icon: <SportsTennisIcon />,
       gradient: "linear-gradient(135deg,#f97316,#ef4444)"
     }
   ];
 
-  ///////////////////////////////////////////////////////
-  // 📊 TABLE COLUMNS
-  ///////////////////////////////////////////////////////
-
   const columns = [
-    {
-      field: "name",
-      headerName: "Name",
-      flex: 1
-    },
-    {
-      field: "email",
-      headerName: "Email",
-      flex: 1,
-      renderCell: (params) => (
-        <span style={{ color: "#2563eb" }}>
-          {params.value || "-"}
-        </span>
-      )
-    },
-    {
-      field: "programTitle",
-      headerName: "Program",
-      flex: 1,
-      renderCell: (params) => params.value || "-"
-    },
-    {
-      field: "category",
-      headerName: "Category",
-      flex: 1,
-      renderCell: (params) => (
-        <span
-          style={{
-            padding: "4px 10px",
-            borderRadius: "999px",
-            background: "#f3f4f6",
-            fontSize: "12px"
-          }}
-        >
-          {params.value || "General"}
-        </span>
-      )
-    }
+    { field: "name", headerName: "Name", flex: 1 },
+    { field: "email", headerName: "Email", flex: 1 },
+    { field: "programTitle", headerName: "Program", flex: 1 },
+    { field: "category", headerName: "Category", flex: 1 }
   ];
 
-  ///////////////////////////////////////////////////////
-
   return (
-    <Box
-    sx={{
-      flex: 1,
-      width: "100%",
-      maxWidth: "100%",
-      ml: 0,
-      px: { xs: 2, md: 4 },
-      py: 3
-    }}
-  >
+    <Box sx={{ p: { xs: 2, md: 4 }, background: "#f5f7fb", minHeight: "100vh" }}>
 
-      {/* 🔝 HEADER */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 4
-        }}
-      >
-        <Typography variant="h4" fontWeight={700}>
+      {/* HEADER */}
+      <Box display="flex" justifyContent="space-between" mb={3}>
+        <Typography variant="h4" fontWeight={800}>
           Welcome, {username} 👋
         </Typography>
 
-        <Avatar sx={{ bgcolor: "#4f46e5", width: 40, height: 40 }}>
+        <Avatar sx={{ bgcolor: "#4f46e5" }}>
           {username[0]}
         </Avatar>
       </Box>
 
-      {/* 💎 BIG FULL WIDTH CARDS */}
-      <Grid container spacing={2}>
-  {stats.map((s) => (
-    <Grid item xs={12} sm={6} lg={3} key={s.label}>
-            <Box
-  sx={{
-    width: "100%",           // ✅ FULL WIDTH
-    minHeight: 160,
-    p: 3,
-    borderRadius: 4,
-    color: "white",
-    background: s.gradient,
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between"
-  }}
->
-              <Typography fontSize={14}>{s.label}</Typography>
+      {/* TABS */}
+      <Tabs
+        value={tab}
+        onChange={(e, v) => setTab(v)}
+        variant="fullWidth"
+        sx={{ mb: 3 }}
+      >
+        <Tab label="Overview" />
+        <Tab label="Players" />
+        <Tab label="Activity" />
+      </Tabs>
+
+      {/* ================= OVERVIEW ================= */}
+      {tab === 0 && (
+        <>
+          {/* HERO */}
+          <Card
+            sx={{
+              borderRadius: 4,
+              mb: 3,
+              background: "linear-gradient(135deg,#0f172a,#1e293b)",
+              color: "#fff"
+            }}
+          >
+            <CardContent>
+              <Typography sx={{ opacity: 0.7 }}>
+                Admin Overview
+              </Typography>
 
               <Typography variant="h3" fontWeight={800}>
-                {s.value}
+                {players.length} Players
               </Typography>
-            </Box>
+
+              <Typography>
+                {bookings.length} bookings • {applications.length} applications
+              </Typography>
+            </CardContent>
+          </Card>
+
+          {/* KPI CARDS */}
+          <Grid container spacing={2}>
+            {stats.map((s) => (
+              <Grid item xs={12} sm={6} md={3} key={s.label}>
+                <Card
+                  sx={{
+                    borderRadius: 4,
+                    background: s.gradient,
+                    color: "#fff",
+                    height: "100%"
+                  }}
+                >
+                  <CardContent>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography>{s.label}</Typography>
+                      {s.icon}
+                    </Stack>
+
+                    <Typography variant="h3" mt={2} fontWeight={800}>
+                      {s.value}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
-        ))}
-      </Grid>
+        </>
+      )}
 
-      {/* 📊 TABLE */}
-      <Card
-        sx={{
-          borderRadius: 4,
-          p: 2,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.05)"
-        }}
-      >
-        <Typography variant="h6" mb={2}>
-          Players
-        </Typography>
+      {/* ================= PLAYERS ================= */}
+      {tab === 1 && (
+        <Card sx={{ borderRadius: 4, p: 2 }}>
+          <Typography variant="h6" mb={2}>
+            Players
+          </Typography>
 
-        <Box sx={{ width: "100%", overflowX: "auto" }}>
-  <Box sx={{ minWidth: 600 }}>  {/* force scroll instead of break */}
-    <DataGrid
-      rows={players}
-      columns={columns}
-      getRowId={(row) => row.id}
-      autoHeight
-      pageSize={5}
-      sx={{
-        border: "none",
-        "& .MuiDataGrid-columnHeaders": {
-          background: "#f9fafb"
-        },
-        "& .MuiDataGrid-cell": {
-          whiteSpace: "nowrap"   // ✅ prevents breaking
-        }
-      }}
-    />
-  </Box>
-</Box>
-      </Card>
+          <Box sx={{ width: "100%", overflowX: "auto" }}>
+            <Box sx={{ minWidth: 600 }}>
+              <DataGrid
+                rows={players}
+                columns={columns}
+                getRowId={(row) => row.id}
+                autoHeight
+                pageSize={5}
+                sx={{
+                  border: "none",
+                  "& .MuiDataGrid-columnHeaders": {
+                    background: "#f9fafb"
+                  }
+                }}
+              />
+            </Box>
+          </Box>
+        </Card>
+      )}
+
+      {/* ================= ACTIVITY ================= */}
+      {tab === 2 && (
+        <Stack spacing={2}>
+
+          {[...applications, ...bookings].slice(0, 10).map((a, i) => (
+            <Card key={i}>
+              <CardContent>
+                <Typography>
+                  {a.name || "User activity"}
+                </Typography>
+
+                <Typography color="text.secondary">
+                  {a.email || ""}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+
+        </Stack>
+      )}
+
     </Box>
   );
 }
