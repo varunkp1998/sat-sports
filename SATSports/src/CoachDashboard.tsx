@@ -257,21 +257,25 @@ export default function CoachDashboard() {
 
       {/* ================= ACTIVITY ================= */}
       {tab === 2 && (
-        <Stack spacing={2}>
-          {[...data.todaySessionList, ...data.ongoing].map((s, i) => (
-            <Card key={i}>
-              <CardContent>
-                <Typography>{s.player_name}</Typography>
-                <Typography color="text.secondary">
-                  {s.start_time} - {s.end_time}
-                </Typography>
-                <Chip label="Activity" color="info" size="small" />
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
-      )}
+  <Stack spacing={2}>
+    {[
+      ...(data.todaySessionList || []),
+      ...(data.ongoing || [])
+    ].map((s, i) => (
+      <Card key={i}>
+        <CardContent>
+          <Typography>{s.player_name || "Player"}</Typography>
 
+          <Typography color="text.secondary">
+            {s.start_time} - {s.end_time}
+          </Typography>
+
+          <Chip label="Activity" color="info" size="small" />
+        </CardContent>
+      </Card>
+    ))}
+  </Stack>
+)}
     </Box>
   );
 }
