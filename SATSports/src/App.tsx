@@ -1917,24 +1917,24 @@ const isPresent = r.checkout_time === null;
 
   const saveTournament = async () => {
     const formData = new FormData();
-
+  
     Object.entries(form).forEach(([k, v]) => formData.append(k, v));
     if (image) formData.append("image", image);
-
+  
     const res = await fetch(`${API_BASE}/api/admin/tournaments`, {
       method: "POST",
       body: formData
     });
-
+  
     const data = await res.json();
-
-    if (!res.ok) {
-      alert("Failed to create tournament");
+  
+    if (!data.id) {
+      alert("Backend not returning ID ❌");
       return;
     }
-
-    const tournamentId = data.id;
-
+  
+    const tournamentId = data.id; // ✅ FIXED
+  
     await fetch(`${API_BASE}/api/admin/tournaments/${tournamentId}/players`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1945,13 +1945,9 @@ const isPresent = r.checkout_time === null;
         }))
       })
     });
-
-    alert("Tournament Created 🎉");
-
-    setSelectedPlayers([]);
-    loadTournaments();
+  
+    alert("Tournament Created ✅");
   };
-
   ///////////////////////////////////////////////////////
   // BRACKETS (FIXED)
   ///////////////////////////////////////////////////////

@@ -366,14 +366,16 @@ app.get("/api/tournaments", (req, res) => {
 
   app.post("/api/admin/tournaments", upload.single("image"), async (req, res) => {
     const { title, description, date, location, status } = req.body;
-    const image = req.file?.filename;
   
-    await db.query(`
-      INSERT INTO tournaments (title, description, image, date, location, status)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [title, description, image, date, location, status]);
+    const [result] = await db.query(`
+      INSERT INTO tournaments (title, description, date, location, status)
+      VALUES (?, ?, ?, ?, ?)
+    `, [title, description, date, location, status]);
   
-    res.json({ success: true });
+    res.json({
+      success: true,
+      id: result.insertId // 🔥 THIS FIXES undefined ID
+    });
   });
 // --- ATTENDANCE ---
 app.get("/api/admin/attendance", async (req, res) => {
@@ -2440,11 +2442,7 @@ app.post("/api/admin/tournaments/:id/players", async (req, res) => {
     await db.query(`
       INSERT INTO tournament_players (tournament_id, player_id, name)
       VALUES (?, ?, ?)
-    `, [
-      id,
-      p.player_id || null,
-      p.name
-    ]);
+    `, [id, p.player_id || null, p.name]);
   }
 
   res.json({ success: true });
@@ -2581,6 +2579,19 @@ app.get("/api/admin/tournaments/:id/matches", async (req, res) => {
     SELECT * FROM matches
     WHERE tournament_id = ?
     ORDER BY round, match_order
+  `, [id]);
+
+  res.json(rows);
+});
+app.get("/api/admin/tournaments", async (req, res) => {
+  const [rows] = await db.query("SELECT * FROM tournaments ORDER BY id DESC");
+  res.json(rows);
+});
+app.get("/api/admin/tournaments/:id/matches", async (req, res) => {
+  const { id } = req.params;
+
+  const [rows] = await db.query(`
+    SELECT * FROM matches WHERE tournament_id = ?
   `, [id]);
 
   res.json(rows);
