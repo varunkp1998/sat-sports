@@ -20,8 +20,7 @@ const allowedOrigins = [
   "https://www.sat-sports.in",
   "https://sat-sports.in"
 ];
-import path from "path";
-
+const path = require("path");
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(cors({
   origin: function (origin, callback) {
