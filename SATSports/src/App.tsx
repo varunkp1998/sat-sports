@@ -1835,15 +1835,9 @@ const isPresent = r.checkout_time === null;
 
 
 
-import { useEffect, useState } from "react";
-import {
-  Box, Typography, Grid, Card, CardContent,
-  TextField, Button, Chip, Stack, Select, MenuItem
-} from "@mui/material";
-import { useNavigate } from "react-router-dom";
-import API_BASE from "./api";
 
-export default function AdminTournaments() {
+
+ function AdminTournaments() {
 
   const [items, setItems] = useState([]);
   const navigate = useNavigate();
