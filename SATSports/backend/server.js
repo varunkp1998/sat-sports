@@ -363,7 +363,6 @@ app.get("/api/tournaments", (req, res) => {
   });
   
   // READ (Admin)
-  const upload = multer({ dest: "uploads/" });
 
   app.post("/api/admin/tournaments", upload.single("image"), async (req, res) => {
     const { title, description, date, location, status } = req.body;
