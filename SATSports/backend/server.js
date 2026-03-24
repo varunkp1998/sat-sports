@@ -9,7 +9,6 @@ const mysql = require("mysql2");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const app = express();
-require("dotenv").config();
 app.use(express.json());
 
 const { Resend } = require("resend");
