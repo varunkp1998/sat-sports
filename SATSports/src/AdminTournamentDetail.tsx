@@ -1,16 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Tabs,
-  Tab,
-  Stack,
-  Button,
-  Grid,
-  Chip,
-  IconButton
+  Box, Typography, Card, CardContent,
+  Tabs, Tab, Stack, Button, IconButton
 } from "@mui/material";
 
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
@@ -24,169 +15,136 @@ export default function AdminTournamentDetail({ tournamentId }) {
   const [tab, setTab] = useState(0);
   const [players, setPlayers] = useState([]);
   const [matches, setMatches] = useState({
-    round1: [],
-    semi: [],
-    final: null
+    round1: [], semi: [], final: null
   });
-
-  ///////////////////////////////////////////////////////
-  // 🔥 LOAD PLAYERS
-  ///////////////////////////////////////////////////////
 
   useEffect(() => {
     fetch(`${API_BASE}/api/admin/tournaments/${tournamentId}/players`)
       .then(res => res.json())
       .then(setPlayers);
-  }, []);
-
-  ///////////////////////////////////////////////////////
-  // 🎲 SEEDING
-  ///////////////////////////////////////////////////////
+  }, [tournamentId]);
 
   const shuffleSeeding = () => {
     setPlayers(prev => [...prev].sort(() => Math.random() - 0.5));
   };
 
-  const move = (index, dir) => {
+  const move = (i, dir) => {
     const arr = [...players];
-    const newIndex = index + dir;
-
-    if (newIndex < 0 || newIndex >= arr.length) return;
-
-    [arr[index], arr[newIndex]] = [arr[newIndex], arr[index]];
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
     setPlayers(arr);
   };
 
-  ///////////////////////////////////////////////////////
-  // 🧩 GENERATE BRACKETS
-  ///////////////////////////////////////////////////////
-
   const generateBrackets = () => {
-    const r1 = [];
+    if (players.length < 2) return alert("Add players first");
+    if (players.length % 2 !== 0) return alert("Players must be even");
 
+    const r1 = [];
     for (let i = 0; i < players.length; i += 2) {
       r1.push({
         p1: players[i]?.name,
-        p2: players[i + 1]?.name,
+        p2: players[i+1]?.name,
         winner: null
       });
     }
 
-    setMatches({
-      round1: r1,
-      semi: [],
-      final: null
-    });
+    setMatches({ round1: r1, semi: [], final: null });
   };
 
-  ///////////////////////////////////////////////////////
-  // 🏆 MARK WINNER
-  ///////////////////////////////////////////////////////
-
-  const pickWinner = (round, index, player) => {
+  const pickWinner = (round, i, player) => {
     const updated = { ...matches };
+    updated[round][i].winner = player;
 
-    updated[round][index].winner = player;
-
-    // 🔥 AUTO ADVANCE
     if (round === "round1") {
-      const winners = updated.round1.map(m => m.winner).filter(Boolean);
-
-      if (winners.length === updated.round1.length) {
+      const w = updated.round1.map(m=>m.winner).filter(Boolean);
+      if (w.length === updated.round1.length) {
         const semi = [];
-        for (let i = 0; i < winners.length; i += 2) {
-          semi.push({ p1: winners[i], p2: winners[i + 1], winner: null });
+        for (let i=0;i<w.length;i+=2) {
+          semi.push({ p1:w[i], p2:w[i+1], winner:null });
         }
         updated.semi = semi;
       }
     }
 
     if (round === "semi") {
-      const winners = updated.semi.map(m => m.winner).filter(Boolean);
-
-      if (winners.length === updated.semi.length) {
-        updated.final = { p1: winners[0], p2: winners[1], winner: null };
+      const w = updated.semi.map(m=>m.winner).filter(Boolean);
+      if (w.length === updated.semi.length) {
+        updated.final = { p1:w[0], p2:w[1], winner:null };
       }
     }
 
     setMatches(updated);
   };
 
-  const pickFinalWinner = (player) => {
+  const pickFinalWinner = (p) => {
     setMatches(prev => ({
       ...prev,
-      final: { ...prev.final, winner: player }
+      final: { ...prev.final, winner: p }
     }));
   };
 
-  ///////////////////////////////////////////////////////
-
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, background: "#f5f7fb", minHeight: "100vh" }}>
+    <Box sx={{ p: 3 }}>
 
       <Typography variant="h4" fontWeight={800} mb={2}>
-        🏆 Tournament
+        🏆 Tournament Dashboard
       </Typography>
 
-      <Tabs
-        value={tab}
-        onChange={(e, v) => setTab(v)}
-        variant="fullWidth"
-        sx={{ mb: 3 }}
-      >
+      {/* EMPTY STATE */}
+      {players.length === 0 && (
+        <Card sx={{ p: 3 }}>
+          <Typography>No players added</Typography>
+          <Button
+            sx={{ mt: 2 }}
+            variant="contained"
+            onClick={() => window.location.href = `/admin/tournaments/${tournamentId}/players`}
+          >
+            Add Players
+          </Button>
+        </Card>
+      )}
+
+      <Tabs value={tab} onChange={(e,v)=>setTab(v)}>
         <Tab label="Overview" />
         <Tab label="Seeding" />
         <Tab label="Brackets" />
       </Tabs>
 
-      {/* ================= OVERVIEW ================= */}
-      {tab === 0 && (
-        <Card sx={{ borderRadius: 4 }}>
+      {/* OVERVIEW */}
+      {tab===0 && (
+        <Card sx={{ mt:2 }}>
           <CardContent>
-            <Typography fontWeight={700}>
-              Total Players: {players.length}
-            </Typography>
-
-            <Button sx={{ mt: 2 }} onClick={generateBrackets} variant="contained">
+            <Typography>Players: {players.length}</Typography>
+            <Button sx={{ mt:2 }} variant="contained" onClick={generateBrackets}>
               Generate Brackets
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* ================= SEEDING ================= */}
-      {tab === 1 && (
-        <Card sx={{ borderRadius: 4 }}>
+      {/* SEEDING */}
+      {tab===1 && (
+        <Card sx={{ mt:2 }}>
           <CardContent>
 
-            <Stack direction="row" justifyContent="space-between" mb={2}>
-              <Typography fontWeight={700}>Seeding</Typography>
+            <Button onClick={shuffleSeeding}>Shuffle</Button>
 
-              <Button onClick={shuffleSeeding}>
-                🎲 Auto Seed
-              </Button>
-            </Stack>
-
-            <Stack spacing={1}>
-              {players.map((p, i) => (
-                <Card key={p.id} sx={{ p: 2, borderRadius: 3 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-
-                    <Typography fontWeight={700}>
-                      #{i + 1}
-                    </Typography>
-
+            <Stack spacing={1} mt={2}>
+              {players.map((p,i)=>(
+                <Card key={p.id} sx={{ p:2 }}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography>#{i+1}</Typography>
                     <Typography>{p.name}</Typography>
 
                     <Box>
-                      <IconButton onClick={() => move(i, -1)}>
-                        <ArrowUpwardIcon />
+                      <IconButton onClick={()=>move(i,-1)}>
+                        <ArrowUpwardIcon/>
                       </IconButton>
-                      <IconButton onClick={() => move(i, 1)}>
-                        <ArrowDownwardIcon />
+                      <IconButton onClick={()=>move(i,1)}>
+                        <ArrowDownwardIcon/>
                       </IconButton>
                     </Box>
-
                   </Stack>
                 </Card>
               ))}
@@ -196,104 +154,64 @@ export default function AdminTournamentDetail({ tournamentId }) {
         </Card>
       )}
 
-      {/* ================= BRACKETS ================= */}
-      {tab === 2 && (
-        <Box sx={{ overflowX: "auto" }}>
-          <Stack direction="row" spacing={4}>
+      {/* BRACKETS */}
+      {tab===2 && (
+        <Stack direction="row" spacing={4} mt={2}>
 
-            {/* ROUND 1 */}
-            <Stack spacing={2}>
-              <Typography fontWeight={700}>Round 1</Typography>
+          <Stack spacing={2}>
+            <Typography>Round 1</Typography>
+            {matches.round1.map((m,i)=>(
+              <Card key={i} sx={{ p:2 }}>
+                <Button onClick={()=>pickWinner("round1",i,m.p1)}>
+                  {m.p1}
+                </Button>
+                <Button onClick={()=>pickWinner("round1",i,m.p2)}>
+                  {m.p2}
+                </Button>
+              </Card>
+            ))}
+          </Stack>
 
-              {matches.round1.map((m, i) => (
-                <Card key={i} sx={{ p: 2, borderRadius: 3 }}>
-                  <Stack spacing={1}>
+          <Stack spacing={2}>
+            <Typography>Semi</Typography>
+            {matches.semi.map((m,i)=>(
+              <Card key={i} sx={{ p:2 }}>
+                <Button onClick={()=>pickWinner("semi",i,m.p1)}>
+                  {m.p1}
+                </Button>
+                <Button onClick={()=>pickWinner("semi",i,m.p2)}>
+                  {m.p2}
+                </Button>
+              </Card>
+            ))}
+          </Stack>
 
-                    <Button
-                      variant={m.winner === m.p1 ? "contained" : "outlined"}
-                      onClick={() => pickWinner("round1", i, m.p1)}
-                    >
-                      {m.p1}
-                    </Button>
+          <Stack spacing={2}>
+            <Typography>Final</Typography>
 
-                    <Button
-                      variant={m.winner === m.p2 ? "contained" : "outlined"}
-                      onClick={() => pickWinner("round1", i, m.p2)}
-                    >
-                      {m.p2}
-                    </Button>
+            {matches.final && (
+              <Card sx={{ p:2 }}>
+                <Button onClick={()=>pickFinalWinner(matches.final.p1)}>
+                  {matches.final.p1}
+                </Button>
+                <Button onClick={()=>pickFinalWinner(matches.final.p2)}>
+                  {matches.final.p2}
+                </Button>
+              </Card>
+            )}
 
-                  </Stack>
-                </Card>
-              ))}
-            </Stack>
-
-            {/* SEMI */}
-            <Stack spacing={4} mt={6}>
-              <Typography fontWeight={700}>Semi Final</Typography>
-
-              {matches.semi.map((m, i) => (
-                <Card key={i} sx={{ p: 2 }}>
-                  <Stack spacing={1}>
-                    <Button
-                      variant={m.winner === m.p1 ? "contained" : "outlined"}
-                      onClick={() => pickWinner("semi", i, m.p1)}
-                    >
-                      {m.p1}
-                    </Button>
-
-                    <Button
-                      variant={m.winner === m.p2 ? "contained" : "outlined"}
-                      onClick={() => pickWinner("semi", i, m.p2)}
-                    >
-                      {m.p2}
-                    </Button>
-                  </Stack>
-                </Card>
-              ))}
-            </Stack>
-
-            {/* FINAL */}
-            <Stack spacing={8} mt={12}>
-              <Typography fontWeight={700}>Final</Typography>
-
-              {matches.final && (
-                <Card sx={{ p: 3, background: "#111", color: "#fff" }}>
-                  <Stack spacing={1}>
-
-                    <Button
-                      variant={matches.final.winner === matches.final.p1 ? "contained" : "outlined"}
-                      onClick={() => pickFinalWinner(matches.final.p1)}
-                    >
-                      {matches.final.p1}
-                    </Button>
-
-                    <Button
-                      variant={matches.final.winner === matches.final.p2 ? "contained" : "outlined"}
-                      onClick={() => pickFinalWinner(matches.final.p2)}
-                    >
-                      {matches.final.p2}
-                    </Button>
-
-                  </Stack>
-                </Card>
-              )}
-
-              {matches.final?.winner && (
-                <Card sx={{ p: 3, background: "#16a34a", color: "#fff" }}>
-                  <Stack alignItems="center">
-                    <EmojiEventsIcon fontSize="large" />
-                    <Typography fontWeight={700}>
-                      Champion: {matches.final.winner}
-                    </Typography>
-                  </Stack>
-                </Card>
-              )}
-
-            </Stack>
+            {matches.final?.winner && (
+              <Card sx={{ p:2, background:"#16a34a", color:"#fff" }}>
+                <EmojiEventsIcon/>
+                <Typography>
+                  Champion: {matches.final.winner}
+                </Typography>
+              </Card>
+            )}
 
           </Stack>
-        </Box>
+
+        </Stack>
       )}
 
     </Box>

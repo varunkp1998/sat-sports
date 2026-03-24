@@ -18,6 +18,8 @@ import API_BASE from "./api";
 import { useNavigate } from "react-router-dom";
 import { Avatar } from "@mui/material";
 import Signup from "./Signup.tsx";
+import AdminTournamentDetail from "./AdminTournamentDetail";
+
 import {
   Card,
   CardContent,
@@ -85,7 +87,10 @@ type Program = {
   name: string;
   desc: string;
 };
-
+function Wrapper() {
+  const { id } = useParams();
+  return <AdminTournamentDetail tournamentId={id} />;
+}
 export default function App() {
   const [programs, setPrograms] = useState<Program[]>([]);
   useEffect(() => {
@@ -111,7 +116,7 @@ export default function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/book-court" element={<PublicCourtBooking />} />
             <Route path="/register-player" element={<RegisterPlayer />} />
-
+            <Route path="/admin/tournaments/:id" element={<Wrapper />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/portal" element={<PlayerPortal />} />
@@ -120,6 +125,7 @@ export default function App() {
   <Route path="sessions" element={<CoachSessions />} />
   <Route path="leave" element={<CoachLeave />} />
   <Route path="profile" element={<CoachProfile />} />   {/* 👈 ADD THIS */}
+  
   <Route path="/coach/sessions/:sessionId/attendance" element={<CoachAttendance />} />
 
 </Route>
@@ -1836,7 +1842,8 @@ const isPresent = r.checkout_time === null;
 
 
 
-function AdminTournaments() {
+
+ function AdminTournaments() {
   const [items, setItems] = useState([]);
   const navigate = useNavigate();
 
@@ -1898,8 +1905,7 @@ function AdminTournaments() {
         <CardContent>
           <Grid container spacing={2}>
             <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth label="Name"
+              <TextField fullWidth label="Name"
                 value={form.name}
                 onChange={(e)=>setForm({...form,name:e.target.value})}
               />
@@ -1916,8 +1922,7 @@ function AdminTournaments() {
             </Grid>
 
             <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth label="Location"
+              <TextField fullWidth label="Location"
                 value={form.location}
                 onChange={(e)=>setForm({...form,location:e.target.value})}
               />
@@ -1960,6 +1965,14 @@ function AdminTournaments() {
 
                   <Button
                     variant="outlined"
+                    onClick={() => navigate(`/admin/tournaments/${t.id}/players`)}
+                  >
+                    Manage Players
+                  </Button>
+
+                  <Button
+                    variant="text"
+                    color="error"
                     onClick={() => deleteItem(t.id)}
                   >
                     Delete
@@ -1975,7 +1988,6 @@ function AdminTournaments() {
     </Box>
   );
 }
-
 
 import {
  Dialog, DialogTitle, DialogContent, DialogActions,
