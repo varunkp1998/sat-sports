@@ -2417,19 +2417,14 @@ app.post("/api/admin/tournaments/:id/generate-brackets", async (req, res) => {
 
   res.json({ success: true });
 });
-app.get("/api/tournaments/:id/matches", async (req, res) => {
+app.get("/api/admin/tournaments/:id/matches", async (req, res) => {
   const { id } = req.params;
 
   const [rows] = await db.query(`
-    SELECT 
-      m.*,
-      p1.name AS player1,
-      p2.name AS player2
-    FROM matches m
-    LEFT JOIN players p1 ON p1.id = m.player1_id
-    LEFT JOIN players p2 ON p2.id = m.player2_id
-    WHERE m.tournament_id = ?
-    ORDER BY m.round, m.match_order
+    SELECT *
+    FROM matches
+    WHERE tournament_id = ?
+    ORDER BY match_order
   `, [id]);
 
   res.json(rows);
