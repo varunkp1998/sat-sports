@@ -485,28 +485,33 @@ app.put("/api/admin/players/:id", async (req, res) => {
 
   try {
     // 1️⃣ Update players table
-    await db.query(
-      `UPDATE players
-       SET name = ?, age = ?, program_id = ?
-       WHERE id = ?`,
-      [name, age, program_id || null, id]
-    );
+// 1️⃣ Update players table (FIXED)
+let fields = [];
+let values = [];
 
-    // 2️⃣ Update users table (for email)
-    if (email) {
-      const [[player]] = await db.query(
-        "SELECT user_id FROM players WHERE id = ?",
-        [id]
-      );
+if (name !== undefined) {
+  fields.push("name = ?");
+  values.push(name);
+}
 
-      if (player?.user_id) {
-        await db.query(
-          "UPDATE users SET email = ? WHERE id = ?",
-          [email, player.user_id]
-        );
-      }
-    }
+if (age !== undefined) {
+  fields.push("age = ?");
+  values.push(age);
+}
 
+if (program_id !== undefined) {
+  fields.push("program_id = ?");
+  values.push(program_id);
+}
+
+if (fields.length > 0) {
+  values.push(id);
+
+  await db.query(
+    `UPDATE players SET ${fields.join(", ")} WHERE id = ?`,
+    values
+  );
+}
     res.json({ success: true });
 
   } catch (err) {
