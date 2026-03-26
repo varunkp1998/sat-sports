@@ -2641,6 +2641,7 @@ app.get("/api/admin/private-bookings", async (req, res) => {
 app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
   const { id } = req.params;
   const { coach_id, court_id } = req.body;
+  const starttime = time_slot;
   function addOneHour(time) {
     const [h, m, s] = time.split(":").map(Number);
     const date = new Date();
@@ -2652,7 +2653,7 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
   
     return date.toTimeString().slice(0, 8);
   }
-  const endTime = addOneHour(starttime);
+  const endtime = addOneHour(starttime);
   try {
     const [[booking]] = await db.query(
       "SELECT * FROM private_bookings WHERE id=?",
@@ -2679,7 +2680,7 @@ VALUES (?, ?, ?, ?, ?)
       coach_id,
   booking.booking_date,
   starttime,
-  endTime,
+  endtime,
   booking.location_id
     ]);
 
