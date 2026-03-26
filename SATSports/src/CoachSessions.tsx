@@ -5,26 +5,11 @@ import {
   Grid,
   Card,
   CardContent,
-  Button
+  Button,
+  Chip
 } from "@mui/material";
 
 import API_BASE from "./api";
-
-function GlassCard({ children }: any) {
-  return (
-    <Card
-      sx={{
-        backdropFilter: "blur(12px)",
-        background: "rgba(255,255,255,0.08)",
-        borderRadius: 4,
-        boxShadow: "0 8px 25px rgba(0,0,0,0.4)",
-        color: "white"
-      }}
-    >
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
 
 type Session = {
   id: number;
@@ -35,20 +20,35 @@ type Session = {
   locationName: string;
   location_id: number;
 };
-const userId = localStorage.getItem("userId");
 
-const res = await fetch(`${API_BASE}/api/coach/profile/${userId}`);
-const data = await res.json();
-localStorage.setItem("coachId", data.coachId);
 export default function CoachSessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, boolean>>({});
+  const [coachId, setCoachId] = useState<string | null>(null);
 
+  ///////////////////////////////////////////////////////
+  // 🔥 FIXED COACH ID LOAD
+  ///////////////////////////////////////////////////////
 
+  useEffect(() => {
+    const loadCoach = async () => {
+      const userId = localStorage.getItem("userId");
+      if (!userId) return;
 
-  const coachId = localStorage.getItem("coachId");
+      const res = await fetch(`${API_BASE}/api/coach/profile/${userId}`);
+      const data = await res.json();
 
-  // Load sessions
+      localStorage.setItem("coachId", data.coachId);
+      setCoachId(data.coachId);
+    };
+
+    loadCoach();
+  }, []);
+
+  ///////////////////////////////////////////////////////
+  // LOAD SESSIONS
+  ///////////////////////////////////////////////////////
+
   useEffect(() => {
     if (!coachId) return;
 
@@ -56,8 +56,11 @@ export default function CoachSessions() {
       .then(res => res.json())
       .then(setSessions);
   }, [coachId]);
-  console.log("coachId:", coachId);
-  // Load check-in status
+
+  ///////////////////////////////////////////////////////
+  // CHECK-IN STATUS
+  ///////////////////////////////////////////////////////
+
   useEffect(() => {
     if (!coachId || sessions.length === 0) return;
 
@@ -72,6 +75,8 @@ export default function CoachSessions() {
         });
     });
   }, [coachId, sessions]);
+
+  ///////////////////////////////////////////////////////
 
   const handleCheckIn = async (sessionId: number, locationId: number) => {
     await fetch(`${API_BASE}/api/coach/checkin`, {
@@ -93,96 +98,134 @@ export default function CoachSessions() {
     setCheckedInMap(prev => ({ ...prev, [sessionId]: false }));
   };
 
+  ///////////////////////////////////////////////////////
+
   return (
-<Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
-  
-  <Typography variant="h4" fontWeight={800} mb={3}>
-    📅 My Sessions
-  </Typography>
+    <Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
 
-  {sessions.length === 0 && (
-    <Typography>No sessions assigned</Typography>
-  )}
+      <Typography
+        variant="h4"
+        fontWeight={900}
+        mb={4}
+        sx={{
+          background: "linear-gradient(135deg,#f97316,#ef4444)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent"
+        }}
+      >
+        📅 My Sessions
+      </Typography>
 
-  <Grid container spacing={3}>
-    {sessions.map((s) => {
-      const isCheckedIn = checkedInMap[s.id];
+      {sessions.length === 0 && (
+        <Typography color="gray">No sessions assigned</Typography>
+      )}
 
-      return (
-        <Grid item xs={12} md={6} lg={4} key={s.id}>
-          <Card
-            sx={{
-              borderRadius: 3,
-              boxShadow: "0 6px 18px rgba(0,0,0,0.08)"
-            }}
-          >
-            <CardContent>
+      <Grid container spacing={3}>
+        {sessions.map((s) => {
+          const isCheckedIn = checkedInMap[s.id];
 
-              {/* DATE */}
-              <Typography fontWeight={700}>
-                {s.session_date}
-              </Typography>
+          return (
+            <Grid item xs={12} md={6} lg={4} key={s.id}>
 
-              {/* TIME */}
-              <Typography color="text.secondary">
-                {s.start_time} – {s.end_time}
-              </Typography>
+              <Card
+                sx={{
+                  borderRadius: 4,
+                  p: 1,
+                  transition: "0.3s",
+                  background: "white",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                  "&:hover": {
+                    transform: "translateY(-6px)",
+                    boxShadow: "0 20px 50px rgba(0,0,0,0.12)"
+                  }
+                }}
+              >
+                <CardContent>
 
-              {/* LOCATION */}
-              <Typography mt={1}>
-                📍 {s.locationName}
-              </Typography>
+                  {/* DATE */}
+                  <Typography fontWeight={800}>
+                    {s.session_date}
+                  </Typography>
 
-              {/* CATEGORY */}
-              <Typography fontSize={13} color="text.secondary">
-                {s.category}
-              </Typography>
+                  {/* TIME */}
+                  <Typography color="text.secondary" mb={1}>
+                    {s.start_time} – {s.end_time || "--"}
+                  </Typography>
 
-              {/* ACTIONS */}
-              <Box mt={2} display="flex" gap={1} flexWrap="wrap">
+                  {/* LOCATION */}
+                  <Typography fontSize={14} mb={1}>
+                    📍 {s.locationName}
+                  </Typography>
 
-                {!isCheckedIn ? (
-                  <Button
-                    variant="contained"
-                    color="warning"
-                    fullWidth
-                    onClick={() =>
-                      handleCheckIn(s.id, s.location_id)
-                    }
-                  >
-                    Check In
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      fullWidth
-                      onClick={() =>
-                        (window.location.href = `/coach/sessions/${s.id}/attendance`)
-                      }
-                    >
-                      Mark Attendance
-                    </Button>
+                  {/* CATEGORY */}
+                  {s.category && (
+                    <Chip
+                      label={s.category}
+                      size="small"
+                      sx={{
+                        mb: 2,
+                        background:
+                          "linear-gradient(135deg,#f97316,#ef4444)",
+                        color: "white"
+                      }}
+                    />
+                  )}
 
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      fullWidth
-                      onClick={() => handleCheckOut(s.id)}
-                    >
-                      Check Out
-                    </Button>
-                  </>
-                )}
+                  {/* ACTIONS */}
+                  <Box mt={2} display="flex" gap={1} flexWrap="wrap">
 
-              </Box>
+                    {!isCheckedIn ? (
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        sx={{
+                          borderRadius: 999,
+                          fontWeight: 700,
+                          background:
+                            "linear-gradient(135deg,#f97316,#ef4444)"
+                        }}
+                        onClick={() =>
+                          handleCheckIn(s.id, s.location_id)
+                        }
+                      >
+                        Check In
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          fullWidth
+                          sx={{ borderRadius: 999 }}
+                          onClick={() =>
+                            (window.location.href = `/coach/sessions/${s.id}/attendance`)
+                          }
+                        >
+                          Mark Attendance
+                        </Button>
 
-            </CardContent>
-          </Card>
-        </Grid>
-      );
-    })}
-  </Grid>
-</Box>  );
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          fullWidth
+                          sx={{ borderRadius: 999 }}
+                          onClick={() => handleCheckOut(s.id)}
+                        >
+                          Check Out
+                        </Button>
+                      </>
+                    )}
+
+                  </Box>
+
+                </CardContent>
+              </Card>
+
+            </Grid>
+          );
+        })}
+      </Grid>
+
+    </Box>
+  );
 }
