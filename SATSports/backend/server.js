@@ -2667,7 +2667,7 @@ VALUES (?, ?, ?, ?, ?)
       coach_id,
       booking.booking_date,
       booking.time_slot,
-      booking.name
+      booking.location_id
     ]);
 
     // 3️⃣ SEND EMAIL (RESEND)
