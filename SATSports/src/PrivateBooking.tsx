@@ -36,7 +36,23 @@ export default function PrivateBooking() {
     }
     return slots;
   };
-
+  const inputStyle = {
+    input: { color: "white" },
+    label: { color: "#aaa" },
+    "& .MuiOutlinedInput-root": {
+      background: "rgba(255,255,255,0.05)",
+      borderRadius: 2,
+      "& fieldset": {
+        borderColor: "rgba(255,255,255,0.2)"
+      },
+      "&:hover fieldset": {
+        borderColor: "#3b82f6"
+      },
+      "&.Mui-focused fieldset": {
+        borderColor: "#60a5fa"
+      }
+    }
+  };
   const timeSlots = generateSlots();
 
   // ✅ Convert time before sending
