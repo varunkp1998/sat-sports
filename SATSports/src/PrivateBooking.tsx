@@ -56,19 +56,19 @@ export default function PrivateBooking() {
 
   // ✅ Submit
   const submit = async () => {
-    if (!form.name || !form.email || !form.phone || !form.location_id || !form.booking_date || !form.time_slot) {
-      return alert("Please fill all fields");
-    }
 
     const payload = {
       name: form.name,
       email: form.email,
       phone: form.phone,
       location_id: form.location_id,
+  
+      // ✅ FIXED FIELD NAMES
       session_date: form.booking_date,
+  
+      // ✅ FIXED TIME FORMAT
       start_time: convertTo24Hour(form.time_slot)
     };
-
     try {
       const res = await fetch(`${API_BASE}/private-bookings`, {
         method: "POST",
