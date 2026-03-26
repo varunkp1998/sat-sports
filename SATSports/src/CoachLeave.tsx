@@ -40,7 +40,7 @@ export default function CoachLeave() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        coach_id: coachId,
+        userId: coachId,
         from_date: form.from_date,
         to_date: form.to_date,
         reason: form.reason,
