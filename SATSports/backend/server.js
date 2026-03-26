@@ -2678,7 +2678,7 @@ VALUES (?, ?, ?, ?, ?)
     `, [
       coach_id,
   booking.booking_date,
-  startTime,
+  starttime,
   endTime,
   booking.location_id
     ]);
