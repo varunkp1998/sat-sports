@@ -2667,6 +2667,7 @@ VALUES (?, ?, ?, ?, ?)
       coach_id,
       booking.booking_date,
       booking.time_slot,
+      null,
       booking.location_id
     ]);
 
