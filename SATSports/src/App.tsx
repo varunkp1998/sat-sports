@@ -115,7 +115,6 @@ export default function App() {
             <Route path="/book-court" element={<PublicCourtBooking />} />
             <Route path="/register-player" element={<RegisterPlayer />} />
             <Route path="/book-private-session" element={<PrivateBooking />} />
-            <Route path="/admin/private-bookings" element={<AdminPrivateBookings />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/portal" element={<PlayerPortal />} />
@@ -175,6 +174,8 @@ function Header() {
     { label: "Programs", path: "/programs" },
     { label: "News", path: "/news" },
     { label: "Tournaments", path: "/tournaments" },
+    { label: "🎾 Private Session", path: "/book-private-session" }, // ✅ ADD THIS
+
     { label: "Contact", path: "/contact" },
     { label: "Book Court", path: "/book-court" },
     { label: "Join Academy", path: "/register-player" }
@@ -4204,6 +4205,7 @@ function AdminLayout() {
     { label: "📝 Leave Management", path: "/admin/leaves" },
     { label: "📍 Locations", path: "/admin/locations" },
     { label: "🏆 Tournaments", path: "/admin/tournaments" },
+    { label: "Private Sessions", path: "/admin/private-bookings" },
     { label: "📰 News", path: "/admin/news" },
     { label: "🟢 Live Coaches", path: "/admin/live" },
     { label: "Court Bookings", path: "/admin/court-bookings" },
@@ -4322,6 +4324,7 @@ function AdminLayout() {
           <Route path="court-bookings" element={<AdminCourtBookings />} />
           <Route path="applications" element={<AdminApplications />} />
           <Route path="payroll" element={<AdminCoachPayroll />} />
+          <Route path="private-bookings" element={<AdminPrivateBookings />} />
         </Routes>
       </Box>
 
