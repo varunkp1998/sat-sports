@@ -2641,7 +2641,18 @@ app.get("/api/admin/private-bookings", async (req, res) => {
 app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
   const { id } = req.params;
   const { coach_id, court_id } = req.body;
-
+  function addOneHour(time) {
+    const [h, m, s] = time.split(":").map(Number);
+    const date = new Date();
+    date.setHours(h);
+    date.setMinutes(m);
+    date.setSeconds(s);
+  
+    date.setHours(date.getHours() + 1);
+  
+    return date.toTimeString().slice(0, 8);
+  }
+  const endTime = addOneHour(startTime);
   try {
     const [[booking]] = await db.query(
       "SELECT * FROM private_bookings WHERE id=?",
@@ -2661,13 +2672,15 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
 
     // 2️⃣ CREATE SESSION
     await db.query(`
-      INSERT INTO training_sessions (coach_id, session_date, start_time,player_name)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO training_sessions 
+(coach_id, session_date, start_time, end_time, location_id)
+VALUES (?, ?, ?, ?, ?)
     `, [
       coach_id,
-      booking.booking_date,
-      booking.time_slot,
-      booking.name
+  booking.booking_date,
+  startTime,
+  endTime,
+  booking.location_id
     ]);
 
     // 3️⃣ SEND EMAIL (RESEND)
