@@ -6,9 +6,9 @@ import {
   Card,
   CardContent,
   Button,
-  Chip
+  Chip,
+  Stack
 } from "@mui/material";
-
 import API_BASE from "./api";
 
 type Session = {
@@ -27,7 +27,7 @@ export default function CoachSessions() {
   const [coachId, setCoachId] = useState<string | null>(null);
 
   ///////////////////////////////////////////////////////
-  // 🔥 FIXED COACH ID LOAD
+  // LOAD COACH ID
   ///////////////////////////////////////////////////////
 
   useEffect(() => {
@@ -77,6 +77,8 @@ export default function CoachSessions() {
   }, [coachId, sessions]);
 
   ///////////////////////////////////////////////////////
+  // ACTIONS
+  ///////////////////////////////////////////////////////
 
   const handleCheckIn = async (sessionId: number, locationId: number) => {
     await fetch(`${API_BASE}/api/coach/checkin`, {
@@ -103,6 +105,7 @@ export default function CoachSessions() {
   return (
     <Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
 
+      {/* 🔥 HEADER */}
       <Typography
         variant="h4"
         fontWeight={900}
@@ -120,40 +123,79 @@ export default function CoachSessions() {
         <Typography color="gray">No sessions assigned</Typography>
       )}
 
-      <Grid container spacing={3}>
+      {/* 🔥 GRID */}
+      <Grid container spacing={4}>
         {sessions.map((s) => {
           const isCheckedIn = checkedInMap[s.id];
+
+          const sessionTime = new Date(`${s.session_date} ${s.start_time}`);
+          const diffMin = Math.floor((sessionTime.getTime() - new Date().getTime()) / (1000 * 60));
+
+          const isLive = diffMin <= 0 && diffMin > -120;
+          const isUpcoming = diffMin > 0 && diffMin < 60;
 
           return (
             <Grid item xs={12} md={6} lg={4} key={s.id}>
 
               <Card
                 sx={{
-                  borderRadius: 4,
-                  p: 1,
-                  transition: "0.3s",
-                  background: "white",
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                  borderRadius: 5,
+                  overflow: "hidden",
+                  background: "#ffffff",
+                  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+                  transition: "all 0.3s ease",
                   "&:hover": {
-                    transform: "translateY(-6px)",
-                    boxShadow: "0 20px 50px rgba(0,0,0,0.12)"
+                    transform: "translateY(-10px) scale(1.02)",
+                    boxShadow: "0 25px 60px rgba(0,0,0,0.15)"
                   }
                 }}
               >
-                <CardContent>
 
-                  {/* DATE */}
-                  <Typography fontWeight={800}>
-                    {s.session_date}
-                  </Typography>
+                {/* 🔥 TOP BAR */}
+                <Box
+                  sx={{
+                    height: 6,
+                    background:
+                      isLive
+                        ? "linear-gradient(90deg,#22c55e,#16a34a)"
+                        : "linear-gradient(90deg,#f97316,#ef4444)"
+                  }}
+                />
+
+                <CardContent sx={{ p: 3 }}>
+
+                  {/* HEADER */}
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography fontWeight={900}>
+                      {s.session_date}
+                    </Typography>
+
+                    {isLive && (
+                      <Chip label="LIVE" color="success" size="small" />
+                    )}
+
+                    {isUpcoming && (
+                      <Chip label="Starting Soon" color="warning" size="small" />
+                    )}
+                  </Stack>
 
                   {/* TIME */}
-                  <Typography color="text.secondary" mb={1}>
-                    {s.start_time} – {s.end_time || "--"}
+                  <Typography color="text.secondary" mt={1}>
+                    ⏰ {s.start_time} – {s.end_time || "--"}
                   </Typography>
 
+                  {/* COUNTDOWN */}
+                  {isUpcoming && (
+                    <Typography
+                      fontSize={13}
+                      sx={{ color: "#f97316", mt: 1 }}
+                    >
+                      Starts in {diffMin} mins
+                    </Typography>
+                  )}
+
                   {/* LOCATION */}
-                  <Typography fontSize={14} mb={1}>
+                  <Typography mt={2} fontWeight={600}>
                     📍 {s.locationName}
                   </Typography>
 
@@ -163,7 +205,7 @@ export default function CoachSessions() {
                       label={s.category}
                       size="small"
                       sx={{
-                        mb: 2,
+                        mt: 1,
                         background:
                           "linear-gradient(135deg,#f97316,#ef4444)",
                         color: "white"
@@ -172,15 +214,15 @@ export default function CoachSessions() {
                   )}
 
                   {/* ACTIONS */}
-                  <Box mt={2} display="flex" gap={1} flexWrap="wrap">
+                  <Box mt={3} display="flex" flexDirection="column" gap={1}>
 
                     {!isCheckedIn ? (
                       <Button
                         variant="contained"
-                        fullWidth
                         sx={{
                           borderRadius: 999,
-                          fontWeight: 700,
+                          fontWeight: 800,
+                          py: 1.2,
                           background:
                             "linear-gradient(135deg,#f97316,#ef4444)"
                         }}
@@ -195,8 +237,7 @@ export default function CoachSessions() {
                         <Button
                           variant="contained"
                           color="success"
-                          fullWidth
-                          sx={{ borderRadius: 999 }}
+                          sx={{ borderRadius: 999, py: 1.2 }}
                           onClick={() =>
                             (window.location.href = `/coach/sessions/${s.id}/attendance`)
                           }
@@ -207,7 +248,6 @@ export default function CoachSessions() {
                         <Button
                           variant="outlined"
                           color="error"
-                          fullWidth
                           sx={{ borderRadius: 999 }}
                           onClick={() => handleCheckOut(s.id)}
                         >
@@ -219,6 +259,7 @@ export default function CoachSessions() {
                   </Box>
 
                 </CardContent>
+
               </Card>
 
             </Grid>
