@@ -2652,7 +2652,7 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
   
     return date.toTimeString().slice(0, 8);
   }
-  const endTime = addOneHour(startTime);
+  const endTime = addOneHour(starttime);
   try {
     const [[booking]] = await db.query(
       "SELECT * FROM private_bookings WHERE id=?",
