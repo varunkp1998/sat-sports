@@ -42,8 +42,8 @@ export default function Signup() {
 
       const url =
       role === "coach"
-        ? `${API_BASE}/signup/coach`
-        : `${API_BASE}/signup`;
+        ? `${API_BASE}/api/signup/coach`
+        : `${API_BASE}/api/signup`;
 
       const payload = {
         name: form.name,
