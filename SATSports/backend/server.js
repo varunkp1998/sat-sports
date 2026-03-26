@@ -2610,3 +2610,185 @@ app.get("/api/tournaments/:id/matches", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch matches" });
   }
 });
+app.post("/api/private-bookings", async (req, res) => {
+  const { name, email, phone, location_id, booking_date, time_slot } = req.body;
+
+  try {
+    await db.query(`
+      INSERT INTO private_bookings
+      (name, email, phone, location_id, booking_date, time_slot)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [name, email, phone, location_id, booking_date, time_slot]);
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Booking failed" });
+  }
+});
+app.get("/api/admin/private-bookings", async (req, res) => {
+  const [rows] = await db.query(`
+    SELECT b.*, l.name AS location_name, c.name AS coach_name
+    FROM private_bookings b
+    LEFT JOIN locations l ON b.location_id = l.id
+    LEFT JOIN coaches c ON b.coach_id = c.id
+    ORDER BY b.created_at DESC
+  `);
+
+  res.json(rows);
+});
+app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
+  const { id } = req.params;
+  const { coach_id, court_id } = req.body;
+
+  try {
+    const [[booking]] = await db.query(
+      "SELECT * FROM private_bookings WHERE id=?",
+      [id]
+    );
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // 1️⃣ UPDATE BOOKING
+    await db.query(`
+      UPDATE private_bookings
+      SET status='approved', coach_id=?, court_id=?
+      WHERE id=?
+    `, [coach_id, court_id, id]);
+
+    // 2️⃣ CREATE SESSION
+    await db.query(`
+      INSERT INTO sessions (coach_id, date, time, player_name)
+      VALUES (?, ?, ?, ?)
+    `, [
+      coach_id,
+      booking.booking_date,
+      booking.time_slot,
+      booking.name
+    ]);
+
+    // 3️⃣ SEND EMAIL (RESEND)
+    try {
+      await resend.emails.send({
+        from: "SAT Sports <no-reply@sat-sports.in>",
+        to: booking.email,
+        subject: "🎾 Your Session is Confirmed!",
+        html: `
+        <div style="font-family:Arial,sans-serif;background:#f5f7fb;padding:20px;">
+          
+          <div style="max-width:500px;margin:auto;background:white;border-radius:12px;overflow:hidden;">
+            
+            <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:20px;text-align:center;color:white;">
+              <h2 style="margin:0;">SAT Sports 🎾</h2>
+              <p style="opacity:0.8;margin-top:5px;">Private Session Confirmed</p>
+            </div>
+      
+            <div style="padding:20px;">
+              <h3 style="margin-top:0;">Hi ${booking.name},</h3>
+      
+              <p>Your private session has been <b style="color:#16a34a;">approved</b> 🎉</p>
+      
+              <div style="background:#f1f5f9;padding:15px;border-radius:10px;margin:15px 0;">
+                <p><b>Date:</b> ${booking.booking_date}</p>
+                <p><b>Time:</b> ${booking.time_slot}</p>
+              </div>
+      
+              <p>We look forward to seeing you on court! 🏆</p>
+      
+              <div style="text-align:center;margin-top:20px;">
+                <a href="https://www.sat-sports.in"
+                   style="background:#f97316;color:white;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">
+                  View Details
+                </a>
+              </div>
+            </div>
+      
+            <div style="text-align:center;padding:10px;font-size:12px;color:#64748b;">
+              © SAT Sports
+            </div>
+      
+          </div>
+        </div>
+        `
+      });
+
+      console.log("✅ Email sent to:", booking.email);
+
+    } catch (emailErr) {
+      console.error("❌ Email failed:", emailErr);
+    }
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("APPROVE ERROR:", err);
+    res.status(500).json({ message: "Approval failed" });
+  }
+});
+app.put("/api/admin/private-bookings/:id/reject", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [[booking]] = await db.query(
+      "SELECT * FROM private_bookings WHERE id=?",
+      [id]
+    );
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // update status
+    await db.query(
+      "UPDATE private_bookings SET status='rejected' WHERE id=?",
+      [id]
+    );
+
+    // send email
+    try {
+      await resend.emails.send({
+        from: "SAT Sports <no-reply@sat-sports.in>",
+        to: booking.email,
+        subject: "Session Request Update",
+        html: `
+        <div style="font-family:Arial;background:#f5f7fb;padding:20px;">
+          
+          <div style="max-width:500px;margin:auto;background:white;border-radius:12px;">
+            
+            <div style="background:#ef4444;color:white;padding:20px;text-align:center;">
+              <h2>Session Update</h2>
+            </div>
+      
+            <div style="padding:20px;">
+              <p>Hi ${booking.name},</p>
+      
+              <p>Unfortunately, your requested session could not be scheduled.</p>
+      
+              <p>Please try another time slot.</p>
+      
+              <a href="https://www.sat-sports.in"
+                 style="display:inline-block;margin-top:15px;background:#0f172a;color:white;padding:10px 18px;border-radius:999px;text-decoration:none;">
+                Book Again
+              </a>
+            </div>
+      
+          </div>
+        </div>
+        `
+      });
+      console.log("📧 Rejection email sent to:", booking.email);
+
+    } catch (emailErr) {
+      console.error("❌ Email failed:", emailErr);
+    }
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("REJECT ERROR:", err);
+    res.status(500).json({ message: "Reject failed" });
+  }
+});

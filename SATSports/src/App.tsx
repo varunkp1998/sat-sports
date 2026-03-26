@@ -19,6 +19,8 @@ import { useNavigate } from "react-router-dom";
 import { Avatar } from "@mui/material";
 import Signup from "./Signup.tsx";
 import AssignmentIcon from "@mui/icons-material/Assignment";
+import PrivateBooking from "./PrivateBooking";
+import AdminPrivateBookings from "./AdminPrivateBooking";
 import {
   Card,
   CardContent,
@@ -112,7 +114,8 @@ export default function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/book-court" element={<PublicCourtBooking />} />
             <Route path="/register-player" element={<RegisterPlayer />} />
-
+            <Route path="/book-private-session" element={<PrivateBooking />} />
+            <Route path="/admin/private-bookings" element={<AdminPrivateBookings />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/portal" element={<PlayerPortal />} />
