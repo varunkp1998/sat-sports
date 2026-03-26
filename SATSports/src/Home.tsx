@@ -89,17 +89,15 @@ export default function Home() {
         {
           title: "Elite Coaching",
           desc: "Train with top certified professionals",
-          img: "/coach.jpg"
-        },
+          img: `${import.meta.env.BASE_URL}coach.jpg`        },
         {
           title: "Modern Infrastructure",
           desc: "Premium courts with lighting",
-          img: "/court.jpg"
-        },
+          img: `${import.meta.env.BASE_URL}court.jpg`        },
         {
           title: "Performance Tracking",
           desc: "Smart analytics & progress tracking",
-          img: "/training.jpg"
+          img: `${import.meta.env.BASE_URL}training.jpg`
         }
       ].map((sec, i) => (
         <Grid
@@ -118,7 +116,10 @@ export default function Home() {
               sx={{
                 height: 300,
                 borderRadius: 4,
-                background: `url(${sec.img}) center/cover`,
+                backgroundImage: `url(${sec.img})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",               
                 boxShadow: "0 20px 60px rgba(0,0,0,0.7)"
               }}
             />
