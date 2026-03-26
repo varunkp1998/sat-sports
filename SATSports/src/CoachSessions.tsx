@@ -37,26 +37,25 @@ type Session = {
 };
 
 export default function CoachSessions() {
-  const coachId = localStorage.getItem("userId");
-
+  const userId = localStorage.getItem("userId");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, boolean>>({});
 
   // Load sessions
   useEffect(() => {
-    if (!coachId) return;
+    if (!userId) return;
 
-    fetch(`${API_BASE}/api/coach/sessions/${coachId}`)
+    fetch(`${API_BASE}/api/coach/sessions/${userId}`)
       .then(res => res.json())
       .then(setSessions);
-  }, [coachId]);
-  console.log("coachId:", coachId);
+  }, [userId]);
+  console.log("userId:", userId);
   // Load check-in status
   useEffect(() => {
-    if (!coachId || sessions.length === 0) return;
+    if (!userId || sessions.length === 0) return;
 
     sessions.forEach((s) => {
-      fetch(`${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${s.id}`)
+      fetch(`${API_BASE}/api/coach/checkin/status?userId=${userId}&sessionId=${s.id}`)
         .then(res => res.json())
         .then(data => {
           setCheckedInMap(prev => ({
@@ -65,13 +64,13 @@ export default function CoachSessions() {
           }));
         });
     });
-  }, [coachId, sessions]);
+  }, [userId, sessions]);
 
   const handleCheckIn = async (sessionId: number, locationId: number) => {
     await fetch(`${API_BASE}/api/coach/checkin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ coachId, sessionId, locationId }),
+      body: JSON.stringify({ userId, sessionId, locationId }),
     });
 
     setCheckedInMap(prev => ({ ...prev, [sessionId]: true }));
@@ -81,7 +80,7 @@ export default function CoachSessions() {
     await fetch(`${API_BASE}/api/coach/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ coachId, sessionId }),
+      body: JSON.stringify({ userId, sessionId }),
     });
 
     setCheckedInMap(prev => ({ ...prev, [sessionId]: false }));
