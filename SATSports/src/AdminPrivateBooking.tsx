@@ -20,8 +20,7 @@ export default function AdminPrivateBookings() {
   useEffect(() => {
     load();
 
-    fetch(`${API_BASE}/api/coaches`).then(r=>r.json()).then(setCoaches);
-    fetch(`${API_BASE}/api/courts`).then(r=>r.json()).then(setCourts);
+    fetch(`${API_BASE}/api/admin/coaches`).then(r=>r.json()).then(setCoaches);
   }, []);
 
   const approve = async (id, coach, court) => {
@@ -53,7 +52,6 @@ export default function AdminPrivateBookings() {
 
       {rows.map(r => {
         const [coach, setCoach] = useState("");
-        const [court, setCourt] = useState("");
 
         return (
           <Card key={r.id} sx={{ p:2, mb:2 }}>
