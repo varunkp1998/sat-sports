@@ -1765,19 +1765,47 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
       await resend.emails.send({
         from: "SAT Sports <no-reply@sat-sports.in>",
         to: appData.email,
-        subject: "Application Approved 🎾",
+        subject: "🎾 Application Approved!",
         html: `
-          <h3>Welcome to SAT Sports 🎾</h3>
-          <p>Your application has been approved.</p>
-          <p><b>Email:</b> ${appData.email}</p>
-          ${
-            isNewUser
-              ? `<p><b>Password:</b> ${password}</p>`
-              : `<p>You can login using your existing account.</p>`
-          }
+        <div style="font-family:Arial,sans-serif;background:#f5f7fb;padding:20px;">
+          
+          <div style="max-width:500px;margin:auto;background:white;border-radius:12px;overflow:hidden;">
+            
+            <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:20px;text-align:center;color:white;">
+              <h2 style="margin:0;">SAT Sports 🎾</h2>
+              <p style="opacity:0.8;margin-top:5px;">Application Approved</p>
+            </div>
+      
+            <div style="padding:20px;">
+              <h3 style="margin-top:0;">Welcome 🎉</h3>
+      
+              <p>Your application has been <b style="color:#16a34a;">approved</b>.</p>
+      
+              <div style="background:#f1f5f9;padding:15px;border-radius:10px;margin:15px 0;">
+                <p><b>Email:</b> ${appData.email}</p>
+                ${
+                  isNewUser
+                    ? `<p><b>Password:</b> ${password}</p>`
+                    : `<p>You can login using your existing account.</p>`
+                }
+              </div>
+      
+              <div style="text-align:center;margin-top:20px;">
+                <a href="https://www.sat-sports.in"
+                   style="background:#f97316;color:white;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">
+                  Login Now
+                </a>
+              </div>
+            </div>
+      
+            <div style="text-align:center;padding:10px;font-size:12px;color:#64748b;">
+              © SAT Sports
+            </div>
+      
+          </div>
+        </div>
         `
       });
-
       console.log("✅ Email sent to:", appData.email);
 
     } catch (emailErr) {
@@ -2107,12 +2135,43 @@ app.post("/api/signup/coach", async (req, res) => {
     await resend.emails.send({
       from: "SAT Sports <no-reply@sat-sports.in>",
       to: email,
-      subject: "Coach Account Created",
+      subject: "🎾 Coach Account Created",
       html: `
-        <h2>Welcome to SAT Sports 🎾</h2>
-        <p><b>Email:</b> ${email}</p>
-        <p><b>Password:</b> ${password}</p>
-        <p>Please login and change your password.</p>
+      <div style="font-family:Arial,sans-serif;background:#f5f7fb;padding:20px;">
+        
+        <div style="max-width:500px;margin:auto;background:white;border-radius:12px;overflow:hidden;">
+          
+          <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:20px;text-align:center;color:white;">
+            <h2 style="margin:0;">SAT Sports 🎾</h2>
+            <p style="opacity:0.8;margin-top:5px;">Coach Account Created</p>
+          </div>
+    
+          <div style="padding:20px;">
+            <h3 style="margin-top:0;">Welcome Coach 👋</h3>
+    
+            <p>Your account has been successfully created.</p>
+    
+            <div style="background:#f1f5f9;padding:15px;border-radius:10px;margin:15px 0;">
+              <p><b>Email:</b> ${email}</p>
+              <p><b>Password:</b> ${password}</p>
+            </div>
+    
+            <p>Please login and change your password.</p>
+    
+            <div style="text-align:center;margin-top:20px;">
+              <a href="https://www.sat-sports.in"
+                 style="background:#f97316;color:white;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">
+                Login
+              </a>
+            </div>
+          </div>
+    
+          <div style="text-align:center;padding:10px;font-size:12px;color:#64748b;">
+            © SAT Sports
+          </div>
+    
+        </div>
+      </div>
       `
     });
 
@@ -2264,8 +2323,40 @@ app.post("/api/auth/send-otp", async (req, res) => {
     await resend.emails.send({
       from: "SAT Sports <no-reply@sat-sports.in>",
       to: email,
-      subject: "Password Reset OTP",
-      html: `<h2>Your OTP is: ${otp}</h2>`
+      subject: "🔐 Password Reset OTP",
+      html: `
+      <div style="font-family:Arial,sans-serif;background:#f5f7fb;padding:20px;">
+        
+        <div style="max-width:500px;margin:auto;background:white;border-radius:12px;overflow:hidden;">
+          
+          <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:20px;text-align:center;color:white;">
+            <h2 style="margin:0;">SAT Sports 🎾</h2>
+            <p style="opacity:0.8;margin-top:5px;">Password Reset</p>
+          </div>
+    
+          <div style="padding:20px;">
+            <h3 style="margin-top:0;">Your OTP 🔐</h3>
+    
+            <p>Use the OTP below to reset your password:</p>
+    
+            <div style="background:#f1f5f9;padding:20px;border-radius:10px;margin:20px 0;text-align:center;">
+              <h1 style="margin:0;color:#0f172a;letter-spacing:3px;">
+                ${otp}
+              </h1>
+            </div>
+    
+            <p style="color:#ef4444;font-size:14px;">
+              This OTP will expire soon. Do not share it with anyone.
+            </p>
+          </div>
+    
+          <div style="text-align:center;padding:10px;font-size:12px;color:#64748b;">
+            © SAT Sports
+          </div>
+    
+        </div>
+      </div>
+      `
     });
 
     res.json({ success: true });
