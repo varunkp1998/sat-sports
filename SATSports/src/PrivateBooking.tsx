@@ -70,7 +70,7 @@ export default function PrivateBooking() {
       start_time: convertTo24Hour(form.time_slot)
     };
     try {
-      const res = await fetch(`${API_BASE}/private-bookings`, {
+      const res = await fetch(`${API_BASE}/api/private-bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
