@@ -100,105 +100,153 @@ export default function PrivateBooking() {
     <Box
       sx={{
         minHeight: "100vh",
-        p: 3,
-        background: "linear-gradient(180deg,#020617,#0f172a)"
+        backgroundImage: `
+          linear-gradient(rgba(5,10,25,0.9), rgba(5,10,25,0.95)),
+          url('/tennis-bg.jpg')
+        `,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        p: 2
       }}
     >
-      <Typography variant="h4" color="white" mb={3}>
-        🎾 Private Session Booking
-      </Typography>
-
-      <Card sx={{ p: 3, borderRadius: 4, maxWidth: 500 }}>
-        <Stack spacing={2}>
-
-          <TextField
-            label="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-
-          <TextField
-            label="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-
-          <TextField
-            label="Phone"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-
-          <Select
-            value={form.location_id}
-            displayEmpty
-            onChange={(e) =>
-              setForm({ ...form, location_id: e.target.value })
-            }
-          >
-            <MenuItem value="">Select Location</MenuItem>
-            {locations.map((loc) => (
-              <MenuItem key={loc.id} value={loc.id}>
-                {loc.name}
-              </MenuItem>
-            ))}
-          </Select>
-
-          <TextField
-            type="date"
-            value={form.booking_date}
-            onChange={(e) =>
-              setForm({ ...form, booking_date: e.target.value })
-            }
-            inputProps={{
-              min: new Date().toISOString().split("T")[0]
-            }}
-          />
-
-          {/* Time Slots */}
-          <Box>
-            <Typography mb={1}>Select Time</Typography>
-
-            <Box
+      <Card
+        sx={{
+          width: "100%",
+          maxWidth: 520,
+          borderRadius: 5,
+          backdropFilter: "blur(25px)",
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          boxShadow: "0 40px 100px rgba(0,0,0,0.8)",
+          color: "white"
+        }}
+      >
+        <CardContent sx={{ p: 4 }}>
+  
+          {/* Title */}
+          <Box textAlign="center" mb={3}>
+            <Typography variant="h5" fontWeight={700}>
+              🎾 Private Session
+            </Typography>
+            <Typography color="gray">
+              Book your court session
+            </Typography>
+          </Box>
+  
+          <Stack spacing={2}>
+  
+            <TextField
+              label="Full Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              fullWidth
+              sx={inputStyle}
+            />
+  
+            <TextField
+              label="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              fullWidth
+              sx={inputStyle}
+            />
+  
+            <TextField
+              label="Phone"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              fullWidth
+              sx={inputStyle}
+            />
+  
+            <Select
+              fullWidth
+              value={form.location_id}
+              displayEmpty
+              onChange={(e) =>
+                setForm({ ...form, location_id: e.target.value })
+              }
+              sx={inputStyle}
+            >
+              <MenuItem value="">Select Location</MenuItem>
+              {locations.map((loc) => (
+                <MenuItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </MenuItem>
+              ))}
+            </Select>
+  
+            <TextField
+              type="date"
+              fullWidth
+              value={form.booking_date}
+              onChange={(e) =>
+                setForm({ ...form, booking_date: e.target.value })
+              }
+              inputProps={{
+                min: new Date().toISOString().split("T")[0]
+              }}
+              sx={inputStyle}
+            />
+  
+            {/* Time Slots */}
+            <Box>
+              <Typography mb={1}>Select Time</Typography>
+  
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 1
+                }}
+              >
+                {timeSlots.map((time) => (
+                  <Button
+                    key={time}
+                    onClick={() =>
+                      setForm({ ...form, time_slot: time })
+                    }
+                    sx={{
+                      borderRadius: 2,
+                      fontWeight: 600,
+                      py: 1,
+                      background:
+                        form.time_slot === time
+                          ? "linear-gradient(90deg,#3b82f6,#2563eb)"
+                          : "rgba(255,255,255,0.08)",
+                      color: "white",
+                      border:
+                        form.time_slot === time
+                          ? "none"
+                          : "1px solid rgba(255,255,255,0.2)"
+                    }}
+                  >
+                    {time}
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+  
+            <Button
+              variant="contained"
+              size="large"
+              onClick={submit}
               sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 1
+                mt: 2,
+                borderRadius: 3,
+                background: "linear-gradient(90deg,#3b82f6,#2563eb)",
+                fontWeight: 700,
+                boxShadow: "0 15px 40px rgba(37,99,235,0.6)"
               }}
             >
-              {timeSlots.map((time) => (
-                <Button
-                  key={time}
-                  onClick={() =>
-                    setForm({ ...form, time_slot: time })
-                  }
-                  sx={{
-                    borderRadius: 2,
-                    fontWeight: 600,
-                    background:
-                      form.time_slot === time
-                        ? "#2563eb"
-                        : "#e2e8f0",
-                    color:
-                      form.time_slot === time ? "white" : "black"
-                  }}
-                >
-                  {time}
-                </Button>
-              ))}
-            </Box>
-          </Box>
-
-          <Button
-            variant="contained"
-            size="large"
-            onClick={submit}
-            sx={{ borderRadius: 3 }}
-          >
-            Book Session 🚀
-          </Button>
-
-        </Stack>
+              Book Session 🚀
+            </Button>
+  
+          </Stack>
+        </CardContent>
       </Card>
     </Box>
   );
