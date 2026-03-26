@@ -37,7 +37,7 @@ type Session = {
 };
 
 export default function CoachSessions() {
-  const coachId = localStorage.getItem("coachId");
+  const coachId = localStorage.getItem("userId");
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, boolean>>({});
