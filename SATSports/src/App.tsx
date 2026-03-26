@@ -174,7 +174,7 @@ function Header() {
     { label: "Programs", path: "/programs" },
     { label: "News", path: "/news" },
     { label: "Tournaments", path: "/tournaments" },
-    { label: "🎾 Private Session", path: "/book-private-session" }, // ✅ ADD THIS
+    { label: "Private Session", path: "/book-private-session" }, // ✅ ADD THIS
 
     { label: "Contact", path: "/contact" },
     { label: "Book Court", path: "/book-court" },
