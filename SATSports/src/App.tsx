@@ -23,6 +23,7 @@ import PrivateBooking from "./PrivateBooking";
 import AdminPrivateBookings from "./AdminPrivateBooking";
 import Home from "./Home.tsx";
 import About from "./About.tsx";
+import ProgramsPage from "./ProgramsPage.tsx";
 import {
   Card,
   CardContent,
@@ -319,126 +320,7 @@ const adminCardStyle = {
 /* ---------- ABOUT ---------- */
 
 /* ---------- PROGRAMS ---------- */
- function ProgramsPage() {
-  const [programs, setPrograms] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/programs`)
-      .then(res => res.json())
-      .then(setPrograms);
-  }, []);
-
-  // group by category
-  const grouped: any = {};
-  programs.forEach(p => {
-    const cat = p.category || "Programs";
-    if (!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push(p);
-  });
-
-  return (
-    <Box sx={{ background: "#0f172a", minHeight: "100vh", color: "white" }}>
-
-      {/* HERO */}
-      <Box
-        sx={{
-          height: 240,
-          background:
-            "linear-gradient(135deg,#dc2626,#991b1b)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "column"
-        }}
-      >
-        <Typography variant="h3" fontWeight={900}>
-          🎾 Elite Training Programs
-        </Typography>
-
-        <Typography sx={{ opacity: 0.8 }}>
-          Build champions. Train like a pro.
-        </Typography>
-      </Box>
-
-      <Box sx={{ p: 3 }}>
-
-        {/* SECTIONS */}
-        {Object.keys(grouped).map(category => (
-          <Box key={category} mb={5}>
-
-            <Typography
-              variant="h5"
-              fontWeight={800}
-              mb={2}
-              sx={{ borderLeft: "4px solid #ef4444", pl: 1 }}
-            >
-              {category}
-            </Typography>
-
-            <Grid container spacing={3}>
-
-              {grouped[category].map((p: any) => (
-                <Grid item xs={12} sm={6} md={4} key={p.id}>
-
-                  <Box
-                    sx={{
-                      borderRadius: 4,
-                      overflow: "hidden",
-                      background:
-                        "linear-gradient(180deg,#1f2937,#111827)",
-                      boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-                      transition: "0.3s",
-                      "&:hover": {
-                        transform: "scale(1.04)"
-                      }
-                    }}
-                  >
-
-                    {/* CARD HEADER */}
-                    <Box
-                      sx={{
-                        p: 2,
-                        fontWeight: 700,
-                        fontSize: 18
-                      }}
-                    >
-                      {p.title}
-                    </Box>
-
-                    {/* AGE */}
-                    <Box sx={{ px: 2, opacity: 0.7 }}>
-                      Age {p.min_age} – {p.max_age}
-                    </Box>
-
-                    {/* CTA */}
-                    <Box sx={{ p: 2 }}>
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        sx={{
-                          borderRadius: 3,
-                          background:
-                            "linear-gradient(90deg,#ef4444,#dc2626)",
-                          fontWeight: 700
-                        }}
-                      >
-                        View Schedule
-                      </Button>
-                    </Box>
-
-                  </Box>
-
-                </Grid>
-              ))}
-
-            </Grid>
-          </Box>
-        ))}
-
-      </Box>
-    </Box>
-  );
-}
  function AdminPrograms() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [title, setTitle] = useState("");
