@@ -4,10 +4,12 @@ import {
   Box,
   Typography,
   Card,
-  CardContent,
   Stack
 } from "@mui/material";
+import { motion } from "framer-motion";
 import API_BASE from "./api";
+
+const MotionBox = motion(Box);
 
 export default function TournamentDetails() {
   const { id } = useParams();
@@ -21,7 +23,6 @@ export default function TournamentDetails() {
   const [tournament, setTournament] = useState(null);
 
   useEffect(() => {
-    // matches
     fetch(`${API_BASE}/api/tournaments/${id}/matches`)
       .then(res => res.json())
       .then(data => {
@@ -36,7 +37,6 @@ export default function TournamentDetails() {
         setRounds(grouped);
       });
 
-    // tournament
     fetch(`${API_BASE}/api/tournaments/${id}`)
       .then(res => res.json())
       .then(setTournament);
@@ -44,97 +44,119 @@ export default function TournamentDetails() {
   }, [id]);
 
   ///////////////////////////////////////////////////////
-  // MATCH CARD
+  // MATCH CARD (UPGRADED)
   ///////////////////////////////////////////////////////
 
   const MatchCard = ({ m }) => (
-    <Card
-      sx={{
-        borderRadius: 3,
-        minWidth: 180,
-        p: 1.5,
-        background: "#fff",
-        position: "relative"
-      }}
+    <MotionBox
+      whileHover={{ scale: 1.05 }}
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
     >
-      <Stack spacing={1}>
+      <Card
+        sx={{
+          borderRadius: 4,
+          minWidth: 200,
+          p: 2,
+          backdropFilter: "blur(10px)",
+          background: "rgba(255,255,255,0.05)",
+          boxShadow: "0 10px 40px rgba(0,0,0,0.6)"
+        }}
+      >
+        <Stack spacing={1.5}>
 
-        <Box
-          sx={{
-            p: 1,
-            borderRadius: 2,
-            background: m.winner === m.player1 ? "#dcfce7" : "#f9fafb"
-          }}
-        >
-          <Typography fontWeight={600}>{m.player1}</Typography>
-        </Box>
+          {/* PLAYER 1 */}
+          <Box
+            sx={{
+              p: 1,
+              borderRadius: 2,
+              background:
+                m.winner === m.player1
+                  ? "linear-gradient(135deg,#16a34a,#22c55e)"
+                  : "rgba(255,255,255,0.05)"
+            }}
+          >
+            <Typography fontWeight={700}>
+              {m.player1}
+            </Typography>
+          </Box>
 
-        <Box
-          sx={{
-            p: 1,
-            borderRadius: 2,
-            background: m.winner === m.player2 ? "#dcfce7" : "#f9fafb"
-          }}
-        >
-          <Typography fontWeight={600}>{m.player2}</Typography>
-        </Box>
+          {/* PLAYER 2 */}
+          <Box
+            sx={{
+              p: 1,
+              borderRadius: 2,
+              background:
+                m.winner === m.player2
+                  ? "linear-gradient(135deg,#16a34a,#22c55e)"
+                  : "rgba(255,255,255,0.05)"
+            }}
+          >
+            <Typography fontWeight={700}>
+              {m.player2}
+            </Typography>
+          </Box>
 
-      </Stack>
-    </Card>
+        </Stack>
+      </Card>
+    </MotionBox>
   );
 
   ///////////////////////////////////////////////////////
 
   return (
-    <Box sx={{ background: "#0f172a", minHeight: "100vh", color: "#fff" }}>
+    <Box sx={{ background: "#020617", minHeight: "100vh", color: "white" }}>
 
-      {/* 🏆 HERO */}
+      {/* 🏆 HERO (UPGRADED) */}
       {tournament && (
         <Box
           sx={{
-            height: 260,
+            height: "50vh",
             position: "relative",
-            mb: 3,
+            mb: 5,
             background: `url(${API_BASE}/uploads/${tournament.image}) center/cover`
           }}
         >
-
           {/* overlay */}
           <Box
             sx={{
               position: "absolute",
               inset: 0,
-              background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)"
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.8), transparent)"
             }}
           />
 
-          {/* text */}
-          <Box
+          {/* content */}
+          <MotionBox
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
             sx={{
               position: "absolute",
-              bottom: 20,
-              left: 20
+              bottom: 30,
+              left: 30
             }}
           >
-            <Typography variant="h4" fontWeight={800}>
+            <Typography variant="h3" fontWeight={900}>
               {tournament.title}
             </Typography>
 
-            <Typography sx={{ opacity: 0.8 }}>
+            <Typography color="gray">
               {tournament.description}
             </Typography>
-          </Box>
-
+          </MotionBox>
         </Box>
       )}
 
       {/* 🧩 BRACKETS */}
-      <Box sx={{ overflowX: "auto", px: 2, pb: 5 }}>
-        <Stack direction="row" spacing={6}>
+      <Box sx={{ overflowX: "auto", px: 3, pb: 6 }}>
+        <Stack direction="row" spacing={8} alignItems="flex-start">
 
           {/* ROUND 1 */}
           <Stack spacing={3}>
-            <Typography fontWeight={700}>Round 1</Typography>
+            <Typography fontWeight={800}>
+              Round 1
+            </Typography>
 
             {rounds.round1.map(m => (
               <MatchCard key={m.id} m={m} />
@@ -142,8 +164,10 @@ export default function TournamentDetails() {
           </Stack>
 
           {/* SEMI */}
-          <Stack spacing={6} mt={6}>
-            <Typography fontWeight={700}>Semi</Typography>
+          <Stack spacing={5} mt={6}>
+            <Typography fontWeight={800}>
+              Semi Finals
+            </Typography>
 
             {rounds.semi.map(m => (
               <MatchCard key={m.id} m={m} />
@@ -151,31 +175,40 @@ export default function TournamentDetails() {
           </Stack>
 
           {/* FINAL */}
-          <Stack spacing={10} mt={10}>
-            <Typography fontWeight={700}>Final</Typography>
+          <Stack spacing={6} mt={10}>
+            <Typography fontWeight={800}>
+              Final
+            </Typography>
 
             {rounds.final.map(m => (
               <MatchCard key={m.id} m={m} />
             ))}
 
-            {/* 🏆 CHAMPION */}
+            {/* 🏆 CHAMPION CARD */}
             {rounds.final[0]?.winner && (
-              <Card
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  background: "linear-gradient(135deg,#16a34a,#22c55e)",
-                  textAlign: "center"
-                }}
+              <MotionBox
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
               >
-                <Typography fontWeight={700}>
-                  🏆 Champion
-                </Typography>
+                <Card
+                  sx={{
+                    p: 3,
+                    borderRadius: 4,
+                    background:
+                      "linear-gradient(135deg,#f97316,#ef4444)",
+                    textAlign: "center",
+                    boxShadow: "0 20px 60px rgba(0,0,0,0.6)"
+                  }}
+                >
+                  <Typography fontWeight={900}>
+                    🏆 Champion
+                  </Typography>
 
-                <Typography variant="h6">
-                  {rounds.final[0].winner}
-                </Typography>
-              </Card>
+                  <Typography variant="h5">
+                    {rounds.final[0].winner}
+                  </Typography>
+                </Card>
+              </MotionBox>
             )}
 
           </Stack>
