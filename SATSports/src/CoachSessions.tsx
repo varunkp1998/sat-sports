@@ -46,7 +46,7 @@ export default function CoachSessions() {
   useEffect(() => {
     if (!coachId) return;
 
-    fetch(`${API_BASE}/api/coach/sessions/${coachId}`)
+    fetch(`${API_BASE}/api/coach/sessions/${userId}`)
       .then(res => res.json())
       .then(setSessions);
   }, [coachId]);
