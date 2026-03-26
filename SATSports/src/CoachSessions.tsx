@@ -35,27 +35,34 @@ type Session = {
   locationName: string;
   location_id: number;
 };
+const userId = localStorage.getItem("userId");
 
+const res = await fetch(`${API_BASE}/api/coach/profile/${userId}`);
+const data = await res.json();
+localStorage.setItem("coachId", data.coachId);
 export default function CoachSessions() {
-  const userId = localStorage.getItem("userId");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, boolean>>({});
 
+
+
+  const coachId = localStorage.getItem("coachId");
+
   // Load sessions
   useEffect(() => {
-    if (!userId) return;
+    if (!coachId) return;
 
-    fetch(`${API_BASE}/api/coach/sessions/${userId}`)
+    fetch(`${API_BASE}/api/coach/sessions/${coachId}`)
       .then(res => res.json())
       .then(setSessions);
-  }, [userId]);
-  console.log("userId:", userId);
+  }, [coachId]);
+  console.log("coachId:", coachId);
   // Load check-in status
   useEffect(() => {
-    if (!userId || sessions.length === 0) return;
+    if (!coachId || sessions.length === 0) return;
 
     sessions.forEach((s) => {
-      fetch(`${API_BASE}/api/coach/checkin/status?userId=${userId}&sessionId=${s.id}`)
+      fetch(`${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${s.id}`)
         .then(res => res.json())
         .then(data => {
           setCheckedInMap(prev => ({
@@ -64,13 +71,13 @@ export default function CoachSessions() {
           }));
         });
     });
-  }, [userId, sessions]);
+  }, [coachId, sessions]);
 
   const handleCheckIn = async (sessionId: number, locationId: number) => {
     await fetch(`${API_BASE}/api/coach/checkin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, sessionId, locationId }),
+      body: JSON.stringify({ coachId, sessionId, locationId }),
     });
 
     setCheckedInMap(prev => ({ ...prev, [sessionId]: true }));
@@ -80,7 +87,7 @@ export default function CoachSessions() {
     await fetch(`${API_BASE}/api/coach/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, sessionId }),
+      body: JSON.stringify({ coachId, sessionId }),
     });
 
     setCheckedInMap(prev => ({ ...prev, [sessionId]: false }));
