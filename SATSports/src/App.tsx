@@ -22,6 +22,7 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import PrivateBooking from "./PrivateBooking";
 import AdminPrivateBookings from "./AdminPrivateBooking";
 import Home from "./Home.tsx";
+import About from "./About.tsx";
 import {
   Card,
   CardContent,
@@ -316,25 +317,6 @@ const adminCardStyle = {
 /* ---------- HOME ---------- */
 
 /* ---------- ABOUT ---------- */
-function About() {
-  return (
-    <section className="section">
-      <h3>About SAT Sports PVT LTD</h3>
-      <div className="card">
-        <p>
-          SAT Sports PVT LTD is a professional tennis academy focused on player
-          development, competitive excellence, and community engagement.
-        </p>
-        <ul>
-          <li>Certified Coaches</li>
-          <li>Performance Tracking</li>
-          <li>Tournament Pathways</li>
-          <li>Player Wellness</li>
-        </ul>
-      </div>
-    </section>
-  );
-}
 
 /* ---------- PROGRAMS ---------- */
  function ProgramsPage() {
