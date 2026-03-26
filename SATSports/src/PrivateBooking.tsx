@@ -20,7 +20,7 @@ export default function PrivateBooking() {
 
   // ✅ Load locations once
   useEffect(() => {
-    fetch(`${API_BASE}/locations`)
+    fetch(`${API_BASE}/api/admin/locations`)
       .then(res => res.json())
       .then(setLocations)
       .catch(err => console.error("Failed to load locations", err));
