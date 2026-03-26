@@ -21,6 +21,7 @@ import Signup from "./Signup.tsx";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PrivateBooking from "./PrivateBooking";
 import AdminPrivateBookings from "./AdminPrivateBooking";
+import Home from "./Home.tsx";
 import {
   Card,
   CardContent,
@@ -105,8 +106,7 @@ export default function App() {
         <Header />
         <main className="container">
           <Routes>
-          <Route path="/" element={<Navigate to="/login" />} />
-            <Route path="/" element={<Home programs={programs} />} />
+            <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/programs" element={<ProgramsPage items={programs} />} />
             <Route path="/news" element={<NewsPage />} />
@@ -314,41 +314,6 @@ const adminCardStyle = {
 };
 
 /* ---------- HOME ---------- */
-function Home({ programs }: { programs: Program[] }) {
-  return (
-    <>
-      <section className="hero">
-        <motion.h1 initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          Train. Compete. Succeed.
-        </motion.h1>
-        <p>High-performance tennis programs for all ages</p>
-        <div className="hero-buttons">
-          <Link to="/contact">
-            <button>Join Now</button>
-          </Link>
-          <Link to="/programs">
-            <button className="outline">View Programs</button>
-          </Link>
-        </div>
-      </section>
-
-      <section className="section">
-        <h3>Featured Programs</h3>
-        <div className="grid">
-          {programs.map((p) => (
-            <div key={p.id} className="card">
-              <h4>{p.name}</h4>
-              <p>{p.desc}</p>
-              <Link to="/programs">
-                <button>Learn More</button>
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
-    </>
-  );
-}
 
 /* ---------- ABOUT ---------- */
 function About() {
