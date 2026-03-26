@@ -9,7 +9,9 @@ export default function AdminPrivateBookings() {
 
   const [rows, setRows] = useState([]);
   const [coaches, setCoaches] = useState([]);
-  const [courts, setCourts] = useState({});
+
+  // ✅ store coach selection per booking
+  const [selectedCoach, setSelectedCoach] = useState({});
 
   const load = () => {
     fetch(`${API_BASE}/api/admin/private-bookings`)
@@ -20,17 +22,23 @@ export default function AdminPrivateBookings() {
   useEffect(() => {
     load();
 
-    fetch(`${API_BASE}/api/admin/coaches`).then(r=>r.json()).then(setCoaches);
+    fetch(`${API_BASE}/api/admin/coaches`)
+      .then(r => r.json())
+      .then(setCoaches);
   }, []);
 
-  const approve = async (id, coach, court) => {
+  const approve = async (id) => {
+    const coach_id = selectedCoach[id];
+
+    if (!coach_id) {
+      alert("Please select coach");
+      return;
+    }
+
     await fetch(`${API_BASE}/api/admin/private-bookings/${id}/approve`, {
       method: "PUT",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        coach_id: coach,
-        court_id: court
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coach_id })
     });
 
     load();
@@ -47,48 +55,62 @@ export default function AdminPrivateBookings() {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" mb={3}>
-        Private Bookings
+        🎾 Private Bookings
       </Typography>
 
-      {rows.map(r => {
-        const [coach, setCoach] = useState("");
+      {rows.map(r => (
+        <Card key={r.id} sx={{ p: 2, mb: 2 }}>
 
-        return (
-          <Card key={r.id} sx={{ p:2, mb:2 }}>
+          <Typography fontWeight={600}>{r.name}</Typography>
+          <Typography>{r.location_name}</Typography>
+          <Typography>{r.booking_date} | {r.time_slot}</Typography>
+          <Typography>Status: {r.status}</Typography>
 
-            <Typography>{r.name}</Typography>
-            <Typography>{r.location_name}</Typography>
-            <Typography>{r.booking_date} | {r.time_slot}</Typography>
+          {r.status === "pending" && (
+            <>
+              {/* ✅ COACH SELECT */}
+              <Select
+                fullWidth
+                sx={{ mt: 2 }}
+                value={selectedCoach[r.id] || ""}
+                onChange={(e) =>
+                  setSelectedCoach({
+                    ...selectedCoach,
+                    [r.id]: e.target.value
+                  })
+                }
+              >
+                <MenuItem value="">Select Coach</MenuItem>
 
-            <Typography>Status: {r.status}</Typography>
+                {coaches.map(c => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </Select>
 
-            {r.status === "pending" && (
-              <>
-                <Select onChange={e => setCoach(e.target.value)}>
-                  {coaches.map(c => (
-                    <MenuItem value={c.id}>{c.name}</MenuItem>
-                  ))}
-                </Select>
-
-                <Select onChange={e => setCourt(e.target.value)}>
-                  {courts.map(c => (
-                    <MenuItem value={c.id}>{c.name}</MenuItem>
-                  ))}
-                </Select>
-
-                <Button onClick={() => approve(r.id, coach, court)}>
+              {/* ✅ ACTIONS */}
+              <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
+                <Button
+                  variant="contained"
+                  onClick={() => approve(r.id)}
+                >
                   Approve
                 </Button>
 
-                <Button onClick={() => reject(r.id)}>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={() => reject(r.id)}
+                >
                   Reject
                 </Button>
-              </>
-            )}
+              </Box>
+            </>
+          )}
 
-          </Card>
-        );
-      })}
+        </Card>
+      ))}
 
     </Box>
   );
