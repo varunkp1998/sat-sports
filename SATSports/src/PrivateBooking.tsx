@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  Box, Typography, TextField, Button,
-  Select, MenuItem, Card, Stack
-} from "@mui/material";
+    Box, Typography, TextField, Button,
+    Select, MenuItem, Card, CardContent, Stack
+  } from "@mui/material";
 import API_BASE from "./api";
 
 export default function PrivateBooking() {
