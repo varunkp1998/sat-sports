@@ -1021,7 +1021,7 @@ app.get("/api/admin/sessions/:sessionId/attendance", async (req, res) => {
   res.json(rows);
 });
 app.post("/api/coach/leaves", async (req, res) => {
-  const { userId, start_date, end_date, leave_type, reason } = req.body;
+  const { userId, from_date, to_date, leave_type, reason } = req.body;
 
   // ❗ CHECK CONFLICT
   const [existing] = await db.query(
@@ -1029,10 +1029,10 @@ app.post("/api/coach/leaves", async (req, res) => {
      WHERE coach_id = ? 
      AND status != 'Rejected'
      AND (
-       (start_date <= ? AND end_date >= ?) OR
-       (start_date <= ? AND end_date >= ?)
+       (from_date <= ? AND to_date >= ?) OR
+       (from_date <= ? AND to_date >= ?)
      )`,
-    [userId, end_date, start_date, start_date, end_date]
+    [userId, to_date, from_date, from_date, to_date]
   );
 
   if (existing.length > 0) {
@@ -1043,9 +1043,9 @@ app.post("/api/coach/leaves", async (req, res) => {
 
   await db.query(
     `INSERT INTO coach_leaves 
-     (coach_id, start_date, end_date, leave_type, reason, status)
+     (coach_id, from_date, to_date, leave_type, reason, status)
      VALUES (?, ?, ?, ?, ?, 'Pending')`,
-    [userId, start_date, end_date, leave_type, reason]
+    [userId, from_date, to_date, leave_type, reason]
   );
 
   res.json({ success: true });
