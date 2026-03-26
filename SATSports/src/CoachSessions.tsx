@@ -103,170 +103,190 @@ export default function CoachSessions() {
   ///////////////////////////////////////////////////////
 
   return (
-    <Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
+<Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
 
-      {/* 🔥 HEADER */}
-      <Typography
-        variant="h4"
-        fontWeight={900}
-        mb={4}
-        sx={{
-          background: "linear-gradient(135deg,#f97316,#ef4444)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent"
-        }}
-      >
-        📅 My Sessions
-      </Typography>
+{/* 🔥 HEADER */}
+<Typography
+  variant="h4"
+  fontWeight={900}
+  mb={4}
+  sx={{
+    letterSpacing: 1,
+    background: "linear-gradient(135deg,#f97316,#ef4444)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent"
+  }}
+>
+  📅 My Sessions
+</Typography>
 
-      {sessions.length === 0 && (
-        <Typography color="gray">No sessions assigned</Typography>
-      )}
+{/* EMPTY */}
+{sessions.length === 0 && (
+  <Typography color="gray">No sessions assigned</Typography>
+)}
 
-      {/* 🔥 GRID */}
-      <Grid container spacing={4}>
-        {sessions.map((s) => {
-          const isCheckedIn = checkedInMap[s.id];
+{/* GRID */}
+<Grid container spacing={4}>
+  {sessions.map((s) => {
+    const isCheckedIn = checkedInMap[s.id];
 
-          const sessionTime = new Date(`${s.session_date} ${s.start_time}`);
-          const diffMin = Math.floor((sessionTime.getTime() - new Date().getTime()) / (1000 * 60));
+    const sessionTime = new Date(`${s.session_date} ${s.start_time}`);
+    const diffMin = Math.floor((sessionTime - new Date()) / (1000 * 60));
 
-          const isLive = diffMin <= 0 && diffMin > -120;
-          const isUpcoming = diffMin > 0 && diffMin < 60;
+    const isLive = diffMin <= 0 && diffMin > -120;
+    const isUpcoming = diffMin > 0 && diffMin < 60;
+    const isFuture = diffMin >= 60;
 
-          return (
-            <Grid item xs={12} md={6} lg={4} key={s.id}>
+    const status = isLive
+      ? "LIVE"
+      : isUpcoming
+      ? "SOON"
+      : "UPCOMING";
 
-              <Card
+    const statusColor = isLive
+      ? "#22c55e"
+      : isUpcoming
+      ? "#f59e0b"
+      : "#64748b";
+
+    return (
+      <Grid item xs={12} md={6} lg={4} key={s.id}>
+
+        <Card
+          sx={{
+            borderRadius: 5,
+            overflow: "hidden",
+            background: "#ffffff",
+            position: "relative",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.08)",
+            transition: "all 0.3s ease",
+            "&:hover": {
+              transform: "translateY(-10px)",
+              boxShadow: "0 30px 70px rgba(0,0,0,0.15)"
+            }
+          }}
+        >
+
+          {/* 🔥 STATUS STRIP */}
+          <Box
+            sx={{
+              height: 6,
+              background: statusColor
+            }}
+          />
+
+          <CardContent sx={{ p: 3 }}>
+
+            {/* HEADER */}
+            <Box display="flex" justifyContent="space-between">
+              <Typography fontWeight={900}>
+                {s.session_date}
+              </Typography>
+
+              <Chip
+                label={status}
+                size="small"
                 sx={{
-                  borderRadius: 5,
-                  overflow: "hidden",
-                  background: "#ffffff",
-                  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-10px) scale(1.02)",
-                    boxShadow: "0 25px 60px rgba(0,0,0,0.15)"
-                  }
+                  background: statusColor,
+                  color: "white",
+                  fontWeight: 700
                 }}
+              />
+            </Box>
+
+            {/* TIME */}
+            <Typography mt={1} color="text.secondary">
+              ⏰ {s.start_time} – {s.end_time || "--"}
+            </Typography>
+
+            {/* COUNTDOWN */}
+            {isUpcoming && (
+              <Typography
+                mt={1}
+                fontSize={13}
+                sx={{ color: "#f97316", fontWeight: 600 }}
               >
+                Starts in {diffMin} mins
+              </Typography>
+            )}
 
-                {/* 🔥 TOP BAR */}
-                <Box
+            {/* LOCATION */}
+            <Typography mt={2} fontWeight={700}>
+              📍 {s.locationName}
+            </Typography>
+
+            {/* CATEGORY */}
+            {s.category && (
+              <Chip
+                label={s.category}
+                size="small"
+                sx={{
+                  mt: 1,
+                  background:
+                    "linear-gradient(135deg,#f97316,#ef4444)",
+                  color: "white"
+                }}
+              />
+            )}
+
+            {/* ACTIONS */}
+            <Box mt={3}>
+
+              {!isCheckedIn ? (
+                <Button
+                  fullWidth
+                  variant="contained"
                   sx={{
-                    height: 6,
+                    borderRadius: 999,
+                    py: 1.2,
+                    fontWeight: 800,
                     background:
-                      isLive
-                        ? "linear-gradient(90deg,#22c55e,#16a34a)"
-                        : "linear-gradient(90deg,#f97316,#ef4444)"
+                      "linear-gradient(135deg,#f97316,#ef4444)",
+                    boxShadow: "0 8px 20px rgba(249,115,22,0.4)"
                   }}
-                />
+                  onClick={() =>
+                    handleCheckIn(s.id, s.location_id)
+                  }
+                >
+                  Check In
+                </Button>
+              ) : (
+                <Stack spacing={1}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    color="success"
+                    sx={{ borderRadius: 999 }}
+                    onClick={() =>
+                      (window.location.href = `/coach/sessions/${s.id}/attendance`)
+                    }
+                  >
+                    Mark Attendance
+                  </Button>
 
-                <CardContent sx={{ p: 3 }}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    color="error"
+                    sx={{ borderRadius: 999 }}
+                    onClick={() => handleCheckOut(s.id)}
+                  >
+                    Check Out
+                  </Button>
+                </Stack>
+              )}
 
-                  {/* HEADER */}
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography fontWeight={900}>
-                      {s.session_date}
-                    </Typography>
+            </Box>
 
-                    {isLive && (
-                      <Chip label="LIVE" color="success" size="small" />
-                    )}
+          </CardContent>
 
-                    {isUpcoming && (
-                      <Chip label="Starting Soon" color="warning" size="small" />
-                    )}
-                  </Stack>
+        </Card>
 
-                  {/* TIME */}
-                  <Typography color="text.secondary" mt={1}>
-                    ⏰ {s.start_time} – {s.end_time || "--"}
-                  </Typography>
-
-                  {/* COUNTDOWN */}
-                  {isUpcoming && (
-                    <Typography
-                      fontSize={13}
-                      sx={{ color: "#f97316", mt: 1 }}
-                    >
-                      Starts in {diffMin} mins
-                    </Typography>
-                  )}
-
-                  {/* LOCATION */}
-                  <Typography mt={2} fontWeight={600}>
-                    📍 {s.locationName}
-                  </Typography>
-
-                  {/* CATEGORY */}
-                  {s.category && (
-                    <Chip
-                      label={s.category}
-                      size="small"
-                      sx={{
-                        mt: 1,
-                        background:
-                          "linear-gradient(135deg,#f97316,#ef4444)",
-                        color: "white"
-                      }}
-                    />
-                  )}
-
-                  {/* ACTIONS */}
-                  <Box mt={3} display="flex" flexDirection="column" gap={1}>
-
-                    {!isCheckedIn ? (
-                      <Button
-                        variant="contained"
-                        sx={{
-                          borderRadius: 999,
-                          fontWeight: 800,
-                          py: 1.2,
-                          background:
-                            "linear-gradient(135deg,#f97316,#ef4444)"
-                        }}
-                        onClick={() =>
-                          handleCheckIn(s.id, s.location_id)
-                        }
-                      >
-                        Check In
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          sx={{ borderRadius: 999, py: 1.2 }}
-                          onClick={() =>
-                            (window.location.href = `/coach/sessions/${s.id}/attendance`)
-                          }
-                        >
-                          Mark Attendance
-                        </Button>
-
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          sx={{ borderRadius: 999 }}
-                          onClick={() => handleCheckOut(s.id)}
-                        >
-                          Check Out
-                        </Button>
-                      </>
-                    )}
-
-                  </Box>
-
-                </CardContent>
-
-              </Card>
-
-            </Grid>
-          );
-        })}
       </Grid>
+    );
+  })}
+</Grid>
 
-    </Box>
-  );
+</Box>
+  )
 }
