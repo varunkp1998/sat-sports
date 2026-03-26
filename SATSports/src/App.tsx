@@ -1118,35 +1118,70 @@ function Login() {
       sx={{
         minHeight: "100vh",
         background: `
-          radial-gradient(circle at top, rgba(59,130,246,0.2), transparent 60%),
-          linear-gradient(180deg, #0f172a, #020617)
+          radial-gradient(circle at 20% 20%, rgba(59,130,246,0.25), transparent 40%),
+          radial-gradient(circle at 80% 80%, rgba(249,115,22,0.2), transparent 40%),
+          linear-gradient(180deg, #020617, #0f172a)
         `,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        p: 2
+        p: 2,
+        position: "relative",
+        overflow: "hidden"
       }}
     >
+  
+      {/* 🎾 BACKGROUND IMAGE */}
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: "url('/tennis-bg.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: 0.15
+        }}
+      />
+  
+      {/* ✨ GLOW EFFECT */}
+      <Box
+        sx={{
+          position: "absolute",
+          width: 400,
+          height: 400,
+          background: "radial-gradient(circle, #3b82f6, transparent)",
+          filter: "blur(120px)",
+          top: -100,
+          left: -100
+        }}
+      />
+  
       <Card
         sx={{
           width: "100%",
           maxWidth: 380,
           borderRadius: 6,
           p: 3,
-          backdropFilter: "blur(30px)",
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+          backdropFilter: "blur(40px)",
+          background: "rgba(255,255,255,0.07)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          boxShadow: "0 30px 80px rgba(0,0,0,0.7)",
+          position: "relative"
         }}
       >
         <CardContent>
   
-          {/* 🏆 HEADER */}
+          {/* 🏆 HERO */}
           <Box textAlign="center" mb={4}>
+  
             <img
               src="/logo.png"
               alt="logo"
-              style={{ height: 60, marginBottom: 10 }}
+              style={{
+                height: 60,
+                marginBottom: 12,
+                filter: "drop-shadow(0 5px 10px rgba(0,0,0,0.5))"
+              }}
             />
   
             <Typography variant="h5" fontWeight={800}>
@@ -1154,8 +1189,9 @@ function Login() {
             </Typography>
   
             <Typography sx={{ opacity: 0.7, fontSize: 14 }}>
-              {forgotMode ? "Reset your password" : "Login to continue"}
+              {forgotMode ? "Reset your password" : "Access your training"}
             </Typography>
+  
           </Box>
   
           {error && (
@@ -1168,42 +1204,52 @@ function Login() {
           {!forgotMode && (
             <Stack spacing={2}>
   
+              {/* EMAIL */}
               <TextField
                 placeholder="Email"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 fullWidth
-                variant="outlined"
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 999,
                     background: "rgba(255,255,255,0.08)",
-                    color: "white",
-                    px: 2,
+                    transition: "0.3s",
+                    "&:hover": {
+                      background: "rgba(255,255,255,0.12)"
+                    },
+                    "&.Mui-focused": {
+                      boxShadow: "0 0 0 2px #3b82f6"
+                    },
                     "& fieldset": { border: "none" }
                   }
                 }}
               />
   
+              {/* PASSWORD */}
               <TextField
                 placeholder="Password"
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 fullWidth
-                variant="outlined"
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 999,
                     background: "rgba(255,255,255,0.08)",
-                    color: "white",
-                    px: 2,
+                    transition: "0.3s",
+                    "&:hover": {
+                      background: "rgba(255,255,255,0.12)"
+                    },
+                    "&.Mui-focused": {
+                      boxShadow: "0 0 0 2px #3b82f6"
+                    },
                     "& fieldset": { border: "none" }
                   }
                 }}
               />
   
-              {/* 🚀 CTA */}
+              {/* 🚀 BUTTON */}
               <Button
                 fullWidth
                 size="large"
@@ -1213,9 +1259,11 @@ function Login() {
                   py: 1.5,
                   fontWeight: 700,
                   background: "linear-gradient(90deg,#f97316,#ef4444)",
-                  boxShadow: "0 10px 30px rgba(249,115,22,0.5)",
+                  boxShadow: "0 15px 40px rgba(249,115,22,0.5)",
+                  transition: "0.3s",
                   "&:hover": {
-                    background: "linear-gradient(90deg,#ea580c,#dc2626)"
+                    transform: "translateY(-2px)",
+                    boxShadow: "0 20px 50px rgba(249,115,22,0.7)"
                   }
                 }}
               >
@@ -1224,7 +1272,7 @@ function Login() {
   
               <Typography
                 textAlign="center"
-                sx={{ cursor: "pointer", fontSize: 14, opacity: 0.8 }}
+                sx={{ cursor: "pointer", fontSize: 14, opacity: 0.7 }}
                 onClick={() => setForgotMode(true)}
               >
                 Forgot Password?
@@ -1233,7 +1281,7 @@ function Login() {
               <Button
                 fullWidth
                 variant="text"
-                sx={{ opacity: 0.7 }}
+                sx={{ opacity: 0.6 }}
                 onClick={() => navigate("/signup")}
               >
                 Create Account
@@ -1242,7 +1290,7 @@ function Login() {
             </Stack>
           )}
   
-          {/* 🔁 FORGOT PASSWORD */}
+          {/* 🔁 FORGOT */}
           {forgotMode && (
             <Stack spacing={2}>
   
@@ -1334,7 +1382,6 @@ function Login() {
     </Box>
   );
 }
-
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const [authorized, setAuthorized] = React.useState<boolean | null>(null);
