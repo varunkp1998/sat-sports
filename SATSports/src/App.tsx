@@ -24,6 +24,7 @@ import AdminPrivateBookings from "./AdminPrivateBooking";
 import Home from "./Home.tsx";
 import About from "./About.tsx";
 import ProgramsPage from "./ProgramsPage.tsx";
+import NewsPage from "./NewsPage.tsx";
 import {
   Card,
   CardContent,
@@ -1236,126 +1237,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 }
 
 /* ---------- NEWS ---------- */
-import {
- 
-  Tabs,
-  Tab,
- 
-} from "@mui/material";
-function NewsPage() {
-  const [news, setNews] = React.useState<any[]>([]);
-  const [tab, setTab] = React.useState(0);
-  const [search, setSearch] = React.useState("");
 
-  React.useEffect(() => {
-    fetch(`${API_BASE}/api/news`)
-      .then(res => res.json())
-      .then(setNews);
-  }, []);
-
-  // FILTER LOGIC
-  const filtered = news.filter(n => {
-    const matchesTab =
-      tab === 0 ? n.category === "Event" : n.category === "News";
-
-    const matchesSearch =
-      n.title.toLowerCase().includes(search.toLowerCase()) ||
-      n.body.toLowerCase().includes(search.toLowerCase());
-
-    return matchesTab && matchesSearch;
-  });
-
-  return (
-    <Box sx={{ p: 4, background: "#f9fafb", minHeight: "100vh" }}>
-
-      {/* HEADER */}
-      <Typography variant="h4" fontWeight={700} mb={3}>
-        Events & News
-      </Typography>
-
-      {/* TABS */}
-      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label="Events" />
-        <Tab label="News" />
-      </Tabs>
-
-      {/* SEARCH */}
-      <TextField
-        placeholder="What are you looking for?"
-        fullWidth
-        size="small"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        sx={{ mb: 3 }}
-      />
-
-      {/* LIST */}
-      <Grid container spacing={3}>
-        {filtered.map((n) => {
-          const date = new Date(n.created_at || Date.now());
-          const day = date.getDate();
-          const month = date.toLocaleString("default", { month: "short" });
-
-          return (
-            <Grid item xs={12} md={6} key={n.id}>
-              <Card sx={{ borderRadius: 3 }}>
-                <CardContent sx={{ display: "flex", gap: 2 }}>
-
-                  {/* DATE BOX */}
-                  <Box
-                    sx={{
-                      minWidth: 70,
-                      height: 70,
-                      background: "#6d28d9",
-                      color: "white",
-                      borderRadius: 2,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}
-                  >
-                    <Typography fontWeight={700}>
-                      {day}
-                    </Typography>
-                    <Typography fontSize={12}>
-                      {month}
-                    </Typography>
-                  </Box>
-
-                  {/* CONTENT */}
-                  <Box flex={1}>
-                    <Typography fontWeight={600}>
-                      {n.title}
-                    </Typography>
-
-                    <Typography
-                      color="text.secondary"
-                      fontSize={14}
-                      sx={{ mt: 0.5 }}
-                    >
-                      {n.body}
-                    </Typography>
-
-                    <Box mt={1}>
-                      <Chip
-                        label={n.category}
-                        size="small"
-                        color="primary"
-                      />
-                    </Box>
-                  </Box>
-
-                </CardContent>
-              </Card>
-            </Grid>
-          );
-        })}
-      </Grid>
-
-    </Box>
-  );
-}
 /* ---------- TOURNAMENTS ---------- */
  function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
@@ -4161,26 +4043,188 @@ function AdminLayout() {
   );
 }
 /* ---------- CONTACT ---------- */
+
+
+const MotionBox = motion(Box);
+
 function Contact() {
   return (
-    <section className="section">
-      <h3>Contact Us</h3>
-      <div className="card">
-        <p>
-          <strong>SAT Sports PVT LTD</strong>
-        </p>
-        <p>info@satsports.com</p>
-        <form>
-          <input placeholder="Name" />
-          <input placeholder="Email" />
-          <textarea placeholder="Message" />
-          <button>Send Enquiry</button>
-        </form>
-      </div>
-    </section>
+    <Box sx={{ background: "#020617", color: "white" }}>
+
+      {/* 🔥 HERO */}
+      <Box
+        sx={{
+          height: "50vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          textAlign: "center",
+          background: "linear-gradient(135deg,#0f172a,#1e293b)"
+        }}
+      >
+        <Typography variant="h2" fontWeight={900}>
+          Contact Us 📞
+        </Typography>
+
+        <Typography mt={2} color="gray">
+          Let’s build champions together
+        </Typography>
+      </Box>
+
+      {/* 🔥 CONTENT */}
+      <Box sx={{ px: { xs: 2, md: 10 }, py: 8 }}>
+
+        <Grid container spacing={4}>
+
+          {/* 🔥 LEFT INFO */}
+          <Grid item xs={12} md={5}>
+            <MotionBox
+              initial={{ opacity: 0, x: -80 }}
+              whileInView={{ opacity: 1, x: 0 }}
+            >
+              <Typography variant="h4" fontWeight={800} mb={2}>
+                Get in Touch
+              </Typography>
+
+              <Typography color="gray" mb={3}>
+                Have questions about training, programs, or bookings?
+                Reach out and our team will assist you.
+              </Typography>
+
+              <Box mb={2}>
+                <Typography fontWeight={700}>📧 Email</Typography>
+                <Typography color="gray">
+                  info@satsports.com
+                </Typography>
+              </Box>
+
+              <Box mb={2}>
+                <Typography fontWeight={700}>📍 Location</Typography>
+                <Typography color="gray">
+                  SAT Sports Arena, Bangalore
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography fontWeight={700}>📞 Phone</Typography>
+                <Typography color="gray">
+                  +91 98765 43210
+                </Typography>
+              </Box>
+            </MotionBox>
+          </Grid>
+
+          {/* 🔥 FORM */}
+          <Grid item xs={12} md={7}>
+            <MotionBox
+              initial={{ opacity: 0, x: 80 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              sx={{
+                p: 4,
+                borderRadius: 4,
+                backdropFilter: "blur(12px)",
+                background: "rgba(255,255,255,0.05)",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.6)"
+              }}
+            >
+              <Typography fontWeight={700} mb={3}>
+                Send Enquiry
+              </Typography>
+
+              <Grid container spacing={2}>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    placeholder="Name"
+                    variant="outlined"
+                    sx={{
+                      input: { color: "white" },
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 3
+                      }
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    placeholder="Email"
+                    variant="outlined"
+                    sx={{
+                      input: { color: "white" },
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 3
+                      }
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    placeholder="Message"
+                    variant="outlined"
+                    sx={{
+                      textarea: { color: "white" },
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 3
+                      }
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    sx={{
+                      py: 1.5,
+                      borderRadius: 999,
+                      fontWeight: 700,
+                      background:
+                        "linear-gradient(135deg,#f97316,#ef4444)",
+                      "&:hover": {
+                        transform: "scale(1.05)"
+                      }
+                    }}
+                  >
+                    Send Message
+                  </Button>
+                </Grid>
+
+              </Grid>
+            </MotionBox>
+          </Grid>
+
+        </Grid>
+
+      </Box>
+
+      {/* 🔥 CTA */}
+      <Box
+        sx={{
+          py: 10,
+          textAlign: "center",
+          background: "linear-gradient(135deg,#0f172a,#1e293b)"
+        }}
+      >
+        <Typography variant="h3" fontWeight={900}>
+          Visit Our Academy 🎾
+        </Typography>
+
+        <Typography mt={2} color="gray">
+          Experience world-class training facilities
+        </Typography>
+      </Box>
+
+    </Box>
   );
 }
-
 /* ---------- FOOTER ---------- */
 function Footer() {
   return (
