@@ -50,7 +50,7 @@ export default function CoachSessions() {
       .then(res => res.json())
       .then(setSessions);
   }, [coachId]);
-
+  console.log("coachId:", coachId);
   // Load check-in status
   useEffect(() => {
     if (!coachId || sessions.length === 0) return;
