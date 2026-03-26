@@ -1,13 +1,52 @@
 import { Box, Typography, Button, Grid } from "@mui/material";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 const MotionBox = motion(Box);
 
 export default function Home() {
-  return (
-    <Box sx={{ background: "#020617", color: "white", overflowX: "hidden" }}>
+  const [counts, setCounts] = useState({
+    players: 0,
+    coaches: 0,
+    courts: 0
+  });
 
-      {/* 🔥 HERO WITH PARALLAX VIDEO */}
+  // 🔥 Animate numbers
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      i += 10;
+      setCounts({
+        players: Math.min(i * 5, 500),
+        coaches: Math.min(Math.floor(i / 5), 20),
+        courts: Math.min(Math.floor(i / 10), 10)
+      });
+      if (i > 100) clearInterval(interval);
+    }, 30);
+  }, []);
+
+  const sections = [
+    {
+      title: "Elite Coaching",
+      desc: "Train with top certified professionals",
+      img: "/coach.jpg"
+    },
+    {
+      title: "Modern Infrastructure",
+      desc: "Premium courts with lighting",
+      img: "/court.jpg"
+    },
+    {
+      title: "Performance Tracking",
+      desc: "Smart analytics & progress tracking",
+      img: "/training.jpg"
+    }
+  ];
+
+  return (
+    <Box sx={{ background: "#020617", color: "white" }}>
+
+      {/* 🔥 HERO VIDEO */}
       <Box sx={{ position: "relative", height: "100vh" }}>
         <video
           autoPlay
@@ -24,10 +63,7 @@ export default function Home() {
           <source src="/tennis.mp4" />
         </video>
 
-        <MotionBox
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1 }}
+        <Box
           sx={{
             position: "relative",
             zIndex: 2,
@@ -54,52 +90,48 @@ export default function Home() {
               px: 5,
               py: 1.5,
               borderRadius: 999,
-              fontWeight: 700,
               background: "linear-gradient(135deg,#f97316,#ef4444)",
-              transition: "0.3s",
-              "&:hover": {
-                transform: "scale(1.1)",
-                boxShadow: "0 0 30px #f97316"
-              }
+              "&:hover": { transform: "scale(1.1)" }
             }}
           >
             Join Academy
           </Button>
-        </MotionBox>
+        </Box>
       </Box>
 
-      {/* 🔥 STATS SECTION */}
-      <Grid container sx={{ py: 8, textAlign: "center" }}>
+      {/* 🔥 STATS */}
+      <Grid
+        container
+        justifyContent="center"
+        gap={6}
+        sx={{ py: 8, textAlign: "center" }}
+      >
         {[
-          { label: "Players", value: "500+" },
-          { label: "Coaches", value: "20+" },
-          { label: "Courts", value: "10+" }
+          { label: "Players", value: counts.players + "+" },
+          { label: "Coaches", value: counts.coaches + "+" },
+          { label: "Courts", value: counts.courts + "+" }
         ].map((s, i) => (
-          <Grid item xs={4} key={i}>
+          <Grid item key={i}>
             <MotionBox whileHover={{ scale: 1.2 }}>
-              <Typography variant="h3">{s.value}</Typography>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 900,
+                  background: "linear-gradient(135deg,#f97316,#ef4444)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent"
+                }}
+              >
+                {s.value}
+              </Typography>
               <Typography color="gray">{s.label}</Typography>
             </MotionBox>
           </Grid>
         ))}
       </Grid>
 
-      {/* 🔥 ZIG-ZAG STORY SECTIONS */}
-      {[
-        {
-          title: "Elite Coaching",
-          desc: "Train with top certified professionals",
-          img: `${import.meta.env.BASE_URL}coach.jpg`        },
-        {
-          title: "Modern Infrastructure",
-          desc: "Premium courts with lighting",
-          img: `${import.meta.env.BASE_URL}court.jpg`        },
-        {
-          title: "Performance Tracking",
-          desc: "Smart analytics & progress tracking",
-          img: `${import.meta.env.BASE_URL}training.jpg`
-        }
-      ].map((sec, i) => (
+      {/* 🔥 ZIG-ZAG SECTIONS */}
+      {sections.map((sec, i) => (
         <Grid
           container
           key={i}
@@ -110,21 +142,46 @@ export default function Home() {
             alignItems: "center"
           }}
         >
+          {/* IMAGE */}
           <Grid item xs={12} md={6}>
             <MotionBox
               whileHover={{ scale: 1.05 }}
               sx={{
-                height: 300,
+                height: 320,
                 borderRadius: 4,
-                backgroundImage: `url(${sec.img})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",               
-                boxShadow: "0 20px 60px rgba(0,0,0,0.7)"
+                overflow: "hidden",
+                position: "relative"
               }}
-            />
+            >
+              <img
+                src={sec.img}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover"
+                }}
+              />
+
+              {/* 🔥 HOVER OVERLAY */}
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.5)",
+                  opacity: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "0.3s",
+                  "&:hover": { opacity: 1 }
+                }}
+              >
+                <Typography fontWeight={700}>Explore</Typography>
+              </Box>
+            </MotionBox>
           </Grid>
 
+          {/* TEXT */}
           <Grid item xs={12} md={6}>
             <MotionBox
               initial={{ opacity: 0, x: i % 2 === 0 ? -100 : 100 }}
@@ -142,28 +199,30 @@ export default function Home() {
         </Grid>
       ))}
 
-      {/* 🔥 FLOATING GLASS CARDS */}
+      {/* 🔥 FEATURES */}
       <Grid container spacing={3} sx={{ p: 5 }}>
-        {["Expert Coaching", "Flexible Booking", "Match Practice"].map((f, i) => (
-          <Grid item xs={12} md={4} key={i}>
-            <MotionBox whileHover={{ y: -15 }}>
-              <Box
-                sx={{
-                  p: 4,
-                  borderRadius: 4,
-                  backdropFilter: "blur(15px)",
-                  background: "rgba(255,255,255,0.05)",
-                  boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
-                }}
-              >
-                <Typography fontWeight={700}>{f}</Typography>
-              </Box>
-            </MotionBox>
-          </Grid>
-        ))}
+        {["Expert Coaching", "Flexible Booking", "Match Practice"].map(
+          (f, i) => (
+            <Grid item xs={12} md={4} key={i}>
+              <MotionBox whileHover={{ y: -15 }}>
+                <Box
+                  sx={{
+                    p: 4,
+                    borderRadius: 4,
+                    backdropFilter: "blur(15px)",
+                    background: "rgba(255,255,255,0.05)",
+                    boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
+                  }}
+                >
+                  <Typography fontWeight={700}>{f}</Typography>
+                </Box>
+              </MotionBox>
+            </Grid>
+          )
+        )}
       </Grid>
 
-      {/* 🔥 FINAL CTA */}
+      {/* 🔥 CTA */}
       <Box
         sx={{
           py: 12,
