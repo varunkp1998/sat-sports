@@ -1115,218 +1115,209 @@ function Login() {
 
   return (
     <Box
-    sx={{
-      minHeight: "100vh",
-      backgroundImage: `
-        linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)),
-        url('/tennis-bg.jpg')
-      `,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      p: 2
-    }}
-  >
+      sx={{
+        minHeight: "100vh",
+        background: `
+          radial-gradient(circle at top, rgba(59,130,246,0.2), transparent 60%),
+          linear-gradient(180deg, #0f172a, #020617)
+        `,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        p: 2
+      }}
+    >
       <Card
-  sx={{
-    width: "100%",
-    maxWidth: 420,
-    borderRadius: 4,
-    backdropFilter: "blur(25px)",
-    background: "rgba(255, 255, 255, 0.08)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    color: "white",
-    boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
-    transition: "0.3s",
-    "&:hover": {
-      transform: "scale(1.01)"
-    }
-  }}
->
-        <CardContent sx={{ p: 4 }}>
-
-          {/* HEADER */}
-          <Box textAlign="center" mb={3}>
-          <Box
-  display="flex"
-  justifyContent="center"
-  alignItems="center"
-  mb={2}
->
-  <img
-    src="/logo.png"
-    alt="SAT Sports"
-    style={{
-      height: 60,
-      width: 60,
-      objectFit: "contain"
-    }}
-  />
-</Box>
-            <Typography color="gray">
-              {forgotMode ? "Reset your password" : "Login to your account"}
+        sx={{
+          width: "100%",
+          maxWidth: 380,
+          borderRadius: 6,
+          p: 3,
+          backdropFilter: "blur(30px)",
+          background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+        }}
+      >
+        <CardContent>
+  
+          {/* 🏆 HEADER */}
+          <Box textAlign="center" mb={4}>
+            <img
+              src="/logo.png"
+              alt="logo"
+              style={{ height: 60, marginBottom: 10 }}
+            />
+  
+            <Typography variant="h5" fontWeight={800}>
+              Welcome Back
+            </Typography>
+  
+            <Typography sx={{ opacity: 0.7, fontSize: 14 }}>
+              {forgotMode ? "Reset your password" : "Login to continue"}
             </Typography>
           </Box>
-
+  
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
-
-          <Fade in={!forgotMode}>
-            <Stack spacing={2} display={forgotMode ? "none" : "flex"}>
-
-            <TextField
-  label="Username / Email"
-  value={username}
-  onChange={e => setUsername(e.target.value)}
-  fullWidth
-  variant="outlined"
-  sx={{
-    input: { color: "white" },
-    label: { color: "#ccc" },
-    "& .MuiOutlinedInput-root": {
-      background: "rgba(255,255,255,0.05)",
-      borderRadius: 2,
-      "& fieldset": {
-        borderColor: "rgba(255,255,255,0.2)"
-      },
-      "&:hover fieldset": {
-        borderColor: "#60a5fa"
-      },
-      "&.Mui-focused fieldset": {
-        borderColor: "#3b82f6"
-      }
-    }
-  }}
-/>
-
+  
+          {/* 🔐 LOGIN */}
+          {!forgotMode && (
+            <Stack spacing={2}>
+  
               <TextField
-                label="Password"
+                placeholder="Email"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                fullWidth
+                variant="outlined"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,0.08)",
+                    color: "white",
+                    px: 2,
+                    "& fieldset": { border: "none" }
+                  }
+                }}
+              />
+  
+              <TextField
+                placeholder="Password"
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 fullWidth
                 variant="outlined"
                 sx={{
-                  input: { color: "white" },
-                  label: { color: "#ccc" },
                   "& .MuiOutlinedInput-root": {
-                    background: "rgba(255,255,255,0.05)",
-                    borderRadius: 2,
-                    "& fieldset": {
-                      borderColor: "rgba(255,255,255,0.2)"
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#60a5fa"
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#3b82f6"
-                    }
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,0.08)",
+                    color: "white",
+                    px: 2,
+                    "& fieldset": { border: "none" }
                   }
-                }}                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <LockIcon />
-                    </InputAdornment>
-                  ),
                 }}
               />
-
-<Button
-  fullWidth
-  size="large"
-  variant="contained"
-  onClick={handleLogin}
-  sx={{
-    mt: 1,
-    borderRadius: 3,
-    background: "linear-gradient(90deg,#3b82f6,#2563eb)",
-    fontWeight: 700,
-    boxShadow: "0 10px 30px rgba(37,99,235,0.5)",
-    "&:hover": {
-      background: "linear-gradient(90deg,#2563eb,#1d4ed8)",
-      boxShadow: "0 15px 40px rgba(37,99,235,0.7)"
-    }
-  }}
->
+  
+              {/* 🚀 CTA */}
+              <Button
+                fullWidth
+                size="large"
+                onClick={handleLogin}
+                sx={{
+                  borderRadius: 999,
+                  py: 1.5,
+                  fontWeight: 700,
+                  background: "linear-gradient(90deg,#f97316,#ef4444)",
+                  boxShadow: "0 10px 30px rgba(249,115,22,0.5)",
+                  "&:hover": {
+                    background: "linear-gradient(90deg,#ea580c,#dc2626)"
+                  }
+                }}
+              >
                 {loading ? "Logging in..." : "Login"}
               </Button>
-
+  
               <Typography
                 textAlign="center"
-                sx={{ cursor: "pointer", color: "#60a5fa" }}
+                sx={{ cursor: "pointer", fontSize: 14, opacity: 0.8 }}
                 onClick={() => setForgotMode(true)}
               >
                 Forgot Password?
               </Typography>
-
+  
               <Button
                 fullWidth
-                variant="outlined"
-                sx={{ borderRadius: 3 }}
+                variant="text"
+                sx={{ opacity: 0.7 }}
                 onClick={() => navigate("/signup")}
               >
                 Create Account
               </Button>
+  
             </Stack>
-          </Fade>
-
-          {/* 🔐 FORGOT PASSWORD */}
-          <Fade in={forgotMode}>
-            <Stack spacing={2} display={!forgotMode ? "none" : "flex"}>
-
+          )}
+  
+          {/* 🔁 FORGOT PASSWORD */}
+          {forgotMode && (
+            <Stack spacing={2}>
+  
               <TextField
-                label="Email"
+                placeholder="Email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 fullWidth
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <EmailIcon />
-                    </InputAdornment>
-                  ),
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,0.08)",
+                    "& fieldset": { border: "none" }
+                  }
                 }}
               />
-
+  
               {otpStep === 1 && (
-                <Button variant="contained" onClick={sendOtp}>
+                <Button
+                  fullWidth
+                  onClick={sendOtp}
+                  sx={{
+                    borderRadius: 999,
+                    background: "#22c55e"
+                  }}
+                >
                   Send OTP
                 </Button>
               )}
-
+  
               {otpStep === 2 && (
                 <>
                   <TextField
-                    label="OTP"
+                    placeholder="OTP"
                     value={otp}
                     onChange={e => setOtp(e.target.value)}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 999,
+                        background: "rgba(255,255,255,0.08)",
+                        "& fieldset": { border: "none" }
+                      }
+                    }}
                   />
-
+  
                   <TextField
-                    label="New Password"
+                    placeholder="New Password"
                     type="password"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 999,
+                        background: "rgba(255,255,255,0.08)",
+                        "& fieldset": { border: "none" }
+                      }
+                    }}
                   />
-
+  
                   <Button
-                    variant="contained"
-                    color="error"
+                    fullWidth
                     onClick={resetPassword}
+                    sx={{
+                      borderRadius: 999,
+                      background: "#ef4444"
+                    }}
                   >
                     Reset Password
                   </Button>
                 </>
               )}
-
+  
               <Typography
                 textAlign="center"
-                sx={{ cursor: "pointer", color: "gray" }}
+                sx={{ cursor: "pointer", opacity: 0.7 }}
                 onClick={() => {
                   setForgotMode(false);
                   setOtpStep(1);
@@ -1334,10 +1325,10 @@ function Login() {
               >
                 ← Back to Login
               </Typography>
-
+  
             </Stack>
-          </Fade>
-
+          )}
+  
         </CardContent>
       </Card>
     </Box>
