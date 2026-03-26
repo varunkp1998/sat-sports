@@ -2661,7 +2661,7 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
 
     // 2️⃣ CREATE SESSION
     await db.query(`
-      INSERT INTO training_sessions (coach_id, session_date, start_time, end_time,player_name,location_id)
+      INSERT INTO training_sessions (coach_id, session_date, start_time,player_name)
       VALUES (?, ?, ?, ?)
     `, [
       coach_id,
