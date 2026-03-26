@@ -64,10 +64,8 @@ export default function PrivateBooking() {
       location_id: form.location_id,
   
       // ✅ FIXED FIELD NAMES
-      session_date: form.booking_date,
-  
-      // ✅ FIXED TIME FORMAT
-      start_time: convertTo24Hour(form.time_slot)
+      booking_date: form.booking_date,
+      time_slot: convertTo24Hour(form.time_slot)
     };
     try {
       const res = await fetch(`${API_BASE}/api/private-bookings`, {
