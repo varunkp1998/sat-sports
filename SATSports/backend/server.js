@@ -2063,7 +2063,7 @@ LEFT JOIN coach_checkins cc
   ON cc.session_id = ts.id 
   AND DATE(cc.checkin_time) = ts.session_date
 WHERE ts.session_date = ?
-ORDER BY ts.start_time;
+ORDER BY ts.start_time
     `;
 
     const params = [];
