@@ -862,18 +862,22 @@ app.get("/api/coach/checkin/status", async (req, res) => {
   const { coachId, sessionId } = req.query;
 
   const [rows] = await db.query(
-    `SELECT cc.is_late, cc.checkout_time
+    `SELECT 
+        MAX(cc.checkout_time) AS checkout_time,
+        MAX(cc.is_late) AS is_late,
+        COUNT(cc.id) AS total
      FROM coach_checkins cc
      JOIN training_sessions ts ON ts.id = cc.session_id
      WHERE cc.coach_id = ?
      AND cc.session_id = ?
-     AND DATE(cc.checkin_time) = ts.session_date
-     ORDER BY cc.id DESC
-     LIMIT 1`,
+     AND DATE(cc.checkin_time) = ts.session_date`,
     [coachId, sessionId]
   );
 
-  if (rows.length === 0) {
+  const row = rows[0];
+
+  // ✅ No record
+  if (!row.total) {
     return res.json({
       checkedIn: false,
       completed: false,
@@ -881,12 +885,20 @@ app.get("/api/coach/checkin/status", async (req, res) => {
     });
   }
 
-  const row = rows[0];
+  // ✅ Completed if ANY checkout exists
+  if (row.checkout_time) {
+    return res.json({
+      checkedIn: false,
+      completed: true,
+      isLate: row.is_late || 0
+    });
+  }
 
-  res.json({
-    checkedIn: !row.checkout_time,
-    completed: !!row.checkout_time,
-    isLate: row.is_late
+  // ✅ Otherwise checked in
+  return res.json({
+    checkedIn: true,
+    completed: false,
+    isLate: row.is_late || 0
   });
 });
 
@@ -2051,42 +2063,59 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
 
     let sql = `
       SELECT 
-        cc.id,
+        ts.id AS session_id,
         c.name AS coachName,
         DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
         ts.start_time,
         ts.end_time,
         l.name AS locationName,
+        cc.checkin_time,
         cc.checkout_time,
         cc.work_minutes
-      FROM coach_checkins cc
-      JOIN coaches c ON c.id = cc.coach_id
-      JOIN training_sessions ts ON ts.id = cc.session_id
-      JOIN locations l ON l.id = cc.location_id
+      FROM training_sessions ts
+      JOIN coaches c ON c.id = ts.coach_id
+      JOIN locations l ON l.id = ts.location_id
+      LEFT JOIN coach_checkins cc 
+        ON cc.session_id = ts.id 
+        AND DATE(cc.checkin_time) = ts.session_date
     `;
 
     const params = [];
 
-    // ✅ FIX: force IST-safe date comparison
     if (date) {
-      sql += `
-        WHERE ts.session_date = DATE(
-          CONVERT_TZ(?, '+00:00', '+05:30')
-        )
-      `;
+      sql += " WHERE ts.session_date = ?";
       params.push(date);
     }
 
-    sql += " ORDER BY ts.session_date DESC, ts.start_time DESC";
+    sql += " ORDER BY ts.start_time";
 
     const [rows] = await db.query(sql, params);
-    res.json(rows);
+
+    // ✅ Add computed status
+    const result = rows.map(r => {
+      let status = "Not Checked In";
+
+      if (r.checkin_time && !r.checkout_time) {
+        status = "Checked In";
+      } else if (r.checkout_time) {
+        status = "Checked Out";
+      }
+
+      return {
+        ...r,
+        status
+      };
+    });
+
+    res.json(result);
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch coach check-ins" });
   }
 });
+
+
 
 
 app.get("/api/admin/reports/attendance", async (req, res) => {
