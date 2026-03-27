@@ -153,8 +153,7 @@ export default function CoachSessions() {
   };
 
   ///////////////////////////////////////////////////////
-  console.log("START:", s.start_time);
-  console.log("END:", s.end_time);
+  
   return (
     <Box sx={{ p: 4, background: "#000", minHeight: "100vh" }}>
 
@@ -267,11 +266,11 @@ export default function CoachSessions() {
                   <Typography mt={1}>
   ⏰ {
     s.start_time
-      ? dayjs(s.start_time).format("hh:mm A")
+      ? dayjs(new Date(`${s.session_date} ${s.start_time}`)).format("hh:mm A")
       : "--"
   } – {
     s.end_time
-      ? dayjs(s.end_time).format("hh:mm A")
+      ? dayjs(new Date(`${s.session_date} ${s.end_time}`)).format("hh:mm A")
       : "--"
   }
 </Typography>
