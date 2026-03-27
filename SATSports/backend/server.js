@@ -866,14 +866,23 @@ app.get("/api/coach/checkin/status", async (req, res) => {
   const { coachId, sessionId } = req.query;
 
   const [rows] = await db.query(
-    `SELECT id FROM coach_checkins
+    `SELECT is_late FROM coach_checkins
      WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL`,
     [coachId, sessionId]
   );
 
-  res.json({ checkedIn: rows.length > 0 });
-});
+  if (rows.length > 0) {
+    return res.json({
+      checkedIn: true,
+      isLate: rows[0].is_late
+    });
+  }
 
+  res.json({
+    checkedIn: false,
+    isLate: 0
+  });
+});
 app.post("/api/coach/checkin/qr", (req, res) => {
   const { coachId, qrToken } = req.body;
 
@@ -916,22 +925,24 @@ VALUES (?, ?, ?, NOW())
     }
   );
 });
-app.post("/api/coach/checkout", (req, res) => {
-  const { coachId } = req.body;
+app.post("/api/coach/checkout", async (req, res) => {
+  const { coachId, sessionId } = req.body;
 
-  connection.query(
+  const [result] = await db.query(
     `UPDATE coach_checkins
      SET checkout_time = NOW(),
          work_minutes = TIMESTAMPDIFF(MINUTE, checkin_time, NOW())
-     WHERE coach_id = ? AND checkin_date = CURDATE() AND checkout_time IS NULL`,
-    [coachId],
-    (err, result) => {
-      if (result.affectedRows === 0) {
-        return res.status(400).json({ message: "Not checked in or already checked out" });
-      }
-      res.json({ success: true });
-    }
+     WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL`,
+    [coachId, sessionId]
   );
+
+  if (result.affectedRows === 0) {
+    return res.status(400).json({
+      message: "Not checked in or already checked out"
+    });
+  }
+
+  res.json({ success: true });
 });
 app.get("/api/admin/live-coaches", (req, res) => {
   connection.query(
@@ -996,18 +1007,12 @@ app.post("/api/coach/checkin", async (req, res) => {
   try {
     const { coachId, sessionId, locationId, lat, lng } = req.body;
 
-    ///////////////////////////////////////////////////////
-    // ✅ VALIDATION
-    ///////////////////////////////////////////////////////
-
     if (!coachId || !sessionId || !locationId || !lat || !lng) {
-      return res.status(400).json({
-        message: "Missing required fields"
-      });
+      return res.status(400).json({ message: "Missing required fields" });
     }
 
     ///////////////////////////////////////////////////////
-    // ✅ GET LOCATION
+    // LOCATION CHECK
     ///////////////////////////////////////////////////////
 
     const [[location]] = await db.query(
@@ -1016,84 +1021,112 @@ app.post("/api/coach/checkin", async (req, res) => {
     );
 
     if (!location) {
-      return res.status(404).json({
-        message: "Location not found"
-      });
+      return res.status(404).json({ message: "Location not found" });
     }
 
     ///////////////////////////////////////////////////////
-    // ✅ DISTANCE FUNCTION
+    // DISTANCE CHECK
     ///////////////////////////////////////////////////////
 
-    function getDistance(lat1, lon1, lat2, lon2) {
+    const getDistance = (lat1, lon1, lat2, lon2) => {
       const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
 
       const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.sin(dLat / 2) ** 2 +
         Math.cos(lat1 * Math.PI / 180) *
         Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        Math.sin(dLon / 2) ** 2;
 
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
+    };
 
-    ///////////////////////////////////////////////////////
-    // ✅ CONVERT TO NUMBER (IMPORTANT)
-    ///////////////////////////////////////////////////////
-
-    const userLat = parseFloat(lat);
-    const userLng = parseFloat(lng);
-    const locLat = parseFloat(location.lat);
-    const locLng = parseFloat(location.lng);
-
-    ///////////////////////////////////////////////////////
-    // ✅ DISTANCE CHECK
-    ///////////////////////////////////////////////////////
-
-    const distance = getDistance(userLat, userLng, locLat, locLng);
+    const distance = getDistance(
+      parseFloat(lat),
+      parseFloat(lng),
+      parseFloat(location.lat),
+      parseFloat(location.lng)
+    );
 
     if (distance > 0.2) {
-      return res.status(400).json({
-        message: "You are not at the location"
-      });
+      return res.status(400).json({ message: "You are not at the location" });
     }
 
     ///////////////////////////////////////////////////////
-    // ✅ PREVENT DUPLICATE CHECK-IN
+    // PREVENT DUPLICATE (GRACEFUL)
     ///////////////////////////////////////////////////////
 
     const [existing] = await db.query(
       `SELECT id FROM coach_checkins
-       WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL`,
+       WHERE coach_id=? AND session_id=? AND checkout_time IS NULL`,
       [coachId, sessionId]
     );
 
     if (existing.length > 0) {
-      return res.status(409).json({
-        message: "Already checked in"
+      return res.json({
+        success: true,
+        message: "Already checked in",
+        isLate: 0
       });
     }
 
     ///////////////////////////////////////////////////////
-    // ✅ INSERT CHECK-IN
+    // LATE DETECTION
+    ///////////////////////////////////////////////////////
+
+    const [[session]] = await db.query(
+      `SELECT session_date, start_time FROM training_sessions WHERE id=?`,
+      [sessionId]
+    );
+
+    const now = new Date();
+    const sessionStart = new Date(
+      `${session.session_date} ${session.start_time}`
+    );
+
+    const isLate = now > sessionStart ? 1 : 0;
+
+    ///////////////////////////////////////////////////////
+    // INSERT
     ///////////////////////////////////////////////////////
 
     await db.query(
-      `INSERT INTO coach_checkins 
-(coach_id, session_id, location_id, lat, lng, checkin_time)
-VALUES (?, ?, ?, ?, ?, ?)`,
-      [coachId, sessionId, locationId,lat, lng, new Date()]
+      `INSERT INTO coach_checkins
+       (coach_id, session_id, location_id, lat, lng, checkin_time, is_late)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [coachId, sessionId, locationId, lat, lng, now, isLate]
     );
 
-    res.json({ success: true });
+    ///////////////////////////////////////////////////////
+    // 🔔 NOTIFICATION (OPTIONAL BUT INCLUDED)
+    ///////////////////////////////////////////////////////
+
+    if (isLate) {
+      await db.query(
+        `INSERT INTO notifications
+         (type, title, message, coach_id, session_id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          "LATE_CHECKIN",
+          "Coach Late",
+          `Coach ${coachId} checked in late`,
+          coachId,
+          sessionId
+        ]
+      );
+    }
+
+    ///////////////////////////////////////////////////////
+
+    res.json({
+      success: true,
+      isLate
+    });
 
   } catch (err) {
     console.error("Check-in error:", err);
-    res.status(500).json({
-      message: "Check-in failed"
-    });
+    res.status(500).json({ message: "Check-in failed" });
   }
 });
 app.get("/api/coach/sessions/:sessionId/players", async (req, res) => {
