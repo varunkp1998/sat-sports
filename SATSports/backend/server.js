@@ -842,7 +842,7 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 
     // 2. Delete session
     await db.query(
-      `DELETE FROM sessions WHERE id = ?`,
+      `DELETE FROM training_sessions WHERE id = ?`,
       [id]
     );
 
