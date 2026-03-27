@@ -3521,10 +3521,7 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
 
 
-import {
 
-  useTheme
-} from "@mui/material";
 
 
 function AdminSessions() {
@@ -3544,6 +3541,9 @@ function AdminSessions() {
   const [programIds, setProgramIds] = React.useState([]);
   const [selectedPlayers, setSelectedPlayers] = React.useState([]);
 
+  // 🔥 FILTER
+  const [filterDate, setFilterDate] = React.useState(dayjs().format("YYYY-MM-DD"));
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -3556,21 +3556,15 @@ function AdminSessions() {
   };
 
   const loadLocations = () => {
-    fetch(`${API_BASE}/api/admin/locations`)
-      .then(res => res.json())
-      .then(setLocations);
+    fetch(`${API_BASE}/api/admin/locations`).then(res => res.json()).then(setLocations);
   };
 
   const loadCoaches = () => {
-    fetch(`${API_BASE}/api/admin/coaches`)
-      .then(res => res.json())
-      .then(setCoaches);
+    fetch(`${API_BASE}/api/admin/coaches`).then(res => res.json()).then(setCoaches);
   };
 
   const loadPrograms = () => {
-    fetch(`${API_BASE}/api/admin/programs`)
-      .then(res => res.json())
-      .then(setPrograms);
+    fetch(`${API_BASE}/api/admin/programs`).then(res => res.json()).then(setPrograms);
   };
 
   React.useEffect(() => {
@@ -3580,13 +3574,19 @@ function AdminSessions() {
     loadPrograms();
   }, []);
 
+  // ================= FILTER LOGIC =================
+  const filteredSessions = sessions.filter(s => {
+    if (!filterDate) return true;
+    return s.session_date === filterDate;
+  });
+
   // ================= PLAYERS =================
   const loadPlayersByPrograms = (ids) => {
     if (!ids?.length) return setPlayers([]);
 
     fetch(`${API_BASE}/api/admin/players/by-programs`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ program_ids: ids })
     })
       .then(res => res.json())
@@ -3613,7 +3613,6 @@ function AdminSessions() {
     setSelectedPlayers([]);
   };
 
-  // ================= SAVE =================
   const saveSession = () => {
     if (!date || !startTime || !endTime || !locationId || !coachId || !programIds.length) {
       alert("Fill all fields");
@@ -3635,7 +3634,7 @@ function AdminSessions() {
 
     fetch(url, {
       method: editingId ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload),
     }).then(() => {
       resetForm();
@@ -3656,10 +3655,8 @@ function AdminSessions() {
 
   const deleteSession = (id) => {
     if (!window.confirm("Delete session?")) return;
-
-    fetch(`${API_BASE}/api/admin/sessions/${id}`, {
-      method: "DELETE"
-    }).then(loadSessions);
+    fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" })
+      .then(loadSessions);
   };
 
   return (
@@ -3667,75 +3664,67 @@ function AdminSessions() {
       <Box sx={containerStyle}>
 
         <Typography variant="h5" fontWeight={700} color="white" mb={2}>
-          Sessions
+          Sessions Dashboard
         </Typography>
+
+        {/* 🔥 FILTER BAR */}
+        <Card sx={filterCard}>
+          <CardContent>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center">
+
+              <TextField
+                type="date"
+                label="Filter by Date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+
+              <Button variant="contained" sx={clearBtn} onClick={() => setFilterDate("")}>
+                Clear
+              </Button>
+
+              <Typography fontWeight={600}>
+                {filteredSessions.length} sessions
+              </Typography>
+
+            </Stack>
+          </CardContent>
+        </Card>
 
         {/* FORM */}
         <Card sx={glassCard}>
           <CardContent>
             <Stack spacing={2}>
-
-              <TextField
-                type="date"
-                label="Date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TimePicker label="Start" value={startTime} onChange={setStartTime} />
-                <TimePicker label="End" value={endTime} onChange={setEndTime} />
+              <TextField type="date" value={date} onChange={(e)=>setDate(e.target.value)} InputLabelProps={{shrink:true}}/>
+              <Stack direction={{xs:"column",md:"row"}} spacing={2}>
+                <TimePicker label="Start" value={startTime} onChange={setStartTime}/>
+                <TimePicker label="End" value={endTime} onChange={setEndTime}/>
               </Stack>
 
-              <TextField select label="Location" value={locationId}
-                onChange={(e) => setLocationId(e.target.value)} SelectProps={{ native: true }}>
-                <option value="">Select</option>
-                {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              <TextField select value={locationId} onChange={(e)=>setLocationId(e.target.value)} SelectProps={{native:true}}>
+                <option value="">Location</option>
+                {locations.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
               </TextField>
 
-              <TextField select label="Coach" value={coachId}
-                onChange={(e) => setCoachId(e.target.value)} SelectProps={{ native: true }}>
-                <option value="">Select</option>
-                {coaches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              <TextField select value={coachId} onChange={(e)=>setCoachId(e.target.value)} SelectProps={{native:true}}>
+                <option value="">Coach</option>
+                {coaches.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
               </TextField>
 
-              <TextField
-                select
-                label="Programs"
-                value={programIds}
-                onChange={(e) => {
-                  const value = typeof e.target.value === "string"
-                    ? e.target.value.split(",").map(Number)
-                    : e.target.value;
-
-                  setProgramIds(value);
-                  setSelectedPlayers([]);
-                  loadPlayersByPrograms(value);
+              <TextField select value={programIds}
+                onChange={(e)=>{
+                  const v = typeof e.target.value==="string"?e.target.value.split(",").map(Number):e.target.value;
+                  setProgramIds(v);
+                  loadPlayersByPrograms(v);
                 }}
-                SelectProps={{ multiple: true }}
+                SelectProps={{multiple:true}}
               >
-                {programs.map(p => (
-                  <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>
-                ))}
+                {programs.map(p=><MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
               </TextField>
 
-              {players.length > 0 && (
-                <Stack direction="row" flexWrap="wrap" gap={1}>
-                  {players.map(p => (
-                    <Chip
-                      key={p.id}
-                      label={p.name}
-                      clickable
-                      color={selectedPlayers.includes(p.id) ? "primary" : "default"}
-                      onClick={() => togglePlayer(p.id)}
-                    />
-                  ))}
-                </Stack>
-              )}
-
-              <Button variant="contained" sx={ctaButton} onClick={saveSession}>
-                {editingId ? "Update Session" : "Create Session"}
+              <Button sx={ctaBtn} onClick={saveSession}>
+                {editingId ? "Update" : "Create"}
               </Button>
 
             </Stack>
@@ -3746,23 +3735,12 @@ function AdminSessions() {
         <Box mt={3}>
           {isMobile ? (
             <Stack spacing={2}>
-              {sessions.map(s => (
+              {filteredSessions.map(s=>(
                 <Card key={s.id} sx={glassCard}>
                   <CardContent>
                     <Typography fontWeight={700}>{s.session_date}</Typography>
                     <Typography>{s.start_time} → {s.end_time}</Typography>
                     <Typography>Coach: {s.coachName}</Typography>
-
-                    <Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
-                      {s.programTitles?.split(",").map((p, i) => (
-                        <Chip key={i} label={p} size="small" />
-                      ))}
-                    </Stack>
-
-                    <Stack direction="row" spacing={1} mt={2}>
-                      <Button onClick={() => editSession(s)}>Edit</Button>
-                      <Button color="error" onClick={() => deleteSession(s.id)}>Delete</Button>
-                    </Stack>
                   </CardContent>
                 </Card>
               ))}
@@ -3770,32 +3748,21 @@ function AdminSessions() {
           ) : (
             <Card sx={glassCard}>
               <Table>
-                <TableHead>
+                <TableHead sx={{ background:"#800000" }}>
                   <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Time</TableCell>
-                    <TableCell>Coach</TableCell>
-                    <TableCell>Programs</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell sx={th}>Date</TableCell>
+                    <TableCell sx={th}>Time</TableCell>
+                    <TableCell sx={th}>Coach</TableCell>
+                    <TableCell sx={th}>Programs</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {sessions.map(s => (
-                    <TableRow key={s.id}>
+                  {filteredSessions.map(s=>(
+                    <TableRow key={s.id} hover>
                       <TableCell>{s.session_date}</TableCell>
                       <TableCell>{s.start_time} → {s.end_time}</TableCell>
                       <TableCell>{s.coachName}</TableCell>
-                      <TableCell>
-                        <Stack direction="row" gap={1} flexWrap="wrap">
-                          {s.programTitles?.split(",").map((p, i) => (
-                            <Chip key={i} label={p} size="small" />
-                          ))}
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Button onClick={() => editSession(s)}>Edit</Button>
-                        <Button color="error" onClick={() => deleteSession(s.id)}>Delete</Button>
-                      </TableCell>
+                      <TableCell>{s.programTitles}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -3811,23 +3778,39 @@ function AdminSessions() {
 
 // 🎨 STYLES
 const containerStyle = {
-  p: { xs: 2, md: 4 },
-  minHeight: "100vh",
-  background: "linear-gradient(135deg, #4f46e5, #06b6d4)"
+  p:2,
+  minHeight:"100vh",
+  background:"linear-gradient(135deg,#1a0000,#800000)"
 };
 
 const glassCard = {
-  borderRadius: 4,
-  backdropFilter: "blur(14px)",
-  background: "rgba(255,255,255,0.85)",
-  boxShadow: "0 10px 40px rgba(0,0,0,0.2)"
+  borderRadius:3,
+  background:"rgba(255,255,255,0.95)",
+  boxShadow:"0 10px 30px rgba(0,0,0,0.4)"
 };
 
-const ctaButton = {
-  borderRadius: 3,
-  background: "linear-gradient(135deg, #6366f1, #06b6d4)",
-  fontWeight: 600
+const filterCard = {
+  mb:2,
+  borderRadius:3,
+  background:"#fff"
 };
+
+const ctaBtn = {
+  background:"#800000",
+  color:"#fff",
+  borderRadius:2
+};
+
+const clearBtn = {
+  background:"#000",
+  color:"#fff"
+};
+
+const th = {
+  color:"#fff",
+  fontWeight:700
+};
+
 
 function AdminLayout() {
   const [open, setOpen] = useState(false);
