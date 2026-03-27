@@ -153,7 +153,8 @@ export default function CoachSessions() {
   };
 
   ///////////////////////////////////////////////////////
-
+  console.log("START:", s.start_time);
+  console.log("END:", s.end_time);
   return (
     <Box sx={{ p: 4, background: "#000", minHeight: "100vh" }}>
 
@@ -274,6 +275,7 @@ export default function CoachSessions() {
       : "--"
   }
 </Typography>
+
 
                   {/* LOCATION */}
                   <Typography mt={2} fontWeight={700}>
