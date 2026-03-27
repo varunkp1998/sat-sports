@@ -787,12 +787,11 @@ app.put("/api/admin/sessions/:id", async (req, res) => {
   } = req.body;
 
   const db = connection.promise();
-  try {
-    await conn.beginTransaction();
 
+  try {
     // 1. Update session
-    await conn.query(
-      `UPDATE sessions
+    await db.query(
+      `UPDATE training_sessions
        SET session_date = ?, start_time = ?, end_time = ?, 
            location_id = ?, coach_id = ?
        WHERE id = ?`,
@@ -800,29 +799,27 @@ app.put("/api/admin/sessions/:id", async (req, res) => {
     );
 
     // 2. Remove old mappings
-    await conn.query(
+    await db.query(
       `DELETE FROM session_programs WHERE session_id = ?`,
       [id]
     );
 
     // 3. Insert new mappings
-    for (const pid of program_ids) {
-      await conn.query(
-        `INSERT INTO session_programs (session_id, program_id)
-         VALUES (?, ?)`,
-        [id, pid]
-      );
+    if (Array.isArray(program_ids)) {
+      for (const pid of program_ids) {
+        await db.query(
+          `INSERT INTO session_programs (session_id, program_id)
+           VALUES (?, ?)`,
+          [id, pid]
+        );
+      }
     }
-
-    await conn.commit();
 
     res.json({ success: true });
 
   } catch (err) {
-    await conn.rollback();
-    console.error(err);
+    console.error("UPDATE ERROR:", err);
     res.status(500).json({ error: "Failed to update session" });
-  } finally {
   }
 });
 // Delete session
