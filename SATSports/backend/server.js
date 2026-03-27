@@ -2041,6 +2041,7 @@ app.get("/api/admin/players/program/:programId", async (req, res) => {
 
   res.json(rows);
 });
+
 app.get("/api/admin/coach-checkins", async (req, res) => {
   try {
     const { date } = req.query;
@@ -2063,8 +2064,13 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
 
     const params = [];
 
+    // ✅ FIX: force IST-safe date comparison
     if (date) {
-      sql += " WHERE ts.session_date = ?";
+      sql += `
+        WHERE ts.session_date = DATE(
+          CONVERT_TZ(?, '+00:00', '+05:30')
+        )
+      `;
       params.push(date);
     }
 
@@ -2072,11 +2078,14 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
 
     const [rows] = await db.query(sql, params);
     res.json(rows);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch coach check-ins" });
   }
 });
+
+
 app.get("/api/admin/reports/attendance", async (req, res) => {
   const { from, to } = req.query;
 
