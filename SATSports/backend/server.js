@@ -1125,12 +1125,13 @@ if (existing.length > 0 && !existing[0].checkout_time) {
     // INSERT
     ///////////////////////////////////////////////////////
 
-    await db.query(
-      `INSERT INTO coach_checkins
-       (coach_id, session_id, location_id, lat, lng, checkin_time, is_late)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [coachId, sessionId, locationId, lat, lng, now, isLate]
-    );
+await db.query(
+  `INSERT INTO coach_checkins
+   (coach_id, session_id, location_id, lat, lng, checkin_time, is_late)
+   VALUES (?, ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+05:30'), ?)`,
+  [coachId, sessionId, locationId, lat, lng, isLate]
+);
+
 
     ///////////////////////////////////////////////////////
     // 🔔 NOTIFICATION (OPTIONAL BUT INCLUDED)
