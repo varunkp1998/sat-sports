@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -37,7 +38,7 @@ export default function CoachSessions() {
   ///////////////////////////////////////////////////////
 
   const filteredSessions = sessions.filter(s =>
-    dayjs(s.session_date).format("YYYY-MM-DD") === filterDate
+    dayjs(s.session_date).isSame(filterDate, "day")
   );
 
   ///////////////////////////////////////////////////////
@@ -72,14 +73,16 @@ export default function CoachSessions() {
   }, [coachId]);
 
   ///////////////////////////////////////////////////////
-  // CHECK-IN STATUS (UPDATED FOR LATE)
+  // CHECK-IN STATUS (FIXED DATE BUG)
   ///////////////////////////////////////////////////////
 
   useEffect(() => {
     if (!coachId || sessions.length === 0) return;
 
     sessions.forEach((s) => {
-      fetch(`${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${s.id}`)
+      fetch(
+        `${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${s.id}&date=${dayjs(s.session_date).format("YYYY-MM-DD")}`
+      )
         .then(res => res.json())
         .then(data => {
           setCheckedInMap(prev => ({
@@ -127,6 +130,7 @@ export default function CoachSessions() {
             ...prev,
             [sessionId]: {
               checkedIn: true,
+              completed: false,
               isLate: data.isLate || 0
             }
           }));
@@ -150,9 +154,9 @@ export default function CoachSessions() {
       ...prev,
       [sessionId]: {
         checkedIn: false,
-        completed: true // ✅ CRITICAL
+        completed: true
       }
-    }));    
+    }));
   };
 
   ///////////////////////////////////////////////////////
@@ -160,17 +164,10 @@ export default function CoachSessions() {
   return (
     <Box sx={{ p: 4, background: "#000", minHeight: "100vh" }}>
 
-      {/* HEADER */}
-      <Typography
-        variant="h4"
-        fontWeight={900}
-        mb={3}
-        sx={{ color: "#fff" }}
-      >
+      <Typography variant="h4" fontWeight={900} mb={3} sx={{ color: "#fff" }}>
         📅 My Sessions
       </Typography>
 
-      {/* FILTER */}
       <Box mb={3}>
         <Stack direction="row" spacing={2} alignItems="center">
 
@@ -190,20 +187,29 @@ export default function CoachSessions() {
         </Stack>
       </Box>
 
-      {/* EMPTY */}
       {filteredSessions.length === 0 && (
         <Typography color="gray">No sessions</Typography>
       )}
 
-
-      {/* GRID */}
       <Grid container spacing={4}>
         {filteredSessions.map((s) => {
 
-          const checkin = checkedInMap[s.id] || {};
+          const state = checkedInMap[s.id] || {
+            checkedIn: false,
+            completed: false,
+            isLate: 0
+          };
 
-          const sessionTime = new Date(`${s.session_date} ${s.start_time}`);
-          const diffMin = Math.floor((sessionTime - new Date()) / (1000 * 60));
+          const isCheckedIn = state.checkedIn;
+          const isCompleted = state.completed;
+
+          // ✅ FIXED TIMEZONE BUG
+          const sessionTime = dayjs(
+            `${s.session_date} ${s.start_time}`,
+            "YYYY-MM-DD HH:mm:ss"
+          );
+
+          const diffMin = sessionTime.diff(dayjs(), "minute");
 
           const isLive = diffMin <= 0 && diffMin > -120;
           const isUpcoming = diffMin > 0 && diffMin < 60;
@@ -220,9 +226,6 @@ export default function CoachSessions() {
             ? "#f59e0b"
             : "#64748b";
 
-              const state = checkedInMap[s.id] || {};
-              const isCheckedIn = state.checkedIn;
-              const isCompleted = state.completed;
           return (
             <Grid item xs={12} md={6} lg={4} key={s.id}>
 
@@ -236,7 +239,6 @@ export default function CoachSessions() {
 
                 <CardContent>
 
-                  {/* HEADER */}
                   <Box display="flex" justifyContent="space-between">
 
                     <Typography fontWeight={900}>
@@ -257,7 +259,7 @@ export default function CoachSessions() {
                         />
                       )}
 
-                      {checkin.isLate === 1 && (
+                      {state.isLate === 1 && (
                         <Chip
                           label="Late"
                           size="small"
@@ -268,20 +270,14 @@ export default function CoachSessions() {
 
                   </Box>
 
-                  {/* TIME */}
-                 {/* TIME */}
-            <Typography mt={1} color="text.secondary">
-              ⏰ {s.start_time} – {s.end_time || "--"}
-            </Typography>
+                  <Typography mt={1} color="text.secondary">
+                    ⏰ {s.start_time} – {s.end_time || "--"}
+                  </Typography>
 
-
-
-                  {/* LOCATION */}
                   <Typography mt={2} fontWeight={700}>
                     📍 {s.locationName}
                   </Typography>
 
-                  {/* PROGRAMS */}
                   {s.programTitles && (
                     <Stack direction="row" flexWrap="wrap" gap={1} mt={2}>
                       {s.programTitles.split(",").map((p, i) => (
@@ -291,57 +287,56 @@ export default function CoachSessions() {
                     </Stack>
                   )}
 
-                  {/* ACTIONS */}
                   <Box mt={3}>
 
+                    {!isCheckedIn && !isCompleted && (
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        sx={{ background: "#800000", color: "#fff" }}
+                        onClick={() => handleCheckIn(s.id, s.location_id)}
+                      >
+                        Check In
+                      </Button>
+                    )}
 
+                    {isCheckedIn && (
+                      <Stack spacing={1}>
 
-{!isCheckedIn && !isCompleted && (
-  <Button
-    fullWidth
-    variant="contained"
-    sx={{ background: "#800000", color: "#fff" }}
-    onClick={() => handleCheckIn(s.id, s.location_id)}
-  >
-    Check In
-  </Button>
-)}
+                        <Typography textAlign="center" color="green" fontWeight={700}>
+                          ✔ Checked In
+                        </Typography>
 
-{isCheckedIn && (
-  <Stack spacing={1}>
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          color="success"
+                          onClick={() =>
+                            (window.location.href = `/coach/sessions/${s.id}/attendance`)
+                          }
+                        >
+                          Mark Attendance
+                        </Button>
 
-    <Typography textAlign="center" color="green" fontWeight={700}>
-      ✔ Checked In
-    </Typography>
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          color="error"
+                          onClick={() => handleCheckOut(s.id)}
+                        >
+                          Check Out
+                        </Button>
 
-    <Button
-      fullWidth
-      variant="contained"
-      color="success"
-      onClick={() =>
-        (window.location.href = `/coach/sessions/${s.id}/attendance`)
-      }
-    >
-      Mark Attendance
-    </Button>
+                      </Stack>
+                    )}
 
-    <Button
-      fullWidth
-      variant="outlined"
-      color="error"
-      onClick={() => handleCheckOut(s.id)}
-    >
-      Check Out
-    </Button>
+                    {isCompleted && (
+                      <Typography textAlign="center" fontWeight={700} color="gray">
+                        ✔ Session Completed
+                      </Typography>
+                    )}
 
-  </Stack>
-)}
-
-{isCompleted && (
-  <Typography textAlign="center" fontWeight={700} color="gray">
-    ✔ Session Completed
-  </Typography>
-)}                  </Box>
+                  </Box>
 
                 </CardContent>
               </Card>
@@ -354,3 +349,4 @@ export default function CoachSessions() {
     </Box>
   );
 }
+
