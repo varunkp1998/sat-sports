@@ -858,18 +858,17 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 
 // Check-in status
 app.get("/api/coach/checkin/status", async (req, res) => {
-  const { coachId, sessionId } = req.query;
+  const { coachId, sessionId, date } = req.query;
 
   const [rows] = await db.query(
-    `SELECT cc.is_late, cc.checkout_time
-     FROM coach_checkins cc
-     JOIN training_sessions ts ON ts.id = cc.session_id
-     WHERE cc.coach_id = ?
-     AND cc.session_id = ?
-     AND DATE(ts.session_date) = CURDATE()
-     ORDER BY cc.id DESC
+    `SELECT is_late, checkout_time
+     FROM coach_checkins
+     WHERE coach_id = ?
+     AND session_id = ?
+     AND DATE(checkin_time) = ?
+     ORDER BY id DESC
      LIMIT 1`,
-    [coachId, sessionId]
+    [coachId, sessionId, date]
   );
 
   if (rows.length === 0) {
