@@ -3521,6 +3521,12 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
 
 
+import {
+
+  useTheme
+} from "@mui/material";
+
+
 function AdminSessions() {
   const [sessions, setSessions] = React.useState([]);
   const [locations, setLocations] = React.useState([]);
@@ -3538,14 +3544,14 @@ function AdminSessions() {
   const [programIds, setProgramIds] = React.useState([]);
   const [selectedPlayers, setSelectedPlayers] = React.useState([]);
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   // ================= LOAD DATA =================
   const loadSessions = () => {
     fetch(`${API_BASE}/api/admin/sessions`)
       .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setSessions(data);
-        else setSessions([]);
-      })
+      .then(data => Array.isArray(data) ? setSessions(data) : setSessions([]))
       .catch(() => setSessions([]));
   };
 
@@ -3658,14 +3664,9 @@ function AdminSessions() {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Box
-        sx={{
-          p: { xs: 2, md: 4 },
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #eef2ff, #f8fafc)"
-        }}
-      >
-        <Typography variant="h5" fontWeight={700} mb={2}>
+      <Box sx={containerStyle}>
+
+        <Typography variant="h5" fontWeight={700} color="white" mb={2}>
           Sessions
         </Typography>
 
@@ -3680,7 +3681,6 @@ function AdminSessions() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                fullWidth
               />
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -3700,7 +3700,6 @@ function AdminSessions() {
                 {coaches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </TextField>
 
-              {/* PROGRAMS */}
               <TextField
                 select
                 label="Programs"
@@ -3721,7 +3720,6 @@ function AdminSessions() {
                 ))}
               </TextField>
 
-              {/* PLAYERS */}
               {players.length > 0 && (
                 <Stack direction="row" flexWrap="wrap" gap={1}>
                   {players.map(p => (
@@ -3736,7 +3734,7 @@ function AdminSessions() {
                 </Stack>
               )}
 
-              <Button variant="contained" size="large" onClick={saveSession}>
+              <Button variant="contained" sx={ctaButton} onClick={saveSession}>
                 {editingId ? "Update Session" : "Create Session"}
               </Button>
 
@@ -3745,39 +3743,90 @@ function AdminSessions() {
         </Card>
 
         {/* LIST */}
-        <Stack spacing={2} mt={3}>
-          {sessions.map(s => (
-            <Card key={s.id} sx={glassCard}>
-              <CardContent>
-                <Typography fontWeight={600}>{s.session_date}</Typography>
-                <Typography variant="body2">{s.start_time} → {s.end_time}</Typography>
-                <Typography variant="body2">Coach: {s.coachName}</Typography>
+        <Box mt={3}>
+          {isMobile ? (
+            <Stack spacing={2}>
+              {sessions.map(s => (
+                <Card key={s.id} sx={glassCard}>
+                  <CardContent>
+                    <Typography fontWeight={700}>{s.session_date}</Typography>
+                    <Typography>{s.start_time} → {s.end_time}</Typography>
+                    <Typography>Coach: {s.coachName}</Typography>
 
-                <Stack direction="row" gap={1} mt={1} flexWrap="wrap">
-                  {s.programTitles?.split(",").map((p, i) => (
-                    <Chip key={i} label={p} size="small" />
+                    <Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
+                      {s.programTitles?.split(",").map((p, i) => (
+                        <Chip key={i} label={p} size="small" />
+                      ))}
+                    </Stack>
+
+                    <Stack direction="row" spacing={1} mt={2}>
+                      <Button onClick={() => editSession(s)}>Edit</Button>
+                      <Button color="error" onClick={() => deleteSession(s.id)}>Delete</Button>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          ) : (
+            <Card sx={glassCard}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Time</TableCell>
+                    <TableCell>Coach</TableCell>
+                    <TableCell>Programs</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sessions.map(s => (
+                    <TableRow key={s.id}>
+                      <TableCell>{s.session_date}</TableCell>
+                      <TableCell>{s.start_time} → {s.end_time}</TableCell>
+                      <TableCell>{s.coachName}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" gap={1} flexWrap="wrap">
+                          {s.programTitles?.split(",").map((p, i) => (
+                            <Chip key={i} label={p} size="small" />
+                          ))}
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Button onClick={() => editSession(s)}>Edit</Button>
+                        <Button color="error" onClick={() => deleteSession(s.id)}>Delete</Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </Stack>
-
-                <Stack direction="row" spacing={1} mt={1}>
-                  <Button onClick={() => editSession(s)}>Edit</Button>
-                  <Button color="error" onClick={() => deleteSession(s.id)}>Delete</Button>
-                </Stack>
-              </CardContent>
+                </TableBody>
+              </Table>
             </Card>
-          ))}
-        </Stack>
+          )}
+        </Box>
+
       </Box>
     </LocalizationProvider>
   );
 }
 
-// 🔥 reusable glass style
+// 🎨 STYLES
+const containerStyle = {
+  p: { xs: 2, md: 4 },
+  minHeight: "100vh",
+  background: "linear-gradient(135deg, #4f46e5, #06b6d4)"
+};
+
 const glassCard = {
   borderRadius: 4,
-  backdropFilter: "blur(12px)",
-  background: "rgba(255,255,255,0.75)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.08)"
+  backdropFilter: "blur(14px)",
+  background: "rgba(255,255,255,0.85)",
+  boxShadow: "0 10px 40px rgba(0,0,0,0.2)"
+};
+
+const ctaButton = {
+  borderRadius: 3,
+  background: "linear-gradient(135deg, #6366f1, #06b6d4)",
+  fontWeight: 600
 };
 
 function AdminLayout() {
