@@ -2047,21 +2047,18 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
 
     let sql = `
       SELECT 
-        ts.id AS session_id,
+        cc.id,
         c.name AS coachName,
         DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
         ts.start_time,
         ts.end_time,
         l.name AS locationName,
-        cc.checkin_time,
         cc.checkout_time,
         cc.work_minutes
-      FROM training_sessions ts
-      JOIN coaches c ON c.id = ts.coach_id
-      JOIN locations l ON l.id = ts.location_id
-      LEFT JOIN coach_checkins cc 
-        ON cc.session_id = ts.id 
-        AND DATE(cc.checkin_time) = ts.session_date
+      FROM coach_checkins cc
+      JOIN coaches c ON c.id = cc.coach_id
+      JOIN training_sessions ts ON ts.id = cc.session_id
+      JOIN locations l ON l.id = cc.location_id
     `;
 
     const params = [];
@@ -2071,11 +2068,10 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
       params.push(date);
     }
 
-    sql += " ORDER BY ts.start_time";
+    sql += " ORDER BY ts.session_date DESC, ts.start_time DESC";
 
     const [rows] = await db.query(sql, params);
     res.json(rows);
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch coach check-ins" });
