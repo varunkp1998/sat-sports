@@ -833,7 +833,6 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 
 
   try {
-    await db.beginTransaction();
 
     // 1. Delete mappings
     await db.query(
