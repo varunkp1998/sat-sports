@@ -786,8 +786,7 @@ app.put("/api/admin/sessions/:id", async (req, res) => {
     program_ids
   } = req.body;
 
-  const conn = await pool.getConnection();
-
+  const db = connection.promise();
   try {
     await conn.beginTransaction();
 
