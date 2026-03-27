@@ -968,25 +968,29 @@ app.post("/api/attendance", (req, res) => {
 // Generate or rotate QR token for a location
 
 app.get("/api/coach/sessions/:coachId", async (req, res) => {
-  const { coachId } = req.params;
+  try {
+    const { coachId } = req.params;
 
-  const [rows] = await db.query(
-    `SELECT 
-      ts.id,
-DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
-      ts.start_time,
-      ts.end_time,
-      ts.category,
-      ts.location_id,        -- ✅ ADD THIS
-      l.name AS locationName
-     FROM training_sessions ts
-     JOIN locations l ON l.id = ts.location_id
-     WHERE ts.coach_id = ?
-     ORDER BY ts.session_date, ts.start_time`,
-    [coachId]
-  );
+    const [rows] = await db.query(`
+      SELECT 
+        s.*,
+        l.name AS locationName,
+        GROUP_CONCAT(p.title) AS programTitles
+      FROM training_sessions s
+      LEFT JOIN locations l ON l.id = s.location_id
+      LEFT JOIN session_programs sp ON sp.session_id = s.id
+      LEFT JOIN programs p ON p.id = sp.program_id
+      WHERE s.coach_id = ?
+      GROUP BY s.id
+      ORDER BY s.session_date DESC
+    `, [coachId]);
 
-  res.json(rows);
+    res.json(rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load sessions" });
+  }
 });
 app.post("/api/coach/checkin", async (req, res) => {
   try {
