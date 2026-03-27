@@ -148,8 +148,11 @@ export default function CoachSessions() {
 
     setCheckedInMap(prev => ({
       ...prev,
-      [sessionId]: { checkedIn: false }
-    }));
+      [sessionId]: {
+        checkedIn: false,
+        completed: true // ✅ CRITICAL
+      }
+    }));    
   };
 
   ///////////////////////////////////////////////////////
