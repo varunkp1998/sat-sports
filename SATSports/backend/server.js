@@ -831,33 +831,29 @@ app.put("/api/admin/sessions/:id", async (req, res) => {
 app.delete("/api/admin/sessions/:id", async (req, res) => {
   const { id } = req.params;
 
-  const conn = await pool.getConnection();
 
   try {
-    await conn.beginTransaction();
+    await db.beginTransaction();
 
     // 1. Delete mappings
-    await conn.query(
+    await db.query(
       `DELETE FROM session_programs WHERE session_id = ?`,
       [id]
     );
 
     // 2. Delete session
-    await conn.query(
+    await db.query(
       `DELETE FROM sessions WHERE id = ?`,
       [id]
     );
 
-    await conn.commit();
 
     res.json({ success: true });
 
   } catch (err) {
-    await conn.rollback();
     console.error(err);
     res.status(500).json({ error: "Failed to delete session" });
   } finally {
-    conn.release();
   }
 });// Check-in
 
