@@ -80,14 +80,37 @@ export default function CoachSessions() {
   // ACTIONS
   ///////////////////////////////////////////////////////
 
-  const handleCheckIn = async (sessionId: number, locationId: number) => {
-    await fetch(`${API_BASE}/api/coach/checkin`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ coachId, sessionId, locationId }),
-    });
-
-    setCheckedInMap(prev => ({ ...prev, [sessionId]: true }));
+  const handleCheckIn = async (sessionId, locationId) => {
+    if (!navigator.geolocation) {
+      alert("Location not supported");
+      return;
+    }
+  
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+  
+        await fetch(`${API_BASE}/api/coach/checkin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            coachId,
+            sessionId,
+            locationId,
+            lat: latitude,
+            lng: longitude
+          }),
+        });
+  
+        setCheckedInMap(prev => ({ ...prev, [sessionId]: true }));
+      },
+      (err) => {
+        alert("Please enable location to check in");
+      },
+      {
+        enableHighAccuracy: true
+      }
+    );
   };
 
   const handleCheckOut = async (sessionId: number) => {

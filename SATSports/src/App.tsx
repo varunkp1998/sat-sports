@@ -25,6 +25,8 @@ import Home from "./Home.tsx";
 import About from "./About.tsx";
 import ProgramsPage from "./ProgramsPage.tsx";
 import NewsPage from "./NewsPage.tsx";
+import { Tabs } from "@mui/material";
+
 import {
   Card,
   CardContent,

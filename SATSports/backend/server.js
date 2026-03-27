@@ -944,22 +944,106 @@ DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
   res.json(rows);
 });
 app.post("/api/coach/checkin", async (req, res) => {
-  const { coachId, sessionId, locationId } = req.body;
-
   try {
-    await db.execute(
-      `INSERT INTO coach_checkins (coach_id, session_id, location_id, checkin_time)
-       VALUES (?, ?, ?, NOW())`,
+    const { coachId, sessionId, locationId, lat, lng } = req.body;
+
+    ///////////////////////////////////////////////////////
+    // ✅ VALIDATION
+    ///////////////////////////////////////////////////////
+
+    if (!coachId || !sessionId || !locationId || !lat || !lng) {
+      return res.status(400).json({
+        message: "Missing required fields"
+      });
+    }
+
+    ///////////////////////////////////////////////////////
+    // ✅ GET LOCATION
+    ///////////////////////////////////////////////////////
+
+    const [[location]] = await db.query(
+      "SELECT lat, lng FROM locations WHERE id = ?",
+      [locationId]
+    );
+
+    if (!location) {
+      return res.status(404).json({
+        message: "Location not found"
+      });
+    }
+
+    ///////////////////////////////////////////////////////
+    // ✅ DISTANCE FUNCTION
+    ///////////////////////////////////////////////////////
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) *
+        Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    ///////////////////////////////////////////////////////
+    // ✅ CONVERT TO NUMBER (IMPORTANT)
+    ///////////////////////////////////////////////////////
+
+    const userLat = parseFloat(lat);
+    const userLng = parseFloat(lng);
+    const locLat = parseFloat(location.lat);
+    const locLng = parseFloat(location.lng);
+
+    ///////////////////////////////////////////////////////
+    // ✅ DISTANCE CHECK
+    ///////////////////////////////////////////////////////
+
+    const distance = getDistance(userLat, userLng, locLat, locLng);
+
+    if (distance > 0.2) {
+      return res.status(400).json({
+        message: "You are not at the location"
+      });
+    }
+
+    ///////////////////////////////////////////////////////
+    // ✅ PREVENT DUPLICATE CHECK-IN
+    ///////////////////////////////////////////////////////
+
+    const [existing] = await db.query(
+      `SELECT id FROM coach_checkins
+       WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL`,
+      [coachId, sessionId]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        message: "Already checked in"
+      });
+    }
+
+    ///////////////////////////////////////////////////////
+    // ✅ INSERT CHECK-IN
+    ///////////////////////////////////////////////////////
+
+    await db.query(
+      `INSERT INTO coach_checkins 
+(coach_id, session_id, location_id, lat, lng, checkin_time)`,
       [coachId, sessionId, locationId]
     );
 
     res.json({ success: true });
+
   } catch (err) {
-    if (err.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ message: "Already checked in" });
-    }
-    console.error(err);
-    res.status(500).json({ message: "Check-in failed" });
+    console.error("Check-in error:", err);
+    res.status(500).json({
+      message: "Check-in failed"
+    });
   }
 });
 app.get("/api/coach/sessions/:sessionId/players", async (req, res) => {
