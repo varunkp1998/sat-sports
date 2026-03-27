@@ -76,26 +76,33 @@ export default function CoachSessions() {
   // CHECK-IN STATUS (FIXED DATE BUG)
   ///////////////////////////////////////////////////////
 
-  useEffect(() => {
-    if (!coachId || sessions.length === 0) return;
+useEffect(() => {
+  if (!coachId || sessions.length === 0) return;
 
-    sessions.forEach((s) => {
-      fetch(
-        `${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${s.id}&date=${dayjs(s.session_date).format("YYYY-MM-DD")}`
-      )
-        .then(res => res.json())
-        .then(data => {
-          setCheckedInMap(prev => ({
+  sessions.forEach((s) => {
+    fetch(
+      `${API_BASE}/api/coach/checkin/status?coachId=${coachId}&sessionId=${s.id}&date=${dayjs(s.session_date).format("YYYY-MM-DD")}`
+    )
+      .then(res => res.json())
+      .then(data => {
+        setCheckedInMap(prev => {
+          // 🛑 DO NOT overwrite if already completed
+          if (prev[s.id]?.completed) {
+            return prev;
+          }
+
+          return {
             ...prev,
             [s.id]: {
               checkedIn: data.checkedIn,
               completed: data.completed,
               isLate: data.isLate
             }
-          }));
+          };
         });
-    });
-  }, [coachId, sessions]);
+      });
+  });
+}, [coachId, sessions]);
 
   ///////////////////////////////////////////////////////
   // ACTIONS
