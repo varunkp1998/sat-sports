@@ -28,7 +28,9 @@ export default function CoachSessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, any>>({});
   const [coachId, setCoachId] = useState<string | null>(null);
-
+  const state = checkedInMap[s.id] || {};
+  const isCheckedIn = state.checkedIn;
+  const isCompleted = state.completed;
   const [filterDate, setFilterDate] = useState(
     dayjs().format("YYYY-MM-DD")
   );
@@ -86,8 +88,9 @@ export default function CoachSessions() {
           setCheckedInMap(prev => ({
             ...prev,
             [s.id]: {
-              checkedIn: Boolean(data.checkedIn),
-              isLate: data.isLate || 0
+              checkedIn: data.checkedIn,
+              completed: data.completed,
+              isLate: data.isLate
             }
           }));
         });
@@ -288,52 +291,54 @@ export default function CoachSessions() {
                   {/* ACTIONS */}
                   <Box mt={3}>
 
-                    {!isCheckedIn ? (
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        sx={{
-                          background: "#800000",
-                          color: "#fff",
-                          borderRadius: 3
-                        }}
-                        onClick={() =>
-                          handleCheckIn(s.id, s.location_id)
-                        }
-                      >
-                        Check In
-                      </Button>
-                    ) : (
-                      <Stack spacing={1}>
 
-                        <Typography textAlign="center" color="green" fontWeight={700}>
-                          ✔ Checked In
-                        </Typography>
 
-                        <Button
-                          fullWidth
-                          variant="contained"
-                          color="success"
-                          onClick={() =>
-                            (window.location.href = `/coach/sessions/${s.id}/attendance`)
-                          }
-                        >
-                          Mark Attendance
-                        </Button>
+{!isCheckedIn && !isCompleted && (
+  <Button
+    fullWidth
+    variant="contained"
+    sx={{ background: "#800000", color: "#fff" }}
+    onClick={() => handleCheckIn(s.id, s.location_id)}
+  >
+    Check In
+  </Button>
+)}
 
-                        <Button
-                          fullWidth
-                          variant="outlined"
-                          color="error"
-                          onClick={() => handleCheckOut(s.id)}
-                        >
-                          Check Out
-                        </Button>
+{isCheckedIn && (
+  <Stack spacing={1}>
 
-                      </Stack>
-                    )}
+    <Typography textAlign="center" color="green" fontWeight={700}>
+      ✔ Checked In
+    </Typography>
 
-                  </Box>
+    <Button
+      fullWidth
+      variant="contained"
+      color="success"
+      onClick={() =>
+        (window.location.href = `/coach/sessions/${s.id}/attendance`)
+      }
+    >
+      Mark Attendance
+    </Button>
+
+    <Button
+      fullWidth
+      variant="outlined"
+      color="error"
+      onClick={() => handleCheckOut(s.id)}
+    >
+      Check Out
+    </Button>
+
+  </Stack>
+)}
+
+{isCompleted && (
+  <Typography textAlign="center" fontWeight={700} color="gray">
+    ✔ Session Completed
+  </Typography>
+)}                  </Box>
 
                 </CardContent>
               </Card>

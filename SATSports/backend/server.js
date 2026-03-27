@@ -866,21 +866,27 @@ app.get("/api/coach/checkin/status", async (req, res) => {
   const { coachId, sessionId } = req.query;
 
   const [rows] = await db.query(
-    `SELECT is_late FROM coach_checkins
-     WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL`,
+    `SELECT is_late, checkout_time
+     FROM coach_checkins
+     WHERE coach_id = ? AND session_id = ?
+     ORDER BY id DESC LIMIT 1`,
     [coachId, sessionId]
   );
 
-  if (rows.length > 0) {
+  if (rows.length === 0) {
     return res.json({
-      checkedIn: true,
-      isLate: rows[0].is_late
+      checkedIn: false,
+      completed: false,
+      isLate: 0
     });
   }
 
+  const row = rows[0];
+
   res.json({
-    checkedIn: false,
-    isLate: 0
+    checkedIn: !row.checkout_time,
+    completed: !!row.checkout_time,
+    isLate: row.is_late
   });
 });
 app.post("/api/coach/checkin/qr", (req, res) => {
