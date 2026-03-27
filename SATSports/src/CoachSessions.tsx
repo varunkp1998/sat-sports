@@ -19,8 +19,8 @@ type Session = {
   category: string;
   locationName: string;
   location_id: number;
+  programTitles?: string; // ✅ ADD THIS
 };
-
 export default function CoachSessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, boolean>>({});
@@ -261,7 +261,23 @@ export default function CoachSessions() {
                 }}
               />
             )}
-
+{/* PROGRAMS */}
+{s.programTitles && (
+  <Stack direction="row" flexWrap="wrap" gap={1} mt={2}>
+    {s.programTitles.split(",").map((p, i) => (
+      <Chip
+        key={i}
+        label={p}
+        size="small"
+        sx={{
+          background: "#800000",
+          color: "white",
+          fontWeight: 600
+        }}
+      />
+    ))}
+  </Stack>
+)}
             {/* ACTIONS */}
             <Box mt={3}>
 
