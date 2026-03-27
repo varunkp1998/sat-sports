@@ -3544,16 +3544,17 @@ function AdminSessions() {
   // ================= LOAD DATA =================
   const loadSessions = () => {
     fetch(`${API_BASE}/api/admin/sessions`)
-    .then(res => res.json())
-    .then(data => {
-      if (Array.isArray(data)) {
-        setSessions(data);
-      } else {
-        console.error("Invalid response:", data);
-        setSessions([]);
-      }
-    })
-    .catch(() => setSessions([]));
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setSessions(data);
+        } else {
+          console.error("Invalid response:", data);
+          setSessions([]);
+        }
+      })
+      .catch(() => setSessions([]));
+  };
 
   const loadLocations = () => {
     fetch(`${API_BASE}/api/admin/locations`)
@@ -3812,7 +3813,7 @@ function AdminSessions() {
     </LocalizationProvider>
   );
 }
-}
+
 
 function AdminLayout() {
   const [open, setOpen] = useState(false);
