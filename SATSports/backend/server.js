@@ -823,7 +823,6 @@ app.put("/api/admin/sessions/:id", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Failed to update session" });
   } finally {
-    conn.release();
   }
 });
 // Delete session
