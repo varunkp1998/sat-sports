@@ -7,10 +7,12 @@ import {
   CardContent,
   Button,
   Chip,
-  Stack
+  Stack,
+  TextField
 } from "@mui/material";
 import API_BASE from "./api";
 import dayjs from "dayjs";
+
 type Session = {
   id: number;
   session_date: string;
@@ -19,20 +21,28 @@ type Session = {
   category: string;
   locationName: string;
   location_id: number;
-  programTitles?: string; // ✅ ADD THIS
+  programTitles?: string;
 };
+
 export default function CoachSessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [checkedInMap, setCheckedInMap] = useState<Record<number, boolean>>({});
+  const [checkedInMap, setCheckedInMap] = useState<Record<number, any>>({});
   const [coachId, setCoachId] = useState<string | null>(null);
+
   const [filterDate, setFilterDate] = useState(
     dayjs().format("YYYY-MM-DD")
   );
+
+  ///////////////////////////////////////////////////////
+  // FILTER
+  ///////////////////////////////////////////////////////
+
   const filteredSessions = sessions.filter(s =>
     dayjs(s.session_date).format("YYYY-MM-DD") === filterDate
   );
+
   ///////////////////////////////////////////////////////
-  // LOAD COACH ID
+  // LOAD COACH
   ///////////////////////////////////////////////////////
 
   useEffect(() => {
@@ -63,7 +73,7 @@ export default function CoachSessions() {
   }, [coachId]);
 
   ///////////////////////////////////////////////////////
-  // CHECK-IN STATUS
+  // CHECK-IN STATUS (UPDATED FOR LATE)
   ///////////////////////////////////////////////////////
 
   useEffect(() => {
@@ -75,7 +85,10 @@ export default function CoachSessions() {
         .then(data => {
           setCheckedInMap(prev => ({
             ...prev,
-            [s.id]: Boolean(data.checkedIn),
+            [s.id]: {
+              checkedIn: Boolean(data.checkedIn),
+              isLate: data.isLate || 0
+            }
           }));
         });
     });
@@ -90,11 +103,11 @@ export default function CoachSessions() {
       alert("Location not supported");
       return;
     }
-  
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-  
+
         const res = await fetch(`${API_BASE}/api/coach/checkin`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -106,28 +119,26 @@ export default function CoachSessions() {
             lng: longitude
           }),
         });
-  
+
         const data = await res.json();
-  
-        ///////////////////////////////////////////////////////
-        // ✅ ONLY UPDATE IF SUCCESS
-        ///////////////////////////////////////////////////////
-  
+
         if (res.ok) {
           setCheckedInMap(prev => ({
             ...prev,
-            [sessionId]: true
+            [sessionId]: {
+              checkedIn: true,
+              isLate: data.isLate || 0
+            }
           }));
         } else {
           alert(data.message || "Check-in failed");
         }
       },
-      () => {
-        alert("Please enable location to check in");
-      },
+      () => alert("Enable location"),
       { enableHighAccuracy: true }
     );
   };
+
   const handleCheckOut = async (sessionId: number) => {
     await fetch(`${API_BASE}/api/coach/checkout`, {
       method: "POST",
@@ -135,212 +146,201 @@ export default function CoachSessions() {
       body: JSON.stringify({ coachId, sessionId }),
     });
 
-    setCheckedInMap(prev => ({ ...prev, [sessionId]: false }));
+    setCheckedInMap(prev => ({
+      ...prev,
+      [sessionId]: { checkedIn: false }
+    }));
   };
 
   ///////////////////////////////////////////////////////
 
   return (
-<Box sx={{ p: 4, background: "#f5f7fb", minHeight: "100vh" }}>
+    <Box sx={{ p: 4, background: "#000", minHeight: "100vh" }}>
 
-{/* 🔥 HEADER */}
-<Typography
-  variant="h4"
-  fontWeight={900}
-  mb={4}
-  sx={{
-    letterSpacing: 1,
-    background: "linear-gradient(135deg,#f97316,#ef4444)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent"
-  }}
->
-  📅 My Sessions
-</Typography>
+      {/* HEADER */}
+      <Typography
+        variant="h4"
+        fontWeight={900}
+        mb={3}
+        sx={{ color: "#fff" }}
+      >
+        📅 My Sessions
+      </Typography>
 
-{/* EMPTY */}
-{sessions.length === 0 && (
-  <Typography color="gray">No sessions assigned</Typography>
-)}
+      {/* FILTER */}
+      <Box mb={3}>
+        <Stack direction="row" spacing={2} alignItems="center">
 
-{/* GRID */}
-<Grid container spacing={4}>
-  {sessions.map((s) => {
-    const isCheckedIn = checkedInMap[s.id];
-
-    const sessionTime = new Date(`${s.session_date} ${s.start_time}`);
-    const diffMin = Math.floor((sessionTime - new Date()) / (1000 * 60));
-
-    const isLive = diffMin <= 0 && diffMin > -120;
-    const isUpcoming = diffMin > 0 && diffMin < 60;
-    const isFuture = diffMin >= 60;
-
-    const status = isLive
-      ? "LIVE"
-      : isUpcoming
-      ? "SOON"
-      : "UPCOMING";
-
-    const statusColor = isLive
-      ? "#22c55e"
-      : isUpcoming
-      ? "#f59e0b"
-      : "#64748b";
-
-    return (
-      <Grid item xs={12} md={6} lg={4} key={s.id}>
-
-        <Card
-          sx={{
-            borderRadius: 5,
-            overflow: "hidden",
-            background: "#ffffff",
-            position: "relative",
-            boxShadow: "0 20px 50px rgba(0,0,0,0.08)",
-            transition: "all 0.3s ease",
-            "&:hover": {
-              transform: "translateY(-10px)",
-              boxShadow: "0 30px 70px rgba(0,0,0,0.15)"
-            }
-          }}
-        >
-
-          {/* 🔥 STATUS STRIP */}
-          <Box
-            sx={{
-              height: 6,
-              background: statusColor
-            }}
+          <TextField
+            type="date"
+            label="Filter Date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ background: "#fff", borderRadius: 2 }}
           />
 
-          <CardContent sx={{ p: 3 }}>
+          <Typography color="white" fontWeight={600}>
+            {filteredSessions.length} sessions
+          </Typography>
 
-            {/* HEADER */}
-            <Box display="flex" justifyContent="space-between">
-              <Typography fontWeight={900}>
-                {s.session_date}
-              </Typography>
+        </Stack>
+      </Box>
 
-              <Chip
-                label={status}
-                size="small"
-                sx={{
-                  background: statusColor,
-                  color: "white",
-                  fontWeight: 700
-                }}
-              />
-            </Box>
+      {/* EMPTY */}
+      {filteredSessions.length === 0 && (
+        <Typography color="gray">No sessions</Typography>
+      )}
 
-            {/* TIME */}
-            <Typography mt={1} color="text.secondary">
-              ⏰ {s.start_time} – {s.end_time || "--"}
-            </Typography>
+      {/* GRID */}
+      <Grid container spacing={4}>
+        {filteredSessions.map((s) => {
 
-            {/* COUNTDOWN */}
-            {isUpcoming && (
-              <Typography
-                mt={1}
-                fontSize={13}
-                sx={{ color: "#f97316", fontWeight: 600 }}
-              >
-                Starts in {diffMin} mins
-              </Typography>
-            )}
+          const checkin = checkedInMap[s.id] || {};
+          const isCheckedIn = checkin.checkedIn;
 
-            {/* LOCATION */}
-            <Typography mt={2} fontWeight={700}>
-              📍 {s.locationName}
-            </Typography>
+          const sessionTime = new Date(`${s.session_date} ${s.start_time}`);
+          const diffMin = Math.floor((sessionTime - new Date()) / (1000 * 60));
 
-            {/* CATEGORY */}
-            {s.category && (
-              <Chip
-                label={s.category}
-                size="small"
-                sx={{
-                  mt: 1,
-                  background:
-                    "linear-gradient(135deg,#f97316,#ef4444)",
-                  color: "white"
-                }}
-              />
-            )}
-{/* PROGRAMS */}
-{s.programTitles && (
-  <Stack direction="row" flexWrap="wrap" gap={1} mt={2}>
-    {s.programTitles.split(",").map((p, i) => (
-      <Chip
-        key={i}
-        label={p}
-        size="small"
-        sx={{
-          background: "#800000",
-          color: "white",
-          fontWeight: 600
-        }}
-      />
-    ))}
-  </Stack>
-)}
-            {/* ACTIONS */}
-            <Box mt={3}>
+          const isLive = diffMin <= 0 && diffMin > -120;
+          const isUpcoming = diffMin > 0 && diffMin < 60;
 
-              {!isCheckedIn ? (
-                <Button
-                  fullWidth
-                  variant="contained"
-                  sx={{
-                    borderRadius: 999,
-                    py: 1.2,
-                    fontWeight: 800,
-                    background:
-                      "linear-gradient(135deg,#f97316,#ef4444)",
-                    boxShadow: "0 8px 20px rgba(249,115,22,0.4)"
-                  }}
-                  onClick={() =>
-                    handleCheckIn(s.id, s.location_id)
-                  }
-                >
-                  Check In
-                </Button>
-              ) : (
-                <Stack spacing={1}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    color="success"
-                    sx={{ borderRadius: 999 }}
-                    onClick={() =>
-                      (window.location.href = `/coach/sessions/${s.id}/attendance`)
-                    }
-                  >
-                    Mark Attendance
-                  </Button>
+          const status = isLive
+            ? "LIVE"
+            : isUpcoming
+            ? "SOON"
+            : "UPCOMING";
 
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    color="error"
-                    sx={{ borderRadius: 999 }}
-                    onClick={() => handleCheckOut(s.id)}
-                  >
-                    Check Out
-                  </Button>
-                </Stack>
-              )}
+          const statusColor = isLive
+            ? "#22c55e"
+            : isUpcoming
+            ? "#f59e0b"
+            : "#64748b";
 
-            </Box>
+          return (
+            <Grid item xs={12} md={6} lg={4} key={s.id}>
 
-          </CardContent>
+              <Card sx={{
+                borderRadius: 5,
+                background: "#fff",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.4)"
+              }}>
 
-        </Card>
+                <Box sx={{ height: 6, background: statusColor }} />
 
+                <CardContent>
+
+                  {/* HEADER */}
+                  <Box display="flex" justifyContent="space-between">
+
+                    <Typography fontWeight={900}>
+                      {dayjs(s.session_date).format("DD MMM YYYY")}
+                    </Typography>
+
+                    <Stack direction="row" spacing={1}>
+                      <Chip label={status} size="small" sx={{
+                        background: statusColor,
+                        color: "#fff"
+                      }} />
+
+                      {isCheckedIn && (
+                        <Chip
+                          label="Checked In"
+                          size="small"
+                          sx={{ background: "#22c55e", color: "#fff" }}
+                        />
+                      )}
+
+                      {checkin.isLate === 1 && (
+                        <Chip
+                          label="Late"
+                          size="small"
+                          sx={{ background: "#ef4444", color: "#fff" }}
+                        />
+                      )}
+                    </Stack>
+
+                  </Box>
+
+                  {/* TIME */}
+                  <Typography mt={1}>
+                    ⏰ {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} –
+                    {s.end_time ? dayjs(s.end_time, "HH:mm:ss").format("hh:mm A") : "--"}
+                  </Typography>
+
+                  {/* LOCATION */}
+                  <Typography mt={2} fontWeight={700}>
+                    📍 {s.locationName}
+                  </Typography>
+
+                  {/* PROGRAMS */}
+                  {s.programTitles && (
+                    <Stack direction="row" flexWrap="wrap" gap={1} mt={2}>
+                      {s.programTitles.split(",").map((p, i) => (
+                        <Chip key={i} label={p} size="small"
+                          sx={{ background: "#800000", color: "#fff" }} />
+                      ))}
+                    </Stack>
+                  )}
+
+                  {/* ACTIONS */}
+                  <Box mt={3}>
+
+                    {!isCheckedIn ? (
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        sx={{
+                          background: "#800000",
+                          color: "#fff",
+                          borderRadius: 3
+                        }}
+                        onClick={() =>
+                          handleCheckIn(s.id, s.location_id)
+                        }
+                      >
+                        Check In
+                      </Button>
+                    ) : (
+                      <Stack spacing={1}>
+
+                        <Typography textAlign="center" color="green" fontWeight={700}>
+                          ✔ Checked In
+                        </Typography>
+
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          color="success"
+                          onClick={() =>
+                            (window.location.href = `/coach/sessions/${s.id}/attendance`)
+                          }
+                        >
+                          Mark Attendance
+                        </Button>
+
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          color="error"
+                          onClick={() => handleCheckOut(s.id)}
+                        >
+                          Check Out
+                        </Button>
+
+                      </Stack>
+                    )}
+
+                  </Box>
+
+                </CardContent>
+              </Card>
+
+            </Grid>
+          );
+        })}
       </Grid>
-    );
-  })}
-</Grid>
 
-</Box>
-  )
+    </Box>
+  );
 }
