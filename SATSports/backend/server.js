@@ -870,6 +870,8 @@ app.get("/api/coach/checkin/status", async (req, res) => {
      LIMIT 1`,
     [coachId, sessionId, date]
   );
+  console.log({ coachId, sessionId, date });
+
 
   if (rows.length === 0) {
     return res.json({
