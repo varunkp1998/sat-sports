@@ -263,17 +263,11 @@ export default function CoachSessions() {
                   </Box>
 
                   {/* TIME */}
-                  <Typography mt={1}>
-  ⏰ {
-    s.start_time
-      ? dayjs(new Date(`${s.session_date} ${s.start_time}`)).format("hh:mm A")
-      : "--"
-  } – {
-    s.end_time
-      ? dayjs(new Date(`${s.session_date} ${s.end_time}`)).format("hh:mm A")
-      : "--"
-  }
-</Typography>
+                 {/* TIME */}
+            <Typography mt={1} color="text.secondary">
+              ⏰ {s.start_time} – {s.end_time || "--"}
+            </Typography>
+
 
 
                   {/* LOCATION */}
