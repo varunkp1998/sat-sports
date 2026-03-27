@@ -3530,12 +3530,14 @@ import {
 
 
 
+
+
 function AdminSessions() {
+
   const [sessions, setSessions] = React.useState([]);
   const [locations, setLocations] = React.useState([]);
   const [coaches, setCoaches] = React.useState([]);
   const [programs, setPrograms] = React.useState([]);
-  const [players, setPlayers] = React.useState([]);
 
   const [editingId, setEditingId] = React.useState(null);
 
@@ -3545,19 +3547,24 @@ function AdminSessions() {
   const [locationId, setLocationId] = React.useState("");
   const [coachId, setCoachId] = React.useState("");
   const [programIds, setProgramIds] = React.useState([]);
-  const [selectedPlayers, setSelectedPlayers] = React.useState([]);
 
   const [filterDate, setFilterDate] = React.useState(dayjs().format("YYYY-MM-DD"));
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // ================= LOAD DATA =================
+  // ================= LOAD =================
+  const loadSessions = () => {
+    fetch(`${API_BASE}/api/admin/sessions`)
+      .then(res => res.json())
+      .then(setSessions);
+  };
+
   React.useEffect(() => {
-    fetch(`${API_BASE}/api/admin/sessions`).then(res => res.json()).then(setSessions);
-    fetch(`${API_BASE}/api/admin/locations`).then(res => res.json()).then(setLocations);
-    fetch(`${API_BASE}/api/admin/coaches`).then(res => res.json()).then(setCoaches);
-    fetch(`${API_BASE}/api/admin/programs`).then(res => res.json()).then(setPrograms);
+    loadSessions();
+    fetch(`${API_BASE}/api/admin/locations`).then(r=>r.json()).then(setLocations);
+    fetch(`${API_BASE}/api/admin/coaches`).then(r=>r.json()).then(setCoaches);
+    fetch(`${API_BASE}/api/admin/programs`).then(r=>r.json()).then(setPrograms);
   }, []);
 
   // ================= FILTER =================
@@ -3565,19 +3572,7 @@ function AdminSessions() {
     dayjs(s.session_date).format("YYYY-MM-DD") === filterDate
   );
 
-  // ================= PLAYERS =================
-  const loadPlayersByPrograms = (ids) => {
-    if (!ids?.length) return setPlayers([]);
-
-    fetch(`${API_BASE}/api/admin/players/by-programs`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ program_ids: ids })
-    })
-      .then(res => res.json())
-      .then(setPlayers);
-  };
-
+  // ================= SAVE =================
   const saveSession = () => {
     const payload = {
       session_date: dayjs(date).format("YYYY-MM-DD"),
@@ -3588,17 +3583,22 @@ function AdminSessions() {
       program_ids: programIds
     };
 
-    const url = editingId
-      ? `${API_BASE}/api/admin/sessions/${editingId}`
-      : `${API_BASE}/api/admin/sessions`;
-
-    fetch(url, {
-      method: editingId ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then(() => window.location.reload());
+    fetch(
+      editingId
+        ? `${API_BASE}/api/admin/sessions/${editingId}`
+        : `${API_BASE}/api/admin/sessions`,
+      {
+        method: editingId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    ).then(() => {
+      loadSessions();
+      setEditingId(null);
+    });
   };
 
+  // ================= EDIT =================
   const editSession = (s) => {
     setEditingId(s.id);
     setDate(dayjs(s.session_date).format("YYYY-MM-DD"));
@@ -3607,7 +3607,15 @@ function AdminSessions() {
     setLocationId(s.location_id);
     setCoachId(s.coach_id);
     setProgramIds(s.programIds || []);
-    loadPlayersByPrograms(s.programIds || []);
+  };
+
+  // ================= DELETE =================
+  const deleteSession = (id) => {
+    if (!window.confirm("Delete session?")) return;
+
+    fetch(`${API_BASE}/api/admin/sessions/${id}`, {
+      method: "DELETE"
+    }).then(loadSessions);
   };
 
   return (
@@ -3623,8 +3631,8 @@ function AdminSessions() {
           <CardContent>
             <Stack direction="row" spacing={2} alignItems="center">
               <TextField
+                label="Filter Date"
                 type="date"
-                label="Filter"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
@@ -3642,6 +3650,7 @@ function AdminSessions() {
             <Stack spacing={2}>
 
               <TextField
+                label="Session Date"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
@@ -3649,37 +3658,51 @@ function AdminSessions() {
               />
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TimePicker label="Start" value={startTime} onChange={setStartTime} />
-                <TimePicker label="End" value={endTime} onChange={setEndTime} />
+                <TimePicker label="Start Time" value={startTime} onChange={setStartTime} />
+                <TimePicker label="End Time" value={endTime} onChange={setEndTime} />
               </Stack>
 
-              <TextField select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-                <MenuItem value="">Location</MenuItem>
-                {locations.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
-              </TextField>
-
-              <TextField select value={coachId} onChange={(e) => setCoachId(e.target.value)}>
-                <MenuItem value="">Coach</MenuItem>
-                {coaches.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              <TextField
+                select
+                label="Location"
+                value={locationId}
+                onChange={(e) => setLocationId(e.target.value)}
+              >
+                {locations.map(l => (
+                  <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>
+                ))}
               </TextField>
 
               <TextField
                 select
+                label="Coach"
+                value={coachId}
+                onChange={(e) => setCoachId(e.target.value)}
+              >
+                {coaches.map(c => (
+                  <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                label="Programs"
                 value={programIds}
                 onChange={(e) => {
                   const val = typeof e.target.value === "string"
                     ? e.target.value.split(",").map(Number)
                     : e.target.value;
                   setProgramIds(val);
-                  loadPlayersByPrograms(val);
                 }}
                 SelectProps={{ multiple: true }}
               >
-                {programs.map(p => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
+                {programs.map(p => (
+                  <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>
+                ))}
               </TextField>
 
               <Button sx={ctaBtn} onClick={saveSession}>
-                {editingId ? "Update" : "Create"}
+                {editingId ? "Update Session" : "Create Session"}
               </Button>
 
             </Stack>
@@ -3697,10 +3720,15 @@ function AdminSessions() {
                       {dayjs(s.session_date).format("DD MMM YYYY")}
                     </Typography>
                     <Typography>
-                      {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} → 
+                      {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} →
                       {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}
                     </Typography>
                     <Typography>Coach: {s.coachName}</Typography>
+
+                    <Stack direction="row" spacing={1} mt={2}>
+                      <Button onClick={() => editSession(s)}>Edit</Button>
+                      <Button color="error" onClick={() => deleteSession(s.id)}>Delete</Button>
+                    </Stack>
                   </CardContent>
                 </Card>
               ))}
@@ -3714,8 +3742,10 @@ function AdminSessions() {
                     <TableCell sx={th}>Time</TableCell>
                     <TableCell sx={th}>Coach</TableCell>
                     <TableCell sx={th}>Programs</TableCell>
+                    <TableCell sx={th}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
                   {filteredSessions.map(s => (
                     <TableRow key={s.id}>
@@ -3726,6 +3756,12 @@ function AdminSessions() {
                       </TableCell>
                       <TableCell>{s.coachName}</TableCell>
                       <TableCell>{s.programTitles}</TableCell>
+
+                      <TableCell>
+                        <Button sx={{ mr:1 }} onClick={() => editSession(s)}>Edit</Button>
+                        <Button color="error" onClick={() => deleteSession(s.id)}>Delete</Button>
+                      </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
