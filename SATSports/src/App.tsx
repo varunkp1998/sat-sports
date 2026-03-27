@@ -3547,44 +3547,23 @@ function AdminSessions() {
   const [programIds, setProgramIds] = React.useState([]);
   const [selectedPlayers, setSelectedPlayers] = React.useState([]);
 
-  // ✅ FILTER DATE
   const [filterDate, setFilterDate] = React.useState(dayjs().format("YYYY-MM-DD"));
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // ================= LOAD DATA =================
-  const loadSessions = () => {
-    fetch(`${API_BASE}/api/admin/sessions`)
-      .then(res => res.json())
-      .then(data => Array.isArray(data) ? setSessions(data) : setSessions([]))
-      .catch(() => setSessions([]));
-  };
-
-  const loadLocations = () => {
-    fetch(`${API_BASE}/api/admin/locations`).then(res => res.json()).then(setLocations);
-  };
-
-  const loadCoaches = () => {
-    fetch(`${API_BASE}/api/admin/coaches`).then(res => res.json()).then(setCoaches);
-  };
-
-  const loadPrograms = () => {
-    fetch(`${API_BASE}/api/admin/programs`).then(res => res.json()).then(setPrograms);
-  };
-
   React.useEffect(() => {
-    loadSessions();
-    loadLocations();
-    loadCoaches();
-    loadPrograms();
+    fetch(`${API_BASE}/api/admin/sessions`).then(res => res.json()).then(setSessions);
+    fetch(`${API_BASE}/api/admin/locations`).then(res => res.json()).then(setLocations);
+    fetch(`${API_BASE}/api/admin/coaches`).then(res => res.json()).then(setCoaches);
+    fetch(`${API_BASE}/api/admin/programs`).then(res => res.json()).then(setPrograms);
   }, []);
 
-  // ✅ FIXED FILTER LOGIC
-  const filteredSessions = sessions.filter(s => {
-    if (!filterDate) return true;
-    return dayjs(s.session_date).format("YYYY-MM-DD") === filterDate;
-  });
+  // ================= FILTER =================
+  const filteredSessions = sessions.filter(s =>
+    dayjs(s.session_date).format("YYYY-MM-DD") === filterDate
+  );
 
   // ================= PLAYERS =================
   const loadPlayersByPrograms = (ids) => {
@@ -3592,31 +3571,11 @@ function AdminSessions() {
 
     fetch(`${API_BASE}/api/admin/players/by-programs`, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ program_ids: ids })
     })
       .then(res => res.json())
       .then(setPlayers);
-  };
-
-  const togglePlayer = (id) => {
-    setSelectedPlayers(prev =>
-      prev.includes(id)
-        ? prev.filter(p => p !== id)
-        : [...prev, id]
-    );
-  };
-
-  const resetForm = () => {
-    setEditingId(null);
-    setDate("");
-    setStartTime(null);
-    setEndTime(null);
-    setLocationId("");
-    setCoachId("");
-    setProgramIds([]);
-    setPlayers([]);
-    setSelectedPlayers([]);
   };
 
   const saveSession = () => {
@@ -3635,12 +3594,9 @@ function AdminSessions() {
 
     fetch(url, {
       method: editingId ? "PUT" : "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    }).then(() => {
-      resetForm();
-      loadSessions();
-    });
+    }).then(() => window.location.reload());
   };
 
   const editSession = (s) => {
@@ -3648,16 +3604,10 @@ function AdminSessions() {
     setDate(dayjs(s.session_date).format("YYYY-MM-DD"));
     setStartTime(dayjs(s.start_time, "HH:mm:ss"));
     setEndTime(dayjs(s.end_time, "HH:mm:ss"));
-    setLocationId(String(s.location_id));
-    setCoachId(String(s.coach_id));
+    setLocationId(s.location_id);
+    setCoachId(s.coach_id);
     setProgramIds(s.programIds || []);
     loadPlayersByPrograms(s.programIds || []);
-  };
-
-  const deleteSession = (id) => {
-    if (!window.confirm("Delete session?")) return;
-    fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" })
-      .then(loadSessions);
   };
 
   return (
@@ -3668,13 +3618,13 @@ function AdminSessions() {
           Sessions Dashboard
         </Typography>
 
-        {/* ✅ FILTER (NO BUTTON) */}
+        {/* 🔥 FILTER */}
         <Card sx={filterCard}>
           <CardContent>
             <Stack direction="row" spacing={2} alignItems="center">
               <TextField
                 type="date"
-                label="Filter by Date"
+                label="Filter"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
@@ -3686,41 +3636,103 @@ function AdminSessions() {
           </CardContent>
         </Card>
 
-        {/* ================= TABLE ================= */}
+        {/* 🔥 FORM */}
         <Card sx={glassCard}>
-          <Table>
-            <TableHead sx={{ background:"#800000" }}>
-              <TableRow>
-                <TableCell sx={th}>Date</TableCell>
-                <TableCell sx={th}>Time</TableCell>
-                <TableCell sx={th}>Coach</TableCell>
-                <TableCell sx={th}>Programs</TableCell>
-              </TableRow>
-            </TableHead>
+          <CardContent>
+            <Stack spacing={2}>
 
-            <TableBody>
-              {filteredSessions.map(s => (
-                <TableRow key={s.id} hover>
-                  <TableCell>
-                    {dayjs(s.session_date).format("DD MMM YYYY")}
-                  </TableCell>
-                  <TableCell>
-                    {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} → 
-                    {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}
-                  </TableCell>
-                  <TableCell>{s.coachName}</TableCell>
-                  <TableCell>
-                    <Stack direction="row" flexWrap="wrap" gap={1}>
-                      {s.programTitles?.split(",").map((p,i)=>(
-                        <Chip key={i} label={p} size="small"/>
-                      ))}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              <TextField
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <TimePicker label="Start" value={startTime} onChange={setStartTime} />
+                <TimePicker label="End" value={endTime} onChange={setEndTime} />
+              </Stack>
+
+              <TextField select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+                <MenuItem value="">Location</MenuItem>
+                {locations.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
+              </TextField>
+
+              <TextField select value={coachId} onChange={(e) => setCoachId(e.target.value)}>
+                <MenuItem value="">Coach</MenuItem>
+                {coaches.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+              </TextField>
+
+              <TextField
+                select
+                value={programIds}
+                onChange={(e) => {
+                  const val = typeof e.target.value === "string"
+                    ? e.target.value.split(",").map(Number)
+                    : e.target.value;
+                  setProgramIds(val);
+                  loadPlayersByPrograms(val);
+                }}
+                SelectProps={{ multiple: true }}
+              >
+                {programs.map(p => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
+              </TextField>
+
+              <Button sx={ctaBtn} onClick={saveSession}>
+                {editingId ? "Update" : "Create"}
+              </Button>
+
+            </Stack>
+          </CardContent>
         </Card>
+
+        {/* 🔥 LIST */}
+        <Box mt={3}>
+          {isMobile ? (
+            <Stack spacing={2}>
+              {filteredSessions.map(s => (
+                <Card key={s.id} sx={glassCard}>
+                  <CardContent>
+                    <Typography fontWeight={700}>
+                      {dayjs(s.session_date).format("DD MMM YYYY")}
+                    </Typography>
+                    <Typography>
+                      {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} → 
+                      {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}
+                    </Typography>
+                    <Typography>Coach: {s.coachName}</Typography>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          ) : (
+            <Card sx={glassCard}>
+              <Table>
+                <TableHead sx={{ background: "#800000" }}>
+                  <TableRow>
+                    <TableCell sx={th}>Date</TableCell>
+                    <TableCell sx={th}>Time</TableCell>
+                    <TableCell sx={th}>Coach</TableCell>
+                    <TableCell sx={th}>Programs</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredSessions.map(s => (
+                    <TableRow key={s.id}>
+                      <TableCell>{dayjs(s.session_date).format("DD MMM YYYY")}</TableCell>
+                      <TableCell>
+                        {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} →
+                        {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}
+                      </TableCell>
+                      <TableCell>{s.coachName}</TableCell>
+                      <TableCell>{s.programTitles}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </Box>
 
       </Box>
     </LocalizationProvider>
@@ -3729,26 +3741,32 @@ function AdminSessions() {
 
 // 🎨 STYLES
 const containerStyle = {
-  p:2,
-  minHeight:"100vh",
-  background:"linear-gradient(135deg,#1a0000,#800000)"
+  p: 2,
+  minHeight: "100vh",
+  background: "linear-gradient(135deg,#1a0000,#800000)"
 };
 
 const glassCard = {
-  borderRadius:3,
-  background:"#fff",
-  boxShadow:"0 10px 30px rgba(0,0,0,0.3)"
+  borderRadius: 3,
+  background: "#fff",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+  mb: 2
 };
 
 const filterCard = {
-  mb:2,
-  borderRadius:3,
-  background:"#fff"
+  borderRadius: 3,
+  background: "#fff",
+  mb: 2
+};
+
+const ctaBtn = {
+  background: "#800000",
+  color: "#fff"
 };
 
 const th = {
-  color:"#fff",
-  fontWeight:700
+  color: "#fff",
+  fontWeight: 700
 };
 
 
