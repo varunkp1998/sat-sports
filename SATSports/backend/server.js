@@ -857,20 +857,21 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 });// Check-in
 
 // Check-in status
+
 app.get("/api/coach/checkin/status", async (req, res) => {
   const { coachId, sessionId } = req.query;
 
   const [rows] = await db.query(
-    `SELECT is_late, checkout_time
-     FROM coach_checkins
-     WHERE coach_id = ?
-     AND session_id = ?
-     ORDER BY id DESC
+    `SELECT cc.is_late, cc.checkout_time
+     FROM coach_checkins cc
+     JOIN training_sessions ts ON ts.id = cc.session_id
+     WHERE cc.coach_id = ?
+     AND cc.session_id = ?
+     AND DATE(cc.checkin_time) = ts.session_date
+     ORDER BY cc.id DESC
      LIMIT 1`,
     [coachId, sessionId]
   );
-
-  console.log({ coachId, sessionId });
 
   if (rows.length === 0) {
     return res.json({
@@ -888,6 +889,7 @@ app.get("/api/coach/checkin/status", async (req, res) => {
     isLate: row.is_late
   });
 });
+
 
 
 app.post("/api/coach/checkin/qr", (req, res) => {
