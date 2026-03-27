@@ -90,7 +90,7 @@ export default function CoachSessions() {
       async (position) => {
         const { latitude, longitude } = position.coords;
   
-        await fetch(`${API_BASE}/api/coach/checkin`, {
+        const res = await fetch(`${API_BASE}/api/coach/checkin`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -102,17 +102,27 @@ export default function CoachSessions() {
           }),
         });
   
-        setCheckedInMap(prev => ({ ...prev, [sessionId]: true }));
+        const data = await res.json();
+  
+        ///////////////////////////////////////////////////////
+        // ✅ ONLY UPDATE IF SUCCESS
+        ///////////////////////////////////////////////////////
+  
+        if (res.ok) {
+          setCheckedInMap(prev => ({
+            ...prev,
+            [sessionId]: true
+          }));
+        } else {
+          alert(data.message || "Check-in failed");
+        }
       },
-      (err) => {
+      () => {
         alert("Please enable location to check in");
       },
-      {
-        enableHighAccuracy: true
-      }
+      { enableHighAccuracy: true }
     );
   };
-
   const handleCheckOut = async (sessionId: number) => {
     await fetch(`${API_BASE}/api/coach/checkout`, {
       method: "POST",
