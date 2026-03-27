@@ -705,7 +705,7 @@ app.get("/api/admin/revenue",  (req, res) => {
   
   
   app.get("/api/admin/sessions", async (req, res) => {
-    const [rows] = await pool.query(`
+    const [rows] = await db.query(`
       SELECT 
         s.*,
         l.name AS locationName,
@@ -743,7 +743,7 @@ app.get("/api/admin/revenue",  (req, res) => {
   
     try {
       // 1. Insert session
-      const [result] = await pool.query(
+      const [result] = await db.query(
         `INSERT INTO training_sessions 
          (session_date, start_time, end_time, location_id, coach_id)
          VALUES (?, ?, ?, ?, ?)`,
@@ -754,7 +754,7 @@ app.get("/api/admin/revenue",  (req, res) => {
   
       // 2. Insert mapping
       for (const pid of program_ids) {
-        await pool.query(
+        await db.query(
           `INSERT INTO session_programs (session_id, program_id)
            VALUES (?, ?)`,
           [sessionId, pid]
@@ -3025,7 +3025,7 @@ app.post("/api/admin/players/by-programs", async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.query(
+    const [rows] = await db.query(
       `SELECT DISTINCT p.*
        FROM players p
        WHERE p.program_id IN (?)`,
