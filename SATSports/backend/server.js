@@ -705,116 +705,156 @@ app.get("/api/admin/revenue",  (req, res) => {
   
   
   app.get("/api/admin/sessions", async (req, res) => {
-    try {
-      const [rows] = await db.query(
-        `SELECT 
-          ts.id,
-DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
-          ts.start_time,
-          ts.end_time,
-          ts.program_id,
-          p.title AS programTitle,
-          ts.location_id,
-          l.name AS locationName,
-          ts.coach_id,
-          c.name AS coachName,
-          COUNT(sp.player_id) AS playerCount
-         FROM training_sessions ts
-         JOIN locations l ON l.id = ts.location_id
-         JOIN programs p ON p.id = ts.program_id
-         JOIN coaches c ON c.id = ts.coach_id
-         LEFT JOIN session_players sp ON sp.session_id = ts.id
-         GROUP BY ts.id
-         ORDER BY ts.session_date, ts.start_time`
-      );
+    const [rows] = await pool.query(`
+      SELECT 
+        s.*,
+        l.name AS locationName,
+        c.name AS coachName,
+        GROUP_CONCAT(DISTINCT p.title) AS programTitles,
+        GROUP_CONCAT(DISTINCT sp.program_id) AS programIds
+      FROM sessions s
+      LEFT JOIN locations l ON l.id = s.location_id
+      LEFT JOIN coaches c ON c.id = s.coach_id
+      LEFT JOIN session_programs sp ON sp.session_id = s.id
+      LEFT JOIN programs p ON p.id = sp.program_id
+      GROUP BY s.id
+      ORDER BY s.session_date DESC
+    `);
   
-      res.json(rows);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Failed to fetch sessions" });
-    }
-  });
-      
+    // ✅ THIS is the important Node.js part
+    const formatted = rows.map(r => ({
+      ...r,
+      programIds: r.programIds
+        ? r.programIds.split(",").map(Number)
+        : []
+    }));
   
+    res.json(formatted);
+  });  
   app.post("/api/admin/sessions", async (req, res) => {
+    const {
+      session_date,
+      start_time,
+      end_time,
+      location_id,
+      coach_id,
+      program_ids
+    } = req.body;
+  
     try {
-      const { session_date, start_time, end_time, location_id, coach_id, program_id } = req.body;
-  
-      if (!session_date || !start_time || !end_time || !location_id || !coach_id || !program_id) {
-        return res.status(400).json({ message: "Missing required fields" });
-      }
-  
-      // 1. Create session
-      const [result] = await db.execute(
-        `INSERT INTO training_sessions
-         (session_date, start_time, end_time, location_id, coach_id, program_id)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [session_date, start_time, end_time, location_id, coach_id, program_id]
+      // 1. Insert session
+      const [result] = await pool.query(
+        `INSERT INTO training_sessions 
+         (session_date, start_time, end_time, location_id, coach_id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [session_date, start_time, end_time, location_id, coach_id]
       );
   
       const sessionId = result.insertId;
   
-      // 2. Auto-assign players by PROGRAM
-      await db.execute(
-        `INSERT INTO session_players (session_id, player_id)
-         SELECT ?, id FROM players WHERE program_id = ?`,
-        [sessionId, program_id]
-      );
+      // 2. Insert mapping
+      for (const pid of program_ids) {
+        await pool.query(
+          `INSERT INTO session_programs (session_id, program_id)
+           VALUES (?, ?)`,
+          [sessionId, pid]
+        );
+      }
   
-      res.json({ id: sessionId });
+      res.json({ success: true });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ message: "Failed to create session" });
+      res.status(500).json({ error: "Failed to create session" });
     }
   });
         
 // Update session
 app.put("/api/admin/sessions/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { session_date, start_time, end_time, location_id, coach_id, program_id } = req.body;
+  const { id } = req.params;
 
-    if (!session_date || !start_time || !end_time || !location_id || !coach_id || !program_id) {
-      return res.status(400).json({ message: "Missing required fields" });
+  const {
+    session_date,
+    start_time,
+    end_time,
+    location_id,
+    coach_id,
+    program_ids
+  } = req.body;
+
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 1. Update session
+    await conn.query(
+      `UPDATE sessions
+       SET session_date = ?, start_time = ?, end_time = ?, 
+           location_id = ?, coach_id = ?
+       WHERE id = ?`,
+      [session_date, start_time, end_time, location_id, coach_id, id]
+    );
+
+    // 2. Remove old mappings
+    await conn.query(
+      `DELETE FROM session_programs WHERE session_id = ?`,
+      [id]
+    );
+
+    // 3. Insert new mappings
+    for (const pid of program_ids) {
+      await conn.query(
+        `INSERT INTO session_programs (session_id, program_id)
+         VALUES (?, ?)`,
+        [id, pid]
+      );
     }
 
-    await db.execute(
-      `UPDATE training_sessions
-       SET session_date = ?, start_time = ?, end_time = ?, location_id = ?, coach_id = ?, program_id = ?
-       WHERE id = ?`,
-      [session_date, start_time, end_time, location_id, coach_id, program_id, id]
-    );
-
-    // Re-assign players for this session (optional but clean)
-    await db.execute(`DELETE FROM session_players WHERE session_id = ?`, [id]);
-
-    await db.execute(
-      `INSERT INTO session_players (session_id, player_id)
-       SELECT ?, id FROM players WHERE program_id = ?`,
-      [id, program_id]
-    );
+    await conn.commit();
 
     res.json({ success: true });
+
   } catch (err) {
+    await conn.rollback();
     console.error(err);
-    res.status(500).json({ message: "Failed to update session" });
+    res.status(500).json({ error: "Failed to update session" });
+  } finally {
+    conn.release();
   }
 });
 // Delete session
 app.delete("/api/admin/sessions/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    await db.execute("DELETE FROM session_players WHERE session_id = ?", [id]);
-    await db.execute("DELETE FROM training_sessions WHERE id = ?", [id]);
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 1. Delete mappings
+    await conn.query(
+      `DELETE FROM session_programs WHERE session_id = ?`,
+      [id]
+    );
+
+    // 2. Delete session
+    await conn.query(
+      `DELETE FROM sessions WHERE id = ?`,
+      [id]
+    );
+
+    await conn.commit();
 
     res.json({ success: true });
+
   } catch (err) {
+    await conn.rollback();
     console.error(err);
-    res.status(500).json({ message: "Failed to delete session" });
+    res.status(500).json({ error: "Failed to delete session" });
+  } finally {
+    conn.release();
   }
-});
-// Check-in
+});// Check-in
 
 // Check-in status
 app.get("/api/coach/checkin/status", async (req, res) => {
@@ -2975,5 +3015,26 @@ app.put("/api/admin/private-bookings/:id/reject", async (req, res) => {
   } catch (err) {
     console.error("REJECT ERROR:", err);
     res.status(500).json({ message: "Reject failed" });
+  }
+});
+app.post("/api/admin/players/by-programs", async (req, res) => {
+  const { program_ids } = req.body;
+
+  if (!program_ids || program_ids.length === 0) {
+    return res.json([]);
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT DISTINCT p.*
+       FROM players p
+       WHERE p.program_id IN (?)`,
+      [program_ids]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load players" });
   }
 });

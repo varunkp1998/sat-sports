@@ -3522,22 +3522,26 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
 
 function AdminSessions() {
-  const [sessions, setSessions] = React.useState<any[]>([]);
-  const [locations, setLocations] = React.useState<any[]>([]);
-  const [coaches, setCoaches] = React.useState<any[]>([]);
-  const [programs, setPrograms] = React.useState<any[]>([]);
-  const [players, setPlayers] = React.useState<any[]>([]);
+  const [sessions, setSessions] = React.useState([]);
+  const [locations, setLocations] = React.useState([]);
+  const [coaches, setCoaches] = React.useState([]);
+  const [programs, setPrograms] = React.useState([]);
+  const [players, setPlayers] = React.useState([]);
 
-  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [editingId, setEditingId] = React.useState(null);
 
   const [date, setDate] = React.useState("");
-  const [startTime, setStartTime] = React.useState<Dayjs | null>(null);
-  const [endTime, setEndTime] = React.useState<Dayjs | null>(null);
+  const [startTime, setStartTime] = React.useState(null);
+  const [endTime, setEndTime] = React.useState(null);
   const [locationId, setLocationId] = React.useState("");
   const [coachId, setCoachId] = React.useState("");
-  const [programId, setProgramId] = React.useState("");
-  const [selectedPlayers, setSelectedPlayers] = React.useState<number[]>([]);
 
+  // ✅ MULTI PROGRAM
+  const [programIds, setProgramIds] = React.useState([]);
+
+  const [selectedPlayers, setSelectedPlayers] = React.useState([]);
+
+  // ================= LOAD DATA =================
   const loadSessions = () => {
     fetch(`${API_BASE}/api/admin/sessions`)
       .then(res => res.json())
@@ -3562,12 +3566,6 @@ function AdminSessions() {
       .then(setPrograms);
   };
 
-  const loadPlayersByProgram = (pid: string) => {
-    fetch(`${API_BASE}/api/admin/players/program/${pid}`)
-      .then(res => res.json())
-      .then(setPlayers);
-  };
-
   React.useEffect(() => {
     loadSessions();
     loadLocations();
@@ -3575,12 +3573,34 @@ function AdminSessions() {
     loadPrograms();
   }, []);
 
-  const togglePlayer = (id: number) => {
+  // ================= LOAD PLAYERS =================
+  const loadPlayersByPrograms = (ids) => {
+    if (!ids || ids.length === 0) {
+      setPlayers([]);
+      return;
+    }
+
+    fetch(`${API_BASE}/api/admin/players/by-programs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ program_ids: ids })
+    })
+      .then(res => res.json())
+      .then(setPlayers);
+  };
+
+  // ================= TOGGLE PLAYER =================
+  const togglePlayer = (id) => {
     setSelectedPlayers(prev =>
-      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+      prev.includes(id)
+        ? prev.filter(p => p !== id)
+        : [...prev, id]
     );
   };
 
+  // ================= RESET =================
   const resetForm = () => {
     setEditingId(null);
     setDate("");
@@ -3588,319 +3608,203 @@ function AdminSessions() {
     setEndTime(null);
     setLocationId("");
     setCoachId("");
-    setProgramId("");
+    setProgramIds([]);
     setPlayers([]);
     setSelectedPlayers([]);
   };
 
+  // ================= SAVE =================
   const saveSession = () => {
-    if (!date || !startTime || !endTime || !locationId || !coachId || !programId) {
-      alert("Please fill all fields");
+    if (!date || !startTime || !endTime || !locationId || !coachId || programIds.length === 0) {
+      alert("Fill all fields");
       return;
     }
 
     const payload = {
-      session_date: dayjs(date).format("YYYY-MM-DD"),  // ✅ important
+      session_date: dayjs(date).format("YYYY-MM-DD"),
       start_time: startTime.format("HH:mm:ss"),
       end_time: endTime.format("HH:mm:ss"),
       location_id: Number(locationId),
       coach_id: Number(coachId),
-      program_id: Number(programId),
-      // If you later want to save players per session, you can send:
-      // players: selectedPlayers
+      program_ids: programIds
     };
 
-    if (editingId) {
-      fetch(`${API_BASE}/api/admin/sessions/${editingId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(() => {
-        resetForm();
-        loadSessions();
-      });
-    } else {
-      fetch(`${API_BASE}/api/admin/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(() => {
-        resetForm();
-        loadSessions();
-      });
-    }
+    const url = editingId
+      ? `${API_BASE}/api/admin/sessions/${editingId}`
+      : `${API_BASE}/api/admin/sessions`;
+
+    const method = editingId ? "PUT" : "POST";
+
+    fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(() => {
+      resetForm();
+      loadSessions();
+    });
   };
 
-  const editSession = (s: any) => {
+  // ================= EDIT =================
+  const editSession = (s) => {
     setEditingId(s.id);
-    setDate(dayjs(s.session_date || s.date).format("YYYY-MM-DD"));
-    setStartTime(dayjs(s.start_time || s.startTime, "HH:mm:ss"));
-    setEndTime(dayjs(s.end_time || s.endTime, "HH:mm:ss"));
+    setDate(dayjs(s.session_date).format("YYYY-MM-DD"));
+    setStartTime(dayjs(s.start_time, "HH:mm:ss"));
+    setEndTime(dayjs(s.end_time, "HH:mm:ss"));
     setLocationId(String(s.location_id));
     setCoachId(String(s.coach_id));
-    setProgramId(String(s.program_id || ""));
 
-    setPlayers([]);
-    setSelectedPlayers([]);
-    if (s.program_id) {
-      loadPlayersByProgram(String(s.program_id));
-    }
+    // ✅ IMPORTANT
+    setProgramIds(s.programIds || []);
+    loadPlayersByPrograms(s.programIds || []);
   };
 
-  const deleteSession = (id: number) => {
-    if (!window.confirm("Delete this session?")) return;
+  // ================= DELETE =================
+  const deleteSession = (id) => {
+    if (!window.confirm("Delete session?")) return;
 
-    fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" })
-      .then(async res => {
-        if (!res.ok) {
-          let msg = "Failed to delete session";
-          try {
-            const data = await res.json();
-            if (data?.message) msg = data.message;
-          } catch {}
-          alert(msg);
-          return;
-        }
-        loadSessions();
-      });
+    fetch(`${API_BASE}/api/admin/sessions/${id}`, {
+      method: "DELETE"
+    }).then(() => loadSessions());
   };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <section>
-        {/* Header */}
-        <Box
-          sx={{
-            mb: 3,
-            p: 3,
-            borderRadius: 3,
-            color: "#fff",
-            background: "linear-gradient(135deg, #d32f2f, #ff6f00)",
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-          }}
-        >
-          <SportsTennisIcon sx={{ fontSize: 40 }} />
-          <Box>
-            <Typography variant="h5" fontWeight={700}>
-              Session Management
-            </Typography>
-            <Typography variant="body2">
-              Create, edit, and manage training sessions
-            </Typography>
-          </Box>
-        </Box>
+      <Box sx={{ p: 3 }}>
 
-        {/* Create / Edit Card */}
-        <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 8px 20px rgba(0,0,0,0.1)" }}>
+        <Typography variant="h5" mb={2}>
+          Session Management
+        </Typography>
+
+        {/* ================= FORM ================= */}
+        <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-              {editingId ? "✏️ Edit Session" : "➕ Create New Session"}
-            </Typography>
 
             <Stack spacing={2}>
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField
-                  type="date"
-                  label="Date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
 
-                <TimePicker
-                  label="Start Time"
-                  value={startTime}
-                  onChange={setStartTime}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
+              <TextField
+                type="date"
+                label="Date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
 
-                <TimePicker
-                  label="End Time"
-                  value={endTime}
-                  onChange={setEndTime}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-              </Stack>
+              <TimePicker label="Start Time" value={startTime} onChange={setStartTime} />
+              <TimePicker label="End Time" value={endTime} onChange={setEndTime} />
 
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField
-                  select
-                  label="Location"
-                  value={locationId}
-                  onChange={e => setLocationId(e.target.value)}
-                  fullWidth
-                  SelectProps={{ native: true }}
-                  InputLabelProps={{ shrink: true }}
+              <TextField
+                select
+                label="Location"
+                value={locationId}
+                onChange={e => setLocationId(e.target.value)}
+                SelectProps={{ native: true }}
+              >
+                <option value="">Select</option>
+                {locations.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </TextField>
 
-                >
-                  <option value="">Select Location</option>
-                  {locations.map((l: any) => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </TextField>
+              <TextField
+                select
+                label="Coach"
+                value={coachId}
+                onChange={e => setCoachId(e.target.value)}
+                SelectProps={{ native: true }}
+              >
+                <option value="">Select</option>
+                {coaches.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </TextField>
 
-                <TextField
-                  select
-                  label="Coach"
-                  value={coachId}
-                  onChange={e => setCoachId(e.target.value)}
-                  fullWidth
-                  SelectProps={{ native: true }}
-                  InputLabelProps={{ shrink: true }}
+              {/* ================= MULTI PROGRAM ================= */}
+              <TextField
+                select
+                label="Programs"
+                value={programIds}
+                onChange={(e) => {
+                  const value = typeof e.target.value === "string"
+                    ? e.target.value.split(",").map(Number)
+                    : e.target.value;
 
-                >
-                  <option value="">Select Coach</option>
-                  {coaches.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </TextField>
+                  setProgramIds(value);
+                  setSelectedPlayers([]);
+                  loadPlayersByPrograms(value);
+                }}
+                SelectProps={{ multiple: true }}
+              >
+                {programs.map(p => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.title}
+                  </MenuItem>
+                ))}
+              </TextField>
 
-                <TextField
-                  select
-                  label="Program"
-                  value={programId}
-                  onChange={e => {
-                    const pid = e.target.value;
-                    setProgramId(pid);
-                    setSelectedPlayers([]);
-                    if (pid) loadPlayersByProgram(pid);
-                    else setPlayers([]);
-                  }}
-                  fullWidth
-                  SelectProps={{ native: true }}
-                  InputLabelProps={{ shrink: true }}
-
-                >
-                  <option value="">Select Program</option>
-                  {programs.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.title}</option>
-                  ))}
-                </TextField>
-              </Stack>
-
-              {/* Player Picker */}
+              {/* ================= PLAYERS ================= */}
               {players.length > 0 && (
                 <Box>
-                  <Typography fontWeight={600} sx={{ mb: 1 }}>
-                    Select Players
-                  </Typography>
-                  <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell />
-                          <TableCell>Name</TableCell>
-                          <TableCell>Age</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {players.map((p: any) => (
-                          <TableRow key={p.id} hover>
-                            <TableCell>
-                              <input
-                                type="checkbox"
-                                checked={selectedPlayers.includes(p.id)}
-                                onChange={() => togglePlayer(p.id)}
-                              />
-                            </TableCell>
-                            <TableCell>{p.name}</TableCell>
-                            <TableCell>{p.age || "-"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                  <Typography>Select Players</Typography>
+
+                  {players.map(p => (
+                    <FormControlLabel
+                      key={p.id}
+                      control={
+                        <Checkbox
+                          checked={selectedPlayers.includes(p.id)}
+                          onChange={() => togglePlayer(p.id)}
+                        />
+                      }
+                      label={p.name}
+                    />
+                  ))}
                 </Box>
               )}
 
-              <Stack direction="row" spacing={2}>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  sx={{ background: "linear-gradient(135deg, #d32f2f, #ff6f00)" }}
-                  onClick={saveSession}
-                >
-                  {editingId ? "Update Session" : "Create Session"}
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<RestartAltIcon />}
-                  color="error"
-                  onClick={resetForm}
-                >
-                  Reset
-                </Button>
-              </Stack>
+              <Button variant="contained" onClick={saveSession}>
+                {editingId ? "Update" : "Create"}
+              </Button>
+
             </Stack>
+
           </CardContent>
         </Card>
 
-        {/* Sessions List */}
-        <Card sx={{ borderRadius: 3, boxShadow: "0 8px 20px rgba(0,0,0,0.1)" }}>
-          <CardContent>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-              📅 All Sessions
-            </Typography>
+        {/* ================= LIST ================= */}
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Date</TableCell>
+              <TableCell>Time</TableCell>
+              <TableCell>Coach</TableCell>
+              <TableCell>Programs</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
 
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Time</TableCell>
-                    <TableCell>Location</TableCell>
-                    <TableCell>Coach</TableCell>
-                    <TableCell>Program</TableCell>
-                    <TableCell>Players</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sessions.map((s: any) => (
-                    <TableRow key={s.id} hover>
-                      <TableCell>{s.session_date || s.date}</TableCell>
-                      <TableCell>
-                        {s.start_time || s.startTime} – {s.end_time || s.endTime}
-                      </TableCell>
-                      <TableCell>{s.locationName}</TableCell>
-                      <TableCell>{s.coachName}</TableCell>
-                      <TableCell>
-                        <Chip label={s.programTitle || "—"} color="warning" size="small" />
-                      </TableCell>
-                      <TableCell>{s.playerCount || 0}</TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button size="small" variant="contained" color="warning" onClick={() => editSession(s)}>
-                            Edit
-                          </Button>
-                          <Button size="small" variant="outlined" color="error" onClick={() => deleteSession(s.id)}>
-                            Delete
-                          </Button>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+          <TableBody>
+            {sessions.map(s => (
+              <TableRow key={s.id}>
+                <TableCell>{s.session_date}</TableCell>
+                <TableCell>{s.start_time} - {s.end_time}</TableCell>
+                <TableCell>{s.coachName}</TableCell>
+                <TableCell>{s.programTitles}</TableCell>
+                <TableCell>
+                  <Button onClick={() => editSession(s)}>Edit</Button>
+                  <Button color="error" onClick={() => deleteSession(s.id)}>
+                    Delete
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
 
-                  {sessions.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        No sessions found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
-      </section>
+      </Box>
     </LocalizationProvider>
   );
 }
-
 
 
 function AdminLayout() {
