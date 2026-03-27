@@ -381,20 +381,21 @@ app.get("/api/tournaments", (req, res) => {
 // --- ATTENDANCE ---
 app.get("/api/admin/attendance", async (req, res) => {
   try {
-    const { date } = req.query; // YYYY-MM-DD
+    const { date } = req.query;
 
     let sql = `
       SELECT 
         sa.session_id,
         sa.player_id,
         sa.present,
-DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
+        DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
         p.name AS playerName,
-        pr.title AS programTitle
+        GROUP_CONCAT(pr.title) AS programTitles
       FROM session_attendance sa
       JOIN training_sessions ts ON ts.id = sa.session_id
       JOIN players p ON p.id = sa.player_id
-      JOIN programs pr ON pr.id = ts.program_id
+      LEFT JOIN session_programs sp ON sp.session_id = ts.id
+      LEFT JOIN programs pr ON pr.id = sp.program_id
     `;
 
     const params = [];
@@ -404,16 +405,20 @@ DATE_FORMAT(ts.session_date, '%Y-%m-%d') AS session_date,
       params.push(date);
     }
 
-    sql += " ORDER BY ts.session_date DESC";
+    sql += `
+      GROUP BY sa.session_id, sa.player_id
+      ORDER BY ts.session_date DESC
+    `;
 
     const [rows] = await db.query(sql, params);
+
     res.json(rows);
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to load attendance" });
+    console.error("ATTENDANCE ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
-});
-  
+});  
   // CREATE
   app.post("/api/attendance",  (req, res) => {
     const record = { id: Date.now(), ...req.body };
