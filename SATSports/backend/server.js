@@ -1033,8 +1033,9 @@ app.post("/api/coach/checkin", async (req, res) => {
 
     await db.query(
       `INSERT INTO coach_checkins 
-(coach_id, session_id, location_id, lat, lng, checkin_time)`,
-      [coachId, sessionId, locationId]
+(coach_id, session_id, location_id, lat, lng, checkin_time)
+VALUES (?, ?, ?, ?, ?, ?)`,
+      [coachId, sessionId, locationId,lat, lng, new Date()]
     );
 
     res.json({ success: true });
