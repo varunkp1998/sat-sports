@@ -28,9 +28,6 @@ export default function CoachSessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, any>>({});
   const [coachId, setCoachId] = useState<string | null>(null);
-  const state = checkedInMap[s.id] || {};
-  const isCheckedIn = state.checkedIn;
-  const isCompleted = state.completed;
   const [filterDate, setFilterDate] = useState(
     dayjs().format("YYYY-MM-DD")
   );
@@ -195,12 +192,12 @@ export default function CoachSessions() {
         <Typography color="gray">No sessions</Typography>
       )}
 
+
       {/* GRID */}
       <Grid container spacing={4}>
         {filteredSessions.map((s) => {
 
           const checkin = checkedInMap[s.id] || {};
-          const isCheckedIn = checkin.checkedIn;
 
           const sessionTime = new Date(`${s.session_date} ${s.start_time}`);
           const diffMin = Math.floor((sessionTime - new Date()) / (1000 * 60));
@@ -220,6 +217,9 @@ export default function CoachSessions() {
             ? "#f59e0b"
             : "#64748b";
 
+              const state = checkedInMap[s.id] || {};
+              const isCheckedIn = state.checkedIn;
+              const isCompleted = state.completed;
           return (
             <Grid item xs={12} md={6} lg={4} key={s.id}>
 
