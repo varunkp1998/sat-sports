@@ -264,9 +264,16 @@ export default function CoachSessions() {
 
                   {/* TIME */}
                   <Typography mt={1}>
-                    ⏰ {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} –
-                    {s.end_time ? dayjs(s.end_time, "HH:mm:ss").format("hh:mm A") : "--"}
-                  </Typography>
+  ⏰ {
+    s.start_time
+      ? dayjs(s.start_time).format("hh:mm A")
+      : "--"
+  } – {
+    s.end_time
+      ? dayjs(s.end_time).format("hh:mm A")
+      : "--"
+  }
+</Typography>
 
                   {/* LOCATION */}
                   <Typography mt={2} fontWeight={700}>
