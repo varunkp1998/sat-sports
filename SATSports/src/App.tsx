@@ -3528,6 +3528,8 @@ import {
 
 
 
+
+
 function AdminSessions() {
   const [sessions, setSessions] = React.useState([]);
   const [locations, setLocations] = React.useState([]);
@@ -3545,7 +3547,7 @@ function AdminSessions() {
   const [programIds, setProgramIds] = React.useState([]);
   const [selectedPlayers, setSelectedPlayers] = React.useState([]);
 
-  // 🔥 FILTER
+  // ✅ FILTER DATE
   const [filterDate, setFilterDate] = React.useState(dayjs().format("YYYY-MM-DD"));
 
   const theme = useTheme();
@@ -3578,10 +3580,10 @@ function AdminSessions() {
     loadPrograms();
   }, []);
 
-  // ================= FILTER LOGIC =================
+  // ✅ FIXED FILTER LOGIC
   const filteredSessions = sessions.filter(s => {
     if (!filterDate) return true;
-    return s.session_date === filterDate;
+    return dayjs(s.session_date).format("YYYY-MM-DD") === filterDate;
   });
 
   // ================= PLAYERS =================
@@ -3618,11 +3620,6 @@ function AdminSessions() {
   };
 
   const saveSession = () => {
-    if (!date || !startTime || !endTime || !locationId || !coachId || !programIds.length) {
-      alert("Fill all fields");
-      return;
-    }
-
     const payload = {
       session_date: dayjs(date).format("YYYY-MM-DD"),
       start_time: startTime.format("HH:mm:ss"),
@@ -3671,11 +3668,10 @@ function AdminSessions() {
           Sessions Dashboard
         </Typography>
 
-        {/* 🔥 FILTER BAR */}
+        {/* ✅ FILTER (NO BUTTON) */}
         <Card sx={filterCard}>
           <CardContent>
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center">
-
+            <Stack direction="row" spacing={2} alignItems="center">
               <TextField
                 type="date"
                 label="Filter by Date"
@@ -3683,97 +3679,48 @@ function AdminSessions() {
                 onChange={(e) => setFilterDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
               />
-
-              <Button variant="contained" sx={clearBtn} onClick={() => setFilterDate("")}>
-                Clear
-              </Button>
-
               <Typography fontWeight={600}>
                 {filteredSessions.length} sessions
               </Typography>
-
             </Stack>
           </CardContent>
         </Card>
 
-        {/* FORM */}
+        {/* ================= TABLE ================= */}
         <Card sx={glassCard}>
-          <CardContent>
-            <Stack spacing={2}>
-              <TextField type="date" value={date} onChange={(e)=>setDate(e.target.value)} InputLabelProps={{shrink:true}}/>
-              <Stack direction={{xs:"column",md:"row"}} spacing={2}>
-                <TimePicker label="Start" value={startTime} onChange={setStartTime}/>
-                <TimePicker label="End" value={endTime} onChange={setEndTime}/>
-              </Stack>
+          <Table>
+            <TableHead sx={{ background:"#800000" }}>
+              <TableRow>
+                <TableCell sx={th}>Date</TableCell>
+                <TableCell sx={th}>Time</TableCell>
+                <TableCell sx={th}>Coach</TableCell>
+                <TableCell sx={th}>Programs</TableCell>
+              </TableRow>
+            </TableHead>
 
-              <TextField select value={locationId} onChange={(e)=>setLocationId(e.target.value)} SelectProps={{native:true}}>
-                <option value="">Location</option>
-                {locations.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
-              </TextField>
-
-              <TextField select value={coachId} onChange={(e)=>setCoachId(e.target.value)} SelectProps={{native:true}}>
-                <option value="">Coach</option>
-                {coaches.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-              </TextField>
-
-              <TextField select value={programIds}
-                onChange={(e)=>{
-                  const v = typeof e.target.value==="string"?e.target.value.split(",").map(Number):e.target.value;
-                  setProgramIds(v);
-                  loadPlayersByPrograms(v);
-                }}
-                SelectProps={{multiple:true}}
-              >
-                {programs.map(p=><MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
-              </TextField>
-
-              <Button sx={ctaBtn} onClick={saveSession}>
-                {editingId ? "Update" : "Create"}
-              </Button>
-
-            </Stack>
-          </CardContent>
-        </Card>
-
-        {/* LIST */}
-        <Box mt={3}>
-          {isMobile ? (
-            <Stack spacing={2}>
-              {filteredSessions.map(s=>(
-                <Card key={s.id} sx={glassCard}>
-                  <CardContent>
-                    <Typography fontWeight={700}>{s.session_date}</Typography>
-                    <Typography>{s.start_time} → {s.end_time}</Typography>
-                    <Typography>Coach: {s.coachName}</Typography>
-                  </CardContent>
-                </Card>
+            <TableBody>
+              {filteredSessions.map(s => (
+                <TableRow key={s.id} hover>
+                  <TableCell>
+                    {dayjs(s.session_date).format("DD MMM YYYY")}
+                  </TableCell>
+                  <TableCell>
+                    {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} → 
+                    {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}
+                  </TableCell>
+                  <TableCell>{s.coachName}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" flexWrap="wrap" gap={1}>
+                      {s.programTitles?.split(",").map((p,i)=>(
+                        <Chip key={i} label={p} size="small"/>
+                      ))}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
               ))}
-            </Stack>
-          ) : (
-            <Card sx={glassCard}>
-              <Table>
-                <TableHead sx={{ background:"#800000" }}>
-                  <TableRow>
-                    <TableCell sx={th}>Date</TableCell>
-                    <TableCell sx={th}>Time</TableCell>
-                    <TableCell sx={th}>Coach</TableCell>
-                    <TableCell sx={th}>Programs</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredSessions.map(s=>(
-                    <TableRow key={s.id} hover>
-                      <TableCell>{s.session_date}</TableCell>
-                      <TableCell>{s.start_time} → {s.end_time}</TableCell>
-                      <TableCell>{s.coachName}</TableCell>
-                      <TableCell>{s.programTitles}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          )}
-        </Box>
+            </TableBody>
+          </Table>
+        </Card>
 
       </Box>
     </LocalizationProvider>
@@ -3789,25 +3736,14 @@ const containerStyle = {
 
 const glassCard = {
   borderRadius:3,
-  background:"rgba(255,255,255,0.95)",
-  boxShadow:"0 10px 30px rgba(0,0,0,0.4)"
+  background:"#fff",
+  boxShadow:"0 10px 30px rgba(0,0,0,0.3)"
 };
 
 const filterCard = {
   mb:2,
   borderRadius:3,
   background:"#fff"
-};
-
-const ctaBtn = {
-  background:"#800000",
-  color:"#fff",
-  borderRadius:2
-};
-
-const clearBtn = {
-  background:"#000",
-  color:"#fff"
 };
 
 const th = {
