@@ -863,7 +863,9 @@ app.get("/api/coach/checkin/status", async (req, res) => {
   const [rows] = await db.query(
     `SELECT is_late, checkout_time
      FROM coach_checkins
-     WHERE coach_id = ? AND session_id = ?
+     WHERE coach_id = ?
+     AND session_id = ?
+     AND DATE(checkin_time) = CURDATE()
      ORDER BY id DESC LIMIT 1`,
     [coachId, sessionId]
   );
