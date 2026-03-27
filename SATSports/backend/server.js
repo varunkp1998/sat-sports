@@ -705,32 +705,37 @@ app.get("/api/admin/revenue",  (req, res) => {
   
   
   app.get("/api/admin/sessions", async (req, res) => {
-    const [rows] = await db.query(`
-      SELECT 
-        s.*,
-        l.name AS locationName,
-        c.name AS coachName,
-        GROUP_CONCAT(DISTINCT p.title) AS programTitles,
-        GROUP_CONCAT(DISTINCT sp.program_id) AS programIds
-      FROM sessions s
-      LEFT JOIN locations l ON l.id = s.location_id
-      LEFT JOIN coaches c ON c.id = s.coach_id
-      LEFT JOIN session_programs sp ON sp.session_id = s.id
-      LEFT JOIN programs p ON p.id = sp.program_id
-      GROUP BY s.id
-      ORDER BY s.session_date DESC
-    `);
+    try {
+      const [rows] = await db.query(`
+        SELECT 
+          s.*,
+          l.name AS locationName,
+          c.name AS coachName,
+          GROUP_CONCAT(DISTINCT p.title) AS programTitles,
+          GROUP_CONCAT(DISTINCT sp.program_id) AS programIds
+        FROM training_sessions s
+        LEFT JOIN locations l ON l.id = s.location_id
+        LEFT JOIN coaches c ON c.id = s.coach_id
+        LEFT JOIN session_programs sp ON sp.session_id = s.id
+        LEFT JOIN programs p ON p.id = sp.program_id
+        GROUP BY s.id
+        ORDER BY s.session_date DESC
+      `);
   
-    // ✅ THIS is the important Node.js part
-    const formatted = rows.map(r => ({
-      ...r,
-      programIds: r.programIds
-        ? r.programIds.split(",").map(Number)
-        : []
-    }));
+      const formatted = rows.map(r => ({
+        ...r,
+        programIds: r.programIds
+          ? r.programIds.split(",").map(Number)
+          : []
+      }));
   
-    res.json(formatted);
-  });  
+      res.json(formatted);
+  
+    } catch (err) {
+      console.error(err);
+      res.status(500).json([]);
+    }
+  });
   app.post("/api/admin/sessions", async (req, res) => {
     const {
       session_date,
