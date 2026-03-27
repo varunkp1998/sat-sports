@@ -861,12 +861,14 @@ app.get("/api/coach/checkin/status", async (req, res) => {
   const { coachId, sessionId } = req.query;
 
   const [rows] = await db.query(
-    `SELECT is_late, checkout_time
-     FROM coach_checkins
-     WHERE coach_id = ?
-     AND session_id = ?
-     AND DATE(checkin_time) = CURDATE()
-     ORDER BY id DESC LIMIT 1`,
+    `SELECT cc.is_late, cc.checkout_time
+     FROM coach_checkins cc
+     JOIN training_sessions ts ON ts.id = cc.session_id
+     WHERE cc.coach_id = ?
+     AND cc.session_id = ?
+     AND DATE(ts.session_date) = CURDATE()
+     ORDER BY cc.id DESC
+     LIMIT 1`,
     [coachId, sessionId]
   );
 
