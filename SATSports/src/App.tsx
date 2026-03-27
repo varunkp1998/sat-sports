@@ -3812,7 +3812,7 @@ function AdminSessions() {
     </LocalizationProvider>
   );
 }
-
+}
 
 function AdminLayout() {
   const [open, setOpen] = useState(false);
