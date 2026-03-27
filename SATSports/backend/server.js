@@ -1078,19 +1078,32 @@ app.post("/api/coach/checkin", async (req, res) => {
     // PREVENT DUPLICATE (GRACEFUL)
     ///////////////////////////////////////////////////////
 
-    const [existing] = await db.query(
-      `SELECT id FROM coach_checkins
-       WHERE coach_id=? AND session_id=? AND checkout_time IS NULL`,
-      [coachId, sessionId]
-    );
+  
+// BEFORE INSERT
+const [existing] = await db.query(
+  `SELECT id, checkout_time 
+   FROM coach_checkins
+   WHERE coach_id=? AND session_id=?`,
+  [coachId, sessionId]
+);
 
-    if (existing.length > 0) {
-      return res.json({
-        success: true,
-        message: "Already checked in",
-        isLate: 0
-      });
-    }
+// ✅ If already checked out → DO NOT allow new check-in
+if (existing.length > 0 && existing[0].checkout_time) {
+  return res.status(400).json({
+    message: "Session already completed"
+  });
+}
+
+// ✅ If already checked in → return success (no duplicate insert)
+if (existing.length > 0 && !existing[0].checkout_time) {
+  return res.json({
+    success: true,
+    message: "Already checked in",
+    isLate: 0
+  });
+}
+
+
 
     ///////////////////////////////////////////////////////
     // LATE DETECTION
