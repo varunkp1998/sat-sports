@@ -858,20 +858,19 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 
 // Check-in status
 app.get("/api/coach/checkin/status", async (req, res) => {
-  const { coachId, sessionId, date } = req.query;
+  const { coachId, sessionId } = req.query;
 
   const [rows] = await db.query(
     `SELECT is_late, checkout_time
      FROM coach_checkins
      WHERE coach_id = ?
      AND session_id = ?
-     AND DATE(checkin_time) = ?
      ORDER BY id DESC
      LIMIT 1`,
-    [coachId, sessionId, date]
+    [coachId, sessionId]
   );
-  console.log({ coachId, sessionId, date });
 
+  console.log({ coachId, sessionId });
 
   if (rows.length === 0) {
     return res.json({
@@ -889,6 +888,8 @@ app.get("/api/coach/checkin/status", async (req, res) => {
     isLate: row.is_late
   });
 });
+
+
 app.post("/api/coach/checkin/qr", (req, res) => {
   const { coachId, qrToken } = req.body;
 
