@@ -2080,6 +2080,7 @@ app.get("/api/admin/players/program/:programId", async (req, res) => {
   res.json(rows);
 });
 
+
 app.get("/api/admin/coach-checkins", async (req, res) => {
   try {
     const { date } = req.query;
@@ -2092,15 +2093,24 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
         ts.start_time,
         ts.end_time,
         l.name AS locationName,
-        cc.checkin_time,
-        cc.checkout_time,
-        cc.work_minutes
+
+        -- ✅ FORCE IST for display
+        CONVERT_TZ(cc.checkin_time, '+00:00', '+05:30') AS checkin_time,
+        CONVERT_TZ(cc.checkout_time, '+00:00', '+05:30') AS checkout_time,
+
+        -- ✅ prevent negative values
+        CASE 
+          WHEN cc.work_minutes < 0 THEN 0
+          ELSE cc.work_minutes
+        END AS work_minutes
+
       FROM training_sessions ts
       JOIN coaches c ON c.id = ts.coach_id
       JOIN locations l ON l.id = ts.location_id
+
       LEFT JOIN coach_checkins cc 
         ON cc.session_id = ts.id 
-        AND DATE(cc.checkin_time) = ts.session_date
+        AND DATE(CONVERT_TZ(cc.checkin_time, '+00:00', '+05:30')) = ts.session_date
     `;
 
     const params = [];
@@ -2114,7 +2124,7 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
 
     const [rows] = await db.query(sql, params);
 
-    // ✅ Add computed status
+    // ✅ Status logic (unchanged but safe)
     const result = rows.map(r => {
       let status = "Not Checked In";
 
@@ -2137,6 +2147,7 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch coach check-ins" });
   }
 });
+
 
 
 
