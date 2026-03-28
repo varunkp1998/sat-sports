@@ -2128,11 +2128,11 @@ app.get("/api/admin/coach-checkins", async (req, res) => {
     const result = rows.map(r => {
       let status = "Not Checked In";
 
-      if (r.checkin_time && !r.checkout_time) {
-        status = "Checked In";
-      } else if (r.checkout_time) {
-        status = "Checked Out";
-      }
+if (r.checkin_time && !r.checkout_time) {
+  status = "Checked In";
+} else if (r.checkout_time && r.work_minutes > 0) {
+  status = "Checked Out";
+}
 
       return {
         ...r,
