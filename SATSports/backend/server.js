@@ -949,13 +949,22 @@ VALUES (?, ?, ?, NOW())
 app.post("/api/coach/checkout", async (req, res) => {
   const { coachId, sessionId } = req.body;
 
-  const [result] = await db.query(
-    `UPDATE coach_checkins
-     SET checkout_time = NOW(),
-         work_minutes = TIMESTAMPDIFF(MINUTE, checkin_time, NOW())
-     WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL`,
-    [coachId, sessionId]
-  );
+  const [result] = 
+await db.query(
+  `UPDATE coach_checkins
+   SET checkout_time = CONVERT_TZ(NOW(), '+00:00', '+05:30'),
+       work_minutes = TIMESTAMPDIFF(
+         MINUTE,
+         checkin_time,
+         CONVERT_TZ(NOW(), '+00:00', '+05:30')
+       )
+   WHERE coach_id = ? 
+   AND session_id = ? 
+   AND checkout_time IS NULL`,
+  [coachId, sessionId]
+);
+
+
 
   if (result.affectedRows === 0) {
     return res.status(400).json({
