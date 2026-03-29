@@ -12,6 +12,7 @@ import { Routes, Route, Link } from "react-router-dom";
 import PlayerDashboard from "./PlayerDashboard";
 import PlayerAttendance from "./PlayerAttendance";
 import PlayerLeave from "./PlayerLeave";
+import PlayerPayments from "./PlayerPayments";
 export default function PlayerLayout() {
   const [open, setOpen] = useState(false);
 
@@ -19,6 +20,7 @@ export default function PlayerLayout() {
     { label: "🏠 Dashboard", path: "/player" },
     { label: "📅 Attendance", path: "/player/attendance" },
     { label: "📝 Apply Leave", path: "/player/leave" }
+    { label: "💳 Payments", path: "/player/payments" }
   ];
 
   return (
@@ -77,6 +79,7 @@ export default function PlayerLayout() {
             <Route path="/" element={<PlayerDashboard />} />
             <Route path="attendance" element={<PlayerAttendance />} />
             <Route path="leave" element={<PlayerLeave />} />
+            <Route path="payments" element={<PlayerPayments />} />
           </Routes>
         </Box>
       </Box>
