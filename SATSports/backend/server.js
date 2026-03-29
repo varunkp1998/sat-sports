@@ -7,7 +7,7 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
 const crypto = require("crypto");
-const razorpay=require("razorpay")
+const razorpay = require("./razorpay");
 const cron = require("node-cron");
 const nodemailer = require("nodemailer");
 const app = express();
@@ -3162,10 +3162,6 @@ app.post("/api/admin/players/by-programs", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Failed to load players" });
   }
-});
-const razorpay = new Razorpay({
-  key_id: "YOUR_KEY",
-  key_secret: "YOUR_SECRET"
 });
 
 app.post("/api/payment/create-order", async (req, res) => {
