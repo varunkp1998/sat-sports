@@ -3165,16 +3165,24 @@ app.post("/api/admin/players/by-programs", async (req, res) => {
 });
 
 app.post("/api/payment/create-order", async (req, res) => {
-  const { amount } = req.body;
+  try {
+    const { amount } = req.body;
+    
+    // Safety check: Ensure amount exists and is a number
+    if (!amount) return res.status(400).json({ error: "Amount is required" });
 
-  const order = await razorpay.orders.create({
-    amount: amount * 100,
-    currency: "INR"
-  });
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // Ensure it's an integer
+      currency: "INR",
+      receipt: `receipt_${Date.now()}` // Razorpay often requires a receipt ID
+    });
 
-  res.json(order);
+    res.json(order);
+  } catch (error) {
+    console.error("Razorpay Error:", error);
+    res.status(500).json({ error: error.description || "Failed to create order" });
+  }
 });
-
 app.post("/api/payment/verify", async (req, res) => {
   const {
     razorpay_order_id,
@@ -3211,4 +3219,14 @@ cron.schedule("0 9 * * *", async () => {
   `);
 
   // send email reminder
+});
+app.get("/api/player/fee/:id", async (req, res) => {
+  const [rows] = await db.query("SELECT fee_amount FROM players WHERE id = ?", [req.params.id]);
+  if (rows.length === 0) return res.status(404).json({ error: "Player not found" });
+  res.json(rows[0]);
+});
+
+app.get("/api/player/payments/:id", async (req, res) => {
+  const [rows] = await db.query("SELECT * FROM payments WHERE player_id = ?", [req.params.id]);
+  res.json(rows);
 });
