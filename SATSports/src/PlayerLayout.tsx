@@ -19,7 +19,7 @@ export default function PlayerLayout() {
   const menuItems = [
     { label: "🏠 Dashboard", path: "/player" },
     { label: "📅 Attendance", path: "/player/attendance" },
-    { label: "📝 Apply Leave", path: "/player/leave" }
+    { label: "📝 Apply Leave", path: "/player/leave" },
     { label: "💳 Payments", path: "/player/payments" }
   ];
 
