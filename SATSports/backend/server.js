@@ -7,6 +7,8 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
 const crypto = require("crypto");
+const razorpay=require("razorpay")
+const cron = require("node-cron");
 const nodemailer = require("nodemailer");
 const app = express();
 app.use(express.json());
@@ -3160,4 +3162,57 @@ app.post("/api/admin/players/by-programs", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Failed to load players" });
   }
+});
+const razorpay = new Razorpay({
+  key_id: "YOUR_KEY",
+  key_secret: "YOUR_SECRET"
+});
+
+app.post("/api/payment/create-order", async (req, res) => {
+  const { amount } = req.body;
+
+  const order = await razorpay.orders.create({
+    amount: amount * 100,
+    currency: "INR"
+  });
+
+  res.json(order);
+});
+
+app.post("/api/payment/verify", async (req, res) => {
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    playerId,
+    plan,
+    amount
+  } = req.body;
+
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+
+  const expected = crypto
+    .createHmac("sha256", "YOUR_SECRET")
+    .update(body.toString())
+    .digest("hex");
+
+  if (expected !== razorpay_signature) {
+    return res.status(400).json({ success: false });
+  }
+
+  await db.query(
+    `INSERT INTO payments (player_id, amount, plan, payment_id)
+     VALUES (?, ?, ?, ?)`,
+    [playerId, amount, plan, razorpay_payment_id]
+  );
+
+  res.json({ success: true });
+});
+cron.schedule("0 9 * * *", async () => {
+  const [dueUsers] = await db.query(`
+    SELECT * FROM players
+    WHERE next_payment_date <= CURDATE()
+  `);
+
+  // send email reminder
 });
