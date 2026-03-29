@@ -3303,25 +3303,52 @@ cron.schedule("0 9 * * *", async () => {
 });
 app.get("/api/player/fee/:id", async (req, res) => {
   try {
-    // We join 'players' with 'programs' to find the price of the player's enrolled program
-    const query = `
-      SELECT programs.fee AS amount 
-      FROM players 
-      JOIN programs ON players.program_id = programs.id 
-      WHERE players.id = ?`;
-      
-    const [rows] = await db.query(query, [req.params.id]);
+    const playerId = req.params.id;
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Player or Program not found" });
+    // Optional query params (fallback defaults)
+    const { sessions = 8, plan = "monthly" } = req.query;
+
+    // 🔹 Get player's program
+    const [[player]] = await db.query(
+      "SELECT program_id FROM players WHERE id = ?",
+      [playerId]
+    );
+
+    if (!player) {
+      return res.status(404).json({ error: "Player not found" });
     }
 
-    res.json(rows[0]); // Returns { amount: 500 }
+    // 🔹 Get pricing
+    const [[pricing]] = await db.query(
+      `SELECT 
+        price_weekly,
+        price_monthly,
+        price_yearly
+       FROM program_pricing
+       WHERE program_id = ?
+       AND sessions_per_month = ?`,
+      [player.program_id, sessions]
+    );
+
+    if (!pricing) {
+      return res.status(404).json({ error: "Pricing not found" });
+    }
+
+    // 🔹 Pick correct plan
+    let amount = 0;
+
+    if (plan === "weekly") amount = pricing.price_weekly;
+    if (plan === "monthly") amount = pricing.price_monthly;
+    if (plan === "yearly") amount = pricing.price_yearly;
+
+    res.json({ amount });
+
   } catch (err) {
     console.error(err);
     res.status(500).send("Database Error");
   }
 });
+
 app.get("/api/player/payments/:id", async (req, res) => {
   const [rows] = await db.query("SELECT * FROM payments WHERE player_id = ?", [req.params.id]);
   res.json(rows);
