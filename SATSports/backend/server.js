@@ -24,6 +24,8 @@ const allowedOrigins = [
 ];
 const path = require("path");
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/invoices", require("express").static("invoices"));
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -3183,35 +3185,114 @@ app.post("/api/payment/create-order", async (req, res) => {
     res.status(500).json({ error: error.description || "Failed to create order" });
   }
 });
+const generateInvoice = require("./utils/generateInvoice");
+const sendInvoiceEmail = require("./utils/sendInvoiceEmail");
+
 app.post("/api/payment/verify", async (req, res) => {
-  const {
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature,
-    playerId,
-    plan,
-    amount
-  } = req.body;
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      playerId,
+      programId,
+      sessions,
+      amount,
+      plan
+    } = req.body;
 
-  const body = razorpay_order_id + "|" + razorpay_payment_id;
+    // 🔐 STEP 1: VERIFY SIGNATURE
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
 
-  const expected = crypto
-    .createHmac("sha256", "YOUR_SECRET")
-    .update(body.toString())
-    .digest("hex");
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_SECRET)
+      .update(body.toString())
+      .digest("hex");
 
-  if (expected !== razorpay_signature) {
-    return res.status(400).json({ success: false });
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment signature"
+      });
+    }
+
+    // 🔹 STEP 2: FETCH PLAYER + PROGRAM
+    const [[player]] = await db.query(
+      "SELECT id, name, email FROM players WHERE id = ?",
+      [playerId]
+    );
+
+    const [[program]] = await db.query(
+      "SELECT id, title FROM programs WHERE id = ?",
+      [programId]
+    );
+
+    if (!player || !program) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid player or program"
+      });
+    }
+
+    // 🔹 STEP 3: INSERT PAYMENT
+    const [result] = await db.query(
+      `INSERT INTO payments 
+      (player_id, source, source_id, sessions, amount, plan, status, payment_method, payment_id)
+      VALUES (?, 'program', ?, ?, ?, ?, 'paid', 'razorpay', ?)`,
+      [playerId, programId, sessions, amount, plan, razorpay_payment_id]
+    );
+
+    const paymentId = result.insertId;
+
+    // 🔹 STEP 4: GENERATE INVOICE
+    const invoiceUrl = await generateInvoice({
+      paymentId,
+      playerName: player.name,
+      amount,
+      plan,
+      programName: program.title,
+      sessions
+    });
+
+    // 🔹 STEP 5: SAVE INVOICE URL
+    await db.query(
+      "UPDATE payments SET invoice_url = ? WHERE id = ?",
+      [invoiceUrl, paymentId]
+    );
+
+    // 🔹 STEP 6: SEND EMAIL (Resend)
+    await sendInvoiceEmail({
+      player: {
+        name: player.name,
+        email: player.email
+      },
+      payment: {
+        id: paymentId,
+        amount,
+        plan,
+        programName: program.title,
+        sessions
+      },
+      invoicePath: invoiceUrl
+    });
+
+    // ✅ FINAL RESPONSE
+    res.json({
+      success: true,
+      message: "Payment verified and recorded successfully",
+      invoice_url: invoiceUrl
+    });
+
+  } catch (err) {
+    console.error("❌ VERIFY ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Payment verification failed"
+    });
   }
-
-  await db.query(
-    `INSERT INTO payments (player_id, amount, plan, payment_id)
-     VALUES (?, ?, ?, ?)`,
-    [playerId, amount, plan, razorpay_payment_id]
-  );
-
-  res.json({ success: true });
 });
+
 cron.schedule("0 9 * * *", async () => {
   const [dueUsers] = await db.query(`
     SELECT * FROM players
@@ -3221,12 +3302,87 @@ cron.schedule("0 9 * * *", async () => {
   // send email reminder
 });
 app.get("/api/player/fee/:id", async (req, res) => {
-  const [rows] = await db.query("SELECT fee_amount FROM players WHERE id = ?", [req.params.id]);
-  if (rows.length === 0) return res.status(404).json({ error: "Player not found" });
-  res.json(rows[0]);
-});
+  try {
+    // We join 'players' with 'programs' to find the price of the player's enrolled program
+    const query = `
+      SELECT programs.fee AS amount 
+      FROM players 
+      JOIN programs ON players.program_id = programs.id 
+      WHERE players.id = ?`;
+      
+    const [rows] = await db.query(query, [req.params.id]);
 
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Player or Program not found" });
+    }
+
+    res.json(rows[0]); // Returns { amount: 500 }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Database Error");
+  }
+});
 app.get("/api/player/payments/:id", async (req, res) => {
   const [rows] = await db.query("SELECT * FROM payments WHERE player_id = ?", [req.params.id]);
   res.json(rows);
+});
+app.get("/api/admin/payments", async (req, res) => {
+  const [rows] = await db.query(`
+    SELECT p.*, pl.name as player_name
+    FROM payments p
+    JOIN players pl ON pl.id = p.player_id
+    ORDER BY p.created_at DESC
+  `);
+
+  res.json(rows);
+});
+app.post("/api/admin/payments", async (req, res) => {
+  const {
+    player_id,
+    program_id,
+    sessions,
+    amount,
+    plan,
+    status,
+    payment_method
+  } = req.body;
+
+  await db.query(
+    `INSERT INTO payments
+     (player_id, source_id, source, sessions, amount, plan, status, payment_method)
+     VALUES (?, ?, 'program', ?, ?, ?, ?, ?)`,
+    [player_id, program_id, sessions, amount, plan, status, payment_method]
+  );
+
+  res.json({ success: true });
+});
+app.get("/api/programs/:id/pricing", async (req, res) => {
+  const [rows] = await db.query(
+    "SELECT * FROM program_pricing WHERE program_id = ?",
+    [req.params.id]
+  );
+
+  res.json(rows);
+});
+app.post("/api/admin/program-pricing", async (req, res) => {
+  const {
+    program_id,
+    sessions_per_month,
+    price_weekly,
+    price_monthly,
+    price_yearly
+  } = req.body;
+
+  await db.query(
+    `INSERT INTO program_pricing 
+     (program_id, sessions_per_month, price_weekly, price_monthly, price_yearly)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       price_weekly = VALUES(price_weekly),
+       price_monthly = VALUES(price_monthly),
+       price_yearly = VALUES(price_yearly)`,
+    [program_id, sessions_per_month, price_weekly, price_monthly, price_yearly]
+  );
+
+  res.json({ success: true });
 });

@@ -25,6 +25,7 @@
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
+    "pdfkit": "^0.18.0",
     "qrcode.react": "^4.2.0",
     "razorpay": "^2.9.6",
     "react": "^19.2.3",

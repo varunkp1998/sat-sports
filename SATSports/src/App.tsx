@@ -324,7 +324,8 @@ const adminCardStyle = {
 
 /* ---------- PROGRAMS ---------- */
 
- function AdminPrograms() {
+
+function AdminPrograms() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -332,15 +333,33 @@ const adminCardStyle = {
   const [maxAge, setMaxAge] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const loadPrograms = () => {
-    fetch(`${API_BASE}/api/admin/programs`)
-      .then((res) => res.json())
-      .then((data) => setPrograms(Array.isArray(data) ? data : []));
-  };
+  // 🔥 NEW STATES
+  const [pricingMap, setPricingMap] = useState<any>({});
+  const [pricingInputs, setPricingInputs] = useState<any>({});
 
   useEffect(() => {
     loadPrograms();
   }, []);
+
+  const loadPrograms = async () => {
+    const res = await fetch(`${API_BASE}/api/admin/programs`);
+    const data = await res.json();
+
+    const list = Array.isArray(data) ? data : [];
+    setPrograms(list);
+
+    list.forEach((p: any) => loadPricing(p.id));
+  };
+
+  const loadPricing = async (programId: number) => {
+    const res = await fetch(`${API_BASE}/api/programs/${programId}/pricing`);
+    const data = await res.json();
+
+    setPricingMap((prev: any) => ({
+      ...prev,
+      [programId]: data
+    }));
+  };
 
   const saveProgram = () => {
     if (!title || !minAge || !maxAge) {
@@ -352,28 +371,23 @@ const adminCardStyle = {
       title,
       description,
       min_age: Number(minAge),
-      max_age: Number(maxAge),
+      max_age: Number(maxAge)
     };
 
-    if (editingId) {
-      fetch(`${API_BASE}/api/programs/${editingId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(() => {
-        resetForm();
-        loadPrograms();
-      });
-    } else {
-      fetch(`${API_BASE}/api/programs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).then(() => {
-        resetForm();
-        loadPrograms();
-      });
-    }
+    const url = editingId
+      ? `${API_BASE}/api/programs/${editingId}`
+      : `${API_BASE}/api/programs`;
+
+    const method = editingId ? "PUT" : "POST";
+
+    fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(() => {
+      resetForm();
+      loadPrograms();
+    });
   };
 
   const editProgram = (p: any) => {
@@ -386,28 +400,22 @@ const adminCardStyle = {
 
   const deleteProgram = (id: number) => {
     if (!window.confirm("Delete this program?")) return;
-  
+
     fetch(`${API_BASE}/api/programs/${id}`, {
-            method: "DELETE"
+      method: "DELETE"
     })
       .then(async (res) => {
         const data = await res.json();
-  
-        if (!res.ok) {
-          // 🔥 handle backend errors (400, 500, etc.)
-          throw new Error(data.message || "Delete failed");
-        }
-  
+        if (!res.ok) throw new Error(data.message);
         return data;
       })
       .then(() => {
         alert("Deleted successfully ✅");
-        // optionally refresh list
+        loadPrograms();
       })
-      .catch((err) => {
-        alert(err.message); // 🔥 NOW this will show your message
-      });
+      .catch((err) => alert(err.message));
   };
+
   const resetForm = () => {
     setEditingId(null);
     setTitle("");
@@ -416,144 +424,175 @@ const adminCardStyle = {
     setMaxAge("");
   };
 
+  // 🔥 PRICING HANDLERS
+  const handlePricingChange = (
+    programId: number,
+    sessions: number,
+    field: string,
+    value: any
+  ) => {
+    setPricingInputs((prev: any) => ({
+      ...prev,
+      [programId]: {
+        ...prev[programId],
+        [sessions]: {
+          ...prev[programId]?.[sessions],
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const savePricing = async (programId: number, sessions: number) => {
+    const data = pricingInputs[programId]?.[sessions];
+
+    await fetch(`${API_BASE}/api/admin/program-pricing`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        program_id: programId,
+        sessions_per_month: sessions,
+        ...data
+      })
+    });
+
+    loadPricing(programId);
+    alert("Pricing saved ✅");
+  };
+
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Card
-        sx={{
-          mb: 3,
-          borderRadius: 3,
-          background: "linear-gradient(135deg, #c31432, #240b36)",
-          color: "white",
-        }}
-      >
+      {/* HEADER */}
+      <Card sx={{ mb: 3, borderRadius: 3, background: "linear-gradient(135deg,#c31432,#240b36)", color: "white" }}>
         <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <SportsTennisIcon sx={{ fontSize: 40 }} />
           <Box>
             <Typography variant="h5" fontWeight={700}>
               Program Management
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9 }}>
-              Manage training programs & age groups
+            <Typography variant="body2">
+              Manage programs & pricing
             </Typography>
           </Box>
         </CardContent>
       </Card>
 
-      {/* Form */}
-      <Card sx={{ mb: 4, borderRadius: 3, boxShadow: "0 8px 20px rgba(0,0,0,0.08)" }}>
+      {/* FORM */}
+      <Card sx={{ mb: 4, borderRadius: 3 }}>
         <CardContent>
-          <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-            {editingId ? "✏️ Edit Program" : "➕ Add New Program"}
+          <Typography variant="h6">
+            {editingId ? "Edit Program" : "Add Program"}
           </Typography>
 
-          <Grid container spacing={2}>
+          <Grid container spacing={2} mt={1}>
             <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="Program Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
+              <TextField fullWidth label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
             </Grid>
 
             <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="Description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+              <TextField fullWidth label="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
             </Grid>
 
-            <Grid item xs={12} md={2}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Min Age"
-                value={minAge}
-                onChange={(e) => setMinAge(e.target.value)}
-              />
+            <Grid item xs={6} md={2}>
+              <TextField fullWidth type="number" label="Min Age" value={minAge} onChange={(e) => setMinAge(e.target.value)} />
             </Grid>
 
-            <Grid item xs={12} md={2}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Max Age"
-                value={maxAge}
-                onChange={(e) => setMaxAge(e.target.value)}
-              />
+            <Grid item xs={6} md={2}>
+              <TextField fullWidth type="number" label="Max Age" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} />
             </Grid>
 
-            <Grid item xs={12} md={1} display="flex" alignItems="center">
-              <Button
-                fullWidth
-                variant="contained"
-                color="error"
-                startIcon={<AddIcon />}
-                onClick={saveProgram}
-                sx={{ height: 56, borderRadius: 2 }}
-              >
+            <Grid item xs={12} md={1}>
+              <Button fullWidth variant="contained" onClick={saveProgram}>
                 {editingId ? "Save" : "Add"}
               </Button>
             </Grid>
           </Grid>
-
-          {editingId && (
-            <Button onClick={resetForm} sx={{ mt: 2 }}>
-              Cancel Edit
-            </Button>
-          )}
         </CardContent>
       </Card>
 
-      {/* Programs Grid */}
+      {/* PROGRAM LIST */}
       <Grid container spacing={3}>
         {programs.map((p) => (
           <Grid item xs={12} md={4} key={p.id}>
-            <Card
-              sx={{
-                height: "100%",
-                borderRadius: 3,
-                boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-                transition: "0.2s",
-                "&:hover": { transform: "translateY(-4px)" },
-              }}
-            >
+            <Card sx={{ borderRadius: 3 }}>
               <CardContent>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="h6" fontWeight={600}>
-                    {p.title}
-                  </Typography>
-                  <Chip
-                    label={`${p.min_age} - ${p.max_age} yrs`}
-                    color="success"
-                    size="small"
-                  />
-                </Stack>
+                <Typography variant="h6">{p.title}</Typography>
 
-                <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-                  {p.description || "No description"}
-                </Typography>
+                <Chip label={`${p.min_age}-${p.max_age} yrs`} size="small" />
 
-                <Divider sx={{ mb: 2 }} />
+                <Typography mt={1}>{p.description}</Typography>
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* 🔥 PRICING */}
+                <Typography fontWeight={600}>Pricing</Typography>
+
+                {[8, 12].map((sessions) => {
+                  const existing =
+                    pricingMap[p.id]?.find(
+                      (x: any) => x.sessions_per_month === sessions
+                    ) || {};
+
+                  const input = pricingInputs[p.id]?.[sessions] || {};
+
+                  return (
+                    <Box key={sessions} mt={1}>
+                      <Typography fontSize={13}>
+                        {sessions} Sessions
+                      </Typography>
+
+                      <Grid container spacing={1}>
+                        <Grid item xs={4}>
+                          <TextField
+                            size="small"
+                            label="Weekly"
+                            value={input.price_weekly ?? existing.price_weekly ?? ""}
+                            onChange={(e) =>
+                              handlePricingChange(p.id, sessions, "price_weekly", e.target.value)
+                            }
+                          />
+                        </Grid>
+
+                        <Grid item xs={4}>
+                          <TextField
+                            size="small"
+                            label="Monthly"
+                            value={input.price_monthly ?? existing.price_monthly ?? ""}
+                            onChange={(e) =>
+                              handlePricingChange(p.id, sessions, "price_monthly", e.target.value)
+                            }
+                          />
+                        </Grid>
+
+                        <Grid item xs={4}>
+                          <TextField
+                            size="small"
+                            label="Yearly"
+                            value={input.price_yearly ?? existing.price_yearly ?? ""}
+                            onChange={(e) =>
+                              handlePricingChange(p.id, sessions, "price_yearly", e.target.value)
+                            }
+                          />
+                        </Grid>
+                      </Grid>
+
+                      <Button
+                        size="small"
+                        onClick={() => savePricing(p.id, sessions)}
+                      >
+                        Save
+                      </Button>
+                    </Box>
+                  );
+                })}
+
+                <Divider sx={{ my: 2 }} />
 
                 <Stack direction="row" spacing={1}>
-                  <Button
-                    variant="contained"
-                    color="warning"
-                    size="small"
-                    onClick={() => editProgram(p)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    size="small"
-                    onClick={() => deleteProgram(p.id)}
-                  >
+                  <Button onClick={() => editProgram(p)}>Edit</Button>
+                  <Button color="error" onClick={() => deleteProgram(p.id)}>
                     Delete
                   </Button>
                 </Stack>
@@ -565,6 +604,7 @@ const adminCardStyle = {
     </Box>
   );
 }
+
 
 function AdminNews() {
   const [items, setItems] = React.useState<any[]>([]);

@@ -1,131 +1,210 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Card, Typography, Select, MenuItem, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
+import {
+  Box,
+  Button,
+  Card,
+  Typography,
+  Select,
+  MenuItem,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Grid
+} from "@mui/material";
 import API_BASE from "./api";
+
 declare global {
-    interface Window {
-      Razorpay: any;
-    }
+  interface Window {
+    Razorpay: any;
   }
-  
-  // If you are in a .tsx file, you might need this empty export 
-  // to treat the file as a module:
-  export {};
+}
+export {};
+
 export default function PlayerPayments() {
   const [plan, setPlan] = useState("monthly");
-  const [payments, setPayments] = useState([]);
+  const [sessions, setSessions] = useState(8);
+  const [programs, setPrograms] = useState([]);
+  const [selectedProgram, setSelectedProgram] = useState("");
+  const [pricing, setPricing] = useState([]);
   const [amount, setAmount] = useState(0);
+  const [payments, setPayments] = useState([]);
 
   const playerId = localStorage.getItem("userId");
 
+  // ✅ Load programs + payments
   useEffect(() => {
+    fetch(`${API_BASE}/api/programs`)
+      .then(res => res.json())
+      .then(setPrograms);
+
     fetch(`${API_BASE}/api/player/payments/${playerId}`)
       .then(res => res.json())
       .then(setPayments);
-
-    fetch(`${API_BASE}/api/player/fee/${playerId}`)
-      .then(res => res.json())
-      .then(data => setAmount(data.amount));
   }, []);
 
+  // ✅ Load pricing when program changes
+  useEffect(() => {
+    if (!selectedProgram) return;
+
+    fetch(`${API_BASE}/api/programs/${selectedProgram}/pricing`)
+      .then(res => res.json())
+      .then(data => {
+        setPricing(data);
+      });
+  }, [selectedProgram]);
+
+  // ✅ Calculate amount dynamically
+  useEffect(() => {
+    const p = pricing.find(p => p.sessions_per_month === sessions);
+
+    if (!p) return;
+
+    let price = 0;
+
+    if (plan === "weekly") price = p.price_weekly;
+    if (plan === "monthly") price = p.price_monthly;
+    if (plan === "yearly") price = p.price_yearly;
+
+    setAmount(price);
+  }, [plan, sessions, pricing]);
+
   const handlePayment = async () => {
-    // FIX 1: Check if Razorpay script is actually loaded
     if (!window.Razorpay) {
-      alert("Razorpay SDK not loaded. Please check your internet or index.html");
+      alert("Razorpay SDK not loaded");
       return;
     }
-  
-    try {
-      const res = await fetch(`${API_BASE}/api/payment/create-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, plan, playerId })
-      });
-  
-      // FIX 2: Check if the server responded with an error (400, 500, etc.)
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: "Server Error" }));
-        console.error("Order Creation Failed:", errorData);
-        alert("Failed to create order. Check backend logs.");
-        return;
+
+    const res = await fetch(`${API_BASE}/api/payment/create-order`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        amount,
+        plan,
+        playerId,
+        programId: selectedProgram,
+        sessions
+      })
+    });
+
+    const order = await res.json();
+
+    const options = {
+      key: "rzp_test_YOUR_KEY",
+      amount: order.amount,
+      currency: "INR",
+      name: "Sports Academy",
+      description: `${sessions} sessions - ${plan}`,
+      order_id: order.id,
+
+      handler: async (response) => {
+        await fetch(`${API_BASE}/api/payment/verify`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            ...response,
+            playerId,
+            plan,
+            amount,
+            programId: selectedProgram,
+            sessions
+          })
+        });
+
+        alert("Payment Successful");
+        window.location.reload();
       }
-  
-      const order = await res.json();
-  
-      const options = {
-        key: "rzp_test_YOUR_ACTUAL_KEY", // Replace with your actual Key ID
-        amount: order.amount,
-        currency: "INR",
-        name: "Sports Academy",
-        description: `Payment for ${plan} plan`,
-        order_id: order.id,
-        handler: async function (response) {
-          try {
-            const verifyRes = await fetch(`${API_BASE}/api/payment/verify`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...response,
-                playerId,
-                plan,
-                amount
-              })
-            });
-  
-            if (verifyRes.ok) {
-              alert("Payment Successful");
-              window.location.reload();
-            } else {
-              alert("Verification failed. Please contact support.");
-            }
-          } catch (err) {
-            console.error("Verification Error:", err);
-          }
-        },
-        prefill: {
-          name: "Player Name", // Optional: Pass player data here
-        },
-        theme: { color: "#3399cc" }
-      };
-  
-      const rzp = new window.Razorpay(options);
-      
-      // Handle payment failure (user closes modal)
-      rzp.on('payment.failed', function (response){
-          alert("Payment Failed: " + response.error.description);
-      });
-  
-      rzp.open();
-    } catch (error) {
-      console.error("Critical Payment Error:", error);
-      alert("Something went wrong. Please try again later.");
-    }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
   };
+
   return (
     <Box>
       <Typography variant="h5">💳 Payments</Typography>
 
+      {/* 🔥 PAYMENT CARD */}
       <Card sx={{ p: 3, mt: 2 }}>
-        <Typography>Amount: ₹{amount}</Typography>
+        <Grid container spacing={2}>
 
-        <Select value={plan} onChange={(e) => setPlan(e.target.value)}>
-          <MenuItem value="weekly">Weekly</MenuItem>
-          <MenuItem value="monthly">Monthly</MenuItem>
-          <MenuItem value="yearly">Yearly</MenuItem>
-        </Select>
+          {/* Program */}
+          <Grid item xs={12}>
+            <Typography>Select Program</Typography>
+            <Select
+              fullWidth
+              value={selectedProgram}
+              onChange={(e) => setSelectedProgram(e.target.value)}
+            >
+              {programs.map(p => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </Grid>
 
-        <Button onClick={handlePayment} variant="contained" sx={{ mt: 2 }}>
-          Pay Now
-        </Button>
+          {/* Sessions */}
+          <Grid item xs={6}>
+            <Typography>Sessions</Typography>
+            <Select
+              fullWidth
+              value={sessions}
+              onChange={(e) => setSessions(Number(e.target.value))}
+            >
+              <MenuItem value={8}>8 Sessions</MenuItem>
+              <MenuItem value={12}>12 Sessions</MenuItem>
+            </Select>
+          </Grid>
+
+          {/* Plan */}
+          <Grid item xs={6}>
+            <Typography>Plan</Typography>
+            <Select
+              fullWidth
+              value={plan}
+              onChange={(e) => setPlan(e.target.value)}
+            >
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+              <MenuItem value="yearly">Yearly</MenuItem>
+            </Select>
+          </Grid>
+
+          {/* Amount */}
+          <Grid item xs={12}>
+            <Typography variant="h6">
+              Amount: ₹{amount}
+            </Typography>
+          </Grid>
+
+          {/* Pay */}
+          <Grid item xs={12}>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handlePayment}
+              disabled={!amount}
+            >
+              Pay Now
+            </Button>
+          </Grid>
+
+        </Grid>
       </Card>
 
+      {/* 🔥 PAYMENT HISTORY */}
       <Typography mt={4}>Payment History</Typography>
 
       <Table>
         <TableHead>
           <TableRow>
             <TableCell>Date</TableCell>
+            <TableCell>Program</TableCell>
+            <TableCell>Sessions</TableCell>
             <TableCell>Amount</TableCell>
-            <TableCell>Plan</TableCell>
+            <TableCell>Status</TableCell>
             <TableCell>Invoice</TableCell>
           </TableRow>
         </TableHead>
@@ -134,8 +213,10 @@ export default function PlayerPayments() {
           {payments.map((p, i) => (
             <TableRow key={i}>
               <TableCell>{p.date}</TableCell>
+              <TableCell>{p.program_name}</TableCell>
+              <TableCell>{p.sessions}</TableCell>
               <TableCell>₹{p.amount}</TableCell>
-              <TableCell>{p.plan}</TableCell>
+              <TableCell>{p.status}</TableCell>
               <TableCell>
                 <Button href={p.invoice_url}>Download</Button>
               </TableCell>
