@@ -1086,155 +1086,220 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 /* ---------- NEWS ---------- */
 
 /* ---------- TOURNAMENTS ---------- */
- function TournamentsPage() {
+import { 
+ Skeleton 
+} from "@mui/material";
+
+const MotionBox = motion(Box);
+
+function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const navigate = useNavigate();
 
+  // 📡 FETCH ALL TOURNAMENTS
   useEffect(() => {
     fetch(`${API_BASE}/api/tournaments`)
-      .then(res => res.json())
-      .then(setTournaments);
+      .then((res) => {
+        if (!res.ok) throw new Error("Server response was not ok");
+        return res.json();
+      })
+      .then((data) => {
+        setTournaments(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Fetch error:", err);
+        setLoading(false);
+      });
   }, []);
 
-  const filtered =
-    filter === "all"
-      ? tournaments
-      : tournaments.filter(t => t.status === filter);
+  const filtered = filter === "all" 
+    ? tournaments 
+    : tournaments.filter((t) => t.status?.toLowerCase() === filter);
 
-  const getStatusColor = (status: string) => {
-    if (status === "live") return "error";
-    if (status === "upcoming") return "warning";
-    return "success";
+  const getStatusColor: any = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "live": return "#ef4444";
+      case "upcoming": return "#fbbf24";
+      case "completed": return "#22c55e";
+      default: return "#94a3b8";
+    }
   };
 
   const getCountdown = (date: string) => {
     const diff = new Date(date).getTime() - Date.now();
-    if (diff <= 0) return "Started";
-
+    if (diff <= 0) return "EVENT LIVE";
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    return `${days} days left`;
+    return `${days} DAYS LEFT`;
   };
 
   return (
-    <Box sx={{ p: 3, background: "#f5f7fb", minHeight: "100vh" }}>
+    <Box sx={{ background: "#020617", color: "white", minHeight: "100vh", py: 10 }}>
+      <Container maxWidth="lg">
+        
+        {/* 🎾 CINEMATIC HEADER */}
+        <Box sx={{ mb: 8, textAlign: "center" }}>
+          <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 4 }}>
+            GLOBAL ARENA
+          </Typography>
+          <Typography variant="h1" sx={headerTitleStyle}>
+            ACTIVE <span style={{ color: "#ef4444" }}>DRAWS</span>
+          </Typography>
+          <Typography sx={{ color: "rgba(255,255,255,0.5)", fontWeight: 600, mt: 1 }}>
+            JOIN THE ELITE. TRACK EVERY MATCH. CLAIM THE CHAMPIONSHIP.
+          </Typography>
+        </Box>
 
-      {/* HERO */}
-      <Box mb={3}>
-        <Typography variant="h4" fontWeight={800}>
-          🏆 Tournaments
-        </Typography>
-        <Typography color="text.secondary">
-          Compete, track, and win
-        </Typography>
-      </Box>
-
-      {/* FILTERS */}
-      <Stack direction="row" spacing={1} mb={3}>
-        {["all", "live", "upcoming", "completed"].map(f => (
-          <Chip
-            key={f}
-            label={f.toUpperCase()}
-            color={filter === f ? "primary" : "default"}
-            onClick={() => setFilter(f)}
-            clickable
-          />
-        ))}
-      </Stack>
-
-      {/* GRID */}
-      <Grid container spacing={3}>
-        {filtered.map((t) => (
-          <Grid item xs={12} md={4} key={t.id}>
-            <Card
-              sx={{
-                borderRadius: 4,
-                overflow: "hidden",
-                transition: "0.3s",
-                "&:hover": {
-                  transform: "translateY(-6px)"
-                }
-              }}
+        {/* 🛠️ NAVIGATION FILTERS */}
+        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 8, flexWrap: "wrap", gap: 2 }}>
+          {["all", "live", "upcoming", "completed"].map((f) => (
+            <Button
+              key={f}
+              onClick={() => setFilter(f)}
+              sx={filterButtonStyle(filter === f)}
             >
+              {f.toUpperCase()}
+            </Button>
+          ))}
+        </Stack>
 
-              {/* BANNER */}
-              <Box
-                sx={{
-                  height: 140,
-                  background:
-                    "linear-gradient(135deg,#ef4444,#b91c1c)",
-                  color: "white",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 700
-                }}
-              >
-                {t.name}
-              </Box>
+        {/* 🧩 TOURNAMENT GRID */}
+        <Grid container spacing={4}>
+          {loading ? (
+            // Skeleton Loading State
+            [1, 2, 3].map((i) => (
+              <Grid item xs={12} md={4} key={i}>
+                <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 6, bgcolor: "rgba(255,255,255,0.05)" }} />
+              </Grid>
+            ))
+          ) : filtered.length > 0 ? (
+            filtered.map((t) => (
+              <Grid item xs={12} md={4} key={t.id}>
+                <MotionBox whileHover={{ y: -12 }} transition={{ type: "spring", stiffness: 300 }}>
+                  <Card sx={glassCardStyle}>
+                    {/* Visual Banner */}
+                    <Box sx={{ 
+                      height: 160, 
+                      position: 'relative', 
+                      backgroundImage: `linear-gradient(to top, #0f172a, transparent), url(${API_BASE}/uploads/${t.image})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center'
+                    }}>
+                      <Chip 
+                        label={t.status?.toUpperCase()} 
+                        sx={statusChipStyle(getStatusColor(t.status))}
+                      />
+                    </Box>
 
-              <CardContent>
+                    <CardContent sx={{ p: 4 }}>
+                      <Typography variant="h5" sx={{ fontWeight: 900, mb: 1, letterSpacing: -0.5 }}>
+                        {t.title}
+                      </Typography>
+                      
+                      <Stack spacing={1.5} sx={{ mb: 4 }}>
+                        <Typography variant="body2" sx={detailTextStyle}>
+                          📅 {new Date(t.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </Typography>
+                        <Typography variant="body2" sx={detailTextStyle}>
+                          📍 {t.location || "Main Arena"}
+                        </Typography>
+                        <Typography variant="body2" sx={{ ...detailTextStyle, color: '#fbbf24' }}>
+                          ⏳ {getCountdown(t.date)}
+                        </Typography>
+                        <Typography variant="body2" sx={detailTextStyle}>
+                          👥 {t.playerCount || 0} Registered Players
+                        </Typography>
+                      </Stack>
 
-                {/* STATUS */}
-                <Chip
-                  label={t.status}
-                  color={getStatusColor(t.status)}
-                  size="small"
-                />
-
-                {/* DETAILS */}
-                <Typography mt={1}>
-                  📅 {t.date}
-                </Typography>
-
-                <Typography>
-                  📍 {t.location}
-                </Typography>
-
-                {/* COUNTDOWN */}
-                <Typography color="text.secondary" mt={1}>
-                  ⏳ {getCountdown(t.date)}
-                </Typography>
-
-                {/* PLAYERS */}
-                <Typography mt={1}>
-                  👥 {t.playerCount || 0} players
-                </Typography>
-
-                {/* ACTION */}
-                <Button
-                  fullWidth
-                  variant="contained"
-                  sx={{ mt: 2, borderRadius: 3 }}
-                >
-                  {t.status === "completed"
-                    ? "View Results"
-                    : "Register"}
-                </Button>
-                <Button
-  fullWidth
-  variant="contained"
-  sx={{ mt: 2, borderRadius: 3 }}
-  onClick={() => navigate(`/tournaments/${t.id}`)}
->
-  View Tournament
-</Button>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {filtered.length === 0 && (
-        <Typography mt={4} color="text.secondary">
-          No tournaments found
-        </Typography>
-      )}
-
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={() => navigate(`/tournaments/${t.id}`)}
+                        sx={actionButtonStyle}
+                      >
+                        VIEW BRACKET
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </MotionBox>
+              </Grid>
+            ))
+          ) : (
+            <Box sx={{ width: '100%', textAlign: 'center', py: 10 }}>
+              <Typography variant="h6" sx={{ opacity: 0.3 }}>No tournaments found in this category.</Typography>
+            </Box>
+          )}
+        </Grid>
+      </Container>
     </Box>
   );
 }
 
+// 💅 DESIGN SYSTEM STYLES
+const headerTitleStyle = {
+  fontSize: { xs: "3rem", md: "5rem" },
+  fontWeight: 950,
+  letterSpacing: -2,
+  lineHeight: 1,
+  textTransform: "uppercase"
+};
+
+const filterButtonStyle = (active: boolean) => ({
+  borderRadius: "12px",
+  px: 4,
+  py: 1,
+  fontWeight: 900,
+  bgcolor: active ? "#ef4444" : "rgba(255,255,255,0.03)",
+  color: active ? "white" : "rgba(255,255,255,0.4)",
+  border: "1px solid",
+  borderColor: active ? "#ef4444" : "rgba(255,255,255,0.1)",
+  "&:hover": { bgcolor: active ? "#dc2626" : "rgba(255,255,255,0.08)" },
+  transition: "0.3s"
+});
+
+const glassCardStyle = {
+  borderRadius: 6,
+  background: "rgba(255,255,255,0.02)",
+  backdropFilter: "blur(20px)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  color: "white",
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
+};
+
+const statusChipStyle = (color: string) => ({
+  position: 'absolute',
+  top: 15,
+  right: 15,
+  bgcolor: color,
+  color: "white",
+  fontWeight: 900,
+  fontSize: "0.65rem",
+  borderRadius: 1
+});
+
+const detailTextStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  fontWeight: 700,
+  opacity: 0.8,
+  fontSize: '0.85rem'
+};
+
+const actionButtonStyle = {
+  py: 1.8,
+  borderRadius: 3,
+  fontWeight: 950,
+  letterSpacing: 1,
+  background: "linear-gradient(135deg, #f97316, #ef4444)",
+  boxShadow: "0 10px 25px rgba(239, 68, 68, 0.4)",
+  "&:hover": { transform: "translateY(-2px)", boxShadow: "0 15px 30px rgba(239, 68, 68, 0.5)" },
+  transition: "0.3s"
+};
 
 
 type PlayerAttendanceRow = {
