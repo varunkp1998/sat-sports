@@ -1,8 +1,20 @@
 import { useEffect, useState } from "react";
 import { 
-    Box, Typography, Grid, Button, Stack, Chip, Divider, 
-    Modal, Backdrop, Fade, ToggleButton, ToggleButtonGroup, CircularProgress,
-    IconButton 
+    Box, 
+    Typography, 
+    Grid, 
+    Button, 
+    Stack, 
+    Chip, 
+    Divider, 
+    Modal, 
+    Backdrop, 
+    Fade, 
+    ToggleButton, 
+    ToggleButtonGroup, 
+    CircularProgress,
+    IconButton,
+    Card // <--- ADD THIS ONE
   } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
