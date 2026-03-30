@@ -1917,7 +1917,8 @@ app.post("/api/admin/players/import", upload.single("file"), async (req, res) =>
 });
 // CREATE application (public)
 app.post("/api/applications", async (req, res) => {
-  const { name, email, phone, age, parent_name, parent_phone, preferred_program } = req.body;
+  // Map 'programId' from frontend to 'preferred_program' in DB
+  const { name, email, phone, age, parentName, parentPhone, programId } = req.body;
 
   if (!name || !email || !age) {
     return res.status(400).json({ message: "Missing required fields" });
@@ -1926,12 +1927,19 @@ app.post("/api/applications", async (req, res) => {
   await db.query(
     `INSERT INTO applications (name, email, phone, age, parent_name, parent_phone, preferred_program)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [name, email, phone, age, parent_name || null, parent_phone || null, preferred_program || null]
+    [
+      name, 
+      email, 
+      phone, 
+      age, 
+      parentName || null,   // Fixed naming to match your frontend state
+      parentPhone || null, // Fixed naming to match your frontend state
+      programId || null    // Using the ID passed from the redirect
+    ]
   );
 
   res.json({ success: true });
 });
-
 // ADMIN: get all applications
 app.get("/api/admin/applications", async (req, res) => {
   const [rows] = await db.query(`SELECT * FROM applications ORDER BY created_at DESC`);
@@ -1939,37 +1947,46 @@ app.get("/api/admin/applications", async (req, res) => {
 });
 
 // ADMIN: approve application -> create player
+// ADMIN: approve application -> create player
 app.post("/api/admin/applications/:id/approve", async (req, res) => {
   const { id } = req.params;
+  const connection = await db.getConnection(); // Get connection for transaction
 
   try {
-    // 1️⃣ Get application
-    const [[appData]] = await db.query(
+    await connection.beginTransaction();
+
+    // 1️⃣ Get application data
+    const [[appData]] = await connection.query(
       "SELECT * FROM applications WHERE id = ?",
       [id]
     );
 
     if (!appData) {
+      await connection.rollback();
       return res.status(404).json({ message: "Application not found" });
     }
 
-    // 2️⃣ Find program
-    let programId = null;
-
-    if (appData.age) {
-      const [[program]] = await db.query(
-        `SELECT id FROM programs
-         WHERE ? BETWEEN min_age AND max_age
-         ORDER BY min_age DESC
-         LIMIT 1`,
-        [appData.age]
-      );
-
-      if (program) programId = program.id;
+    if (appData.status === 'approved') {
+      await connection.rollback();
+      return res.status(400).json({ message: "Application already approved" });
     }
 
-    // 3️⃣ Check if user exists
-    const [existingUsers] = await db.query(
+    // 2️⃣ Determine Program (Priority: User Choice > Age Calculation)
+    let programId = appData.preferred_program;
+
+    // Fallback logic if no program was selected
+    if (!programId && appData.age) {
+      const [[autoProgram]] = await connection.query(
+        `SELECT id FROM programs 
+         WHERE ? BETWEEN min_age AND max_age 
+         ORDER BY min_age DESC LIMIT 1`,
+        [appData.age]
+      );
+      if (autoProgram) programId = autoProgram.id;
+    }
+
+    // 3️⃣ Handle User Account (Check if email exists)
+    const [existingUsers] = await connection.query(
       "SELECT id FROM users WHERE email = ?",
       [appData.email]
     );
@@ -1979,109 +1996,95 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
     let isNewUser = false;
 
     if (existingUsers.length > 0) {
-      // ✅ Existing user
       userId = existingUsers[0].id;
-
-      await db.query(
+      // Upgrade role to player if they were just a guest/parent
+      await connection.query(
         "UPDATE users SET role = 'player' WHERE id = ?",
         [userId]
       );
-
     } else {
-      // ✅ New user
-      password = Math.random().toString(36).slice(-8);
+      password = Math.random().toString(36).slice(-8); // Generate random temp password
       isNewUser = true;
-
-      const [userResult] = await db.query(
+      const [userResult] = await connection.query(
         "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'player')",
         [appData.name, appData.email, password]
       );
-
       userId = userResult.insertId;
     }
 
-    // 4️⃣ Create player (avoid duplicates)
-    const [existingPlayer] = await db.query(
+    // 4️⃣ Create Player Profile (Linking User to Program)
+    const [existingPlayer] = await connection.query(
       "SELECT id FROM players WHERE user_id = ?",
       [userId]
     );
 
     if (existingPlayer.length === 0) {
-      await db.query(
-        `INSERT INTO players (user_id, name, age, program_id)
-         VALUES (?, ?, ?, ?)`,
+      await connection.query(
+        `INSERT INTO players (user_id, name, age, program_id) VALUES (?, ?, ?, ?)`,
         [userId, appData.name, appData.age, programId]
+      );
+    } else {
+      // If player exists, just ensure their program is updated
+      await connection.query(
+        "UPDATE players SET program_id = ? WHERE user_id = ?",
+        [programId, userId]
       );
     }
 
-    // 5️⃣ Update application
-    await db.query(
+    // 5️⃣ Update Application Status
+    await connection.query(
       "UPDATE applications SET status = 'approved' WHERE id = ?",
       [id]
     );
 
-    // 6️⃣ Send email (ALWAYS)
+    // 6️⃣ Commit Database Changes before sending Email
+    await connection.commit();
+
+    // 7️⃣ Send Welcome Email (Resend)
     try {
       await resend.emails.send({
         from: "SAT Sports <no-reply@sat-sports.in>",
         to: appData.email,
-        subject: "🎾 Application Approved!",
+        subject: "🎾 Welcome to the Academy - Application Approved!",
         html: `
-        <div style="font-family:Arial,sans-serif;background:#f5f7fb;padding:20px;">
-          
-          <div style="max-width:500px;margin:auto;background:white;border-radius:12px;overflow:hidden;">
-            
-            <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:20px;text-align:center;color:white;">
-              <h2 style="margin:0;">SAT Sports 🎾</h2>
-              <p style="opacity:0.8;margin-top:5px;">Application Approved</p>
-            </div>
-      
-            <div style="padding:20px;">
-              <h3 style="margin-top:0;">Welcome 🎉</h3>
-      
-              <p>Your application has been <b style="color:#16a34a;">approved</b>.</p>
-      
-              <div style="background:#f1f5f9;padding:15px;border-radius:10px;margin:15px 0;">
-                <p><b>Email:</b> ${appData.email}</p>
-                ${
-                  isNewUser
-                    ? `<p><b>Password:</b> ${password}</p>`
-                    : `<p>You can login using your existing account.</p>`
-                }
-              </div>
-      
-              <div style="text-align:center;margin-top:20px;">
-                <a href="https://www.sat-sports.in"
-                   style="background:#f97316;color:white;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">
-                  Login Now
-                </a>
-              </div>
-            </div>
-      
-            <div style="text-align:center;padding:10px;font-size:12px;color:#64748b;">
-              © SAT Sports
-            </div>
-      
+        <div style="font-family:sans-serif; max-width:600px; margin:auto; border:1px solid #eee; border-radius:10px; overflow:hidden;">
+          <div style="background:#0f172a; color:white; padding:30px; text-align:center;">
+            <h1 style="margin:0;">SAT Sports 🎾</h1>
+            <p style="color:#fb923c; font-weight:bold;">APPLICATION APPROVED</p>
           </div>
-        </div>
-        `
-      });
-      console.log("✅ Email sent to:", appData.email);
+          <div style="padding:30px; line-height:1.6; color:#333;">
+            <p>Hi <b>${appData.name}</b>,</p>
+            <p>Great news! Your application to join our training program has been approved.</p>
+            
+            <div style="background:#f8fafc; padding:20px; border-radius:8px; margin:20px 0;">
+              <p style="margin:0;"><b>Login Email:</b> ${appData.email}</p>
+              ${isNewUser ? `<p style="margin:10px 0 0 0;"><b>Temporary Password:</b> ${password}</p>` : `<p style="margin:10px 0 0 0;">Use your existing account password to login.</p>`}
+            </div>
 
+            <p>Please log in to the portal to view your schedule and complete your session payments.</p>
+            
+            <a href="https://www.sat-sports.in/login" 
+               style="display:inline-block; background:#ef4444; color:white; padding:12px 25px; text-decoration:none; border-radius:5px; font-weight:bold; margin-top:10px;">
+               Login to Dashboard
+            </a>
+          </div>
+        </div>`
+      });
     } catch (emailErr) {
-      console.error("❌ Email failed:", emailErr);
+      console.error("Email delivery failed, but database was updated:", emailErr);
     }
 
-    res.json({
-      success: true,
-      message: isNewUser
-        ? "User created + email sent"
-        : "User already existed, email sent"
+    res.json({ 
+      success: true, 
+      message: isNewUser ? "Account created and approved" : "Existing account linked and approved" 
     });
 
   } catch (err) {
+    await connection.rollback();
     console.error("❌ APPROVE ERROR:", err);
-    res.status(500).json({ message: "Approval failed" });
+    res.status(500).json({ message: "Internal server error during approval" });
+  } finally {
+    connection.release(); // Always release connection back to pool
   }
 });
 // ADMIN: reject
