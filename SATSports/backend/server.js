@@ -26,7 +26,6 @@ const fs = require('fs');
 
 const folders = ['./uploads/profiles', './invoices'];
 const path = require('path');
-const fs = require('fs');
 
 // Define ONE source of truth for the path
 const UPLOADS_ROOT = path.join(__dirname, 'uploads');
