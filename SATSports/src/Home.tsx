@@ -1,254 +1,175 @@
-import { Box, Typography, Button, Grid } from "@mui/material";
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { Box, Typography, Button, Grid, Container, Stack } from "@mui/material";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
+import SportsTennisIcon from '@mui/icons-material/SportsTennis';
+import StarIcon from '@mui/icons-material/Star';
+import QueryStatsIcon from '@mui/icons-material/QueryStats';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 const MotionBox = motion(Box);
+const MotionTypography = motion(Typography);
 
 export default function Home() {
-  const [counts, setCounts] = useState({
-    players: 0,
-    coaches: 0,
-    courts: 0
-  });
+  const [counts, setCounts] = useState({ players: 0, coaches: 0, courts: 0 });
+  const scrollRef = useRef(null);
+  const { scrollYProgress } = useScroll();
+  const yRange = useTransform(scrollYProgress, [0, 1], [0, -200]);
 
-  // 🔥 Animate numbers
+  // 🔥 Smooth Stat Counter
   useEffect(() => {
-    let i = 0;
-    const interval = setInterval(() => {
-      i += 10;
+    const duration = 2000; // 2 seconds
+    const start = Date.now();
+    
+    const timer = setInterval(() => {
+      const timePassed = Date.now() - start;
+      const progress = Math.min(timePassed / duration, 1);
+      
       setCounts({
-        players: Math.min(i * 5, 500),
-        coaches: Math.min(Math.floor(i / 5), 20),
-        courts: Math.min(Math.floor(i / 10), 10)
+        players: Math.floor(progress * 500),
+        coaches: Math.floor(progress * 20),
+        courts: Math.floor(progress * 10)
       });
-      if (i > 100) clearInterval(interval);
+
+      if (progress === 1) clearInterval(timer);
     }, 30);
+    return () => clearInterval(timer);
   }, []);
 
   const sections = [
-    {
-      title: "Elite Coaching",
-      desc: "Train with top certified professionals",
-      img: "/coach.jpg"
-    },
-    {
-      title: "Modern Infrastructure",
-      desc: "Premium courts with lighting",
-      img: "/court.jpg"
-    },
-    {
-      title: "Performance Tracking",
-      desc: "Smart analytics & progress tracking",
-      img: "/training.jpg"
-    }
+    { title: "Elite Coaching", desc: "Train with certified ITF professionals who have shaped national champions.", img: "https://images.unsplash.com/photo-1595435064219-510ccbdd4d40?auto=format&fit=crop&q=80", icon: <StarIcon sx={{ color: '#ef4444' }} /> },
+    { title: "Modern Infrastructure", desc: "Experience premium synthetic and clay courts equipped with tournament-grade lighting.", img: "https://images.unsplash.com/photo-1622279457486-62dcc4a4bd13?auto=format&fit=crop&q=80", icon: <SportsTennisIcon sx={{ color: '#ef4444' }} /> },
+    { title: "Performance Tracking", desc: "Data-driven insights to monitor your swing speed, accuracy, and physical endurance.", img: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&q=80", icon: <QueryStatsIcon sx={{ color: '#ef4444' }} /> }
   ];
 
   return (
-    <Box sx={{ background: "#020617", color: "white" }}>
+    <Box sx={{ background: "#020617", color: "white", overflowX: 'hidden' }}>
 
-      {/* 🔥 HERO VIDEO */}
-      <Box sx={{ position: "relative", height: "100vh" }}>
-        <video
-          autoPlay
-          muted
-          loop
-          style={{
-            position: "absolute",
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            filter: "brightness(0.5)"
-          }}
-        >
-          <source src="/tennis.mp4" />
-        </video>
+      {/* 🎾 HERO SECTION */}
+      <Box sx={{ position: "relative", height: "100vh", overflow: 'hidden' }}>
+        <MotionBox style={{ y: yRange }} sx={{ position: "absolute", inset: 0 }}>
+          <video autoPlay muted loop playsInline style={{ width: "100%", height: "120%", objectFit: "cover", filter: "brightness(0.4)" }}>
+            <source src="/tennis.mp4" type="video/mp4" />
+          </video>
+        </MotionBox>
 
-        <Box
-          sx={{
-            position: "relative",
-            zIndex: 2,
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            textAlign: "center"
-          }}
-        >
-          <Typography variant="h2" fontWeight={900}>
-            SAT Sports 🎾
-          </Typography>
-
-          <Typography mt={2} fontSize={22}>
-            Where Champions Are Built
-          </Typography>
-
-          <Button
-            variant="contained"
-            sx={{
-              mt: 4,
-              px: 5,
-              py: 1.5,
-              borderRadius: 999,
-              background: "linear-gradient(135deg,#f97316,#ef4444)",
-              "&:hover": { transform: "scale(1.1)" }
-            }}
-          >
-            Join Academy
-          </Button>
-        </Box>
+        <Container sx={{ position: "relative", zIndex: 2, height: "100%", display: "flex", alignItems: "center" }}>
+          <Box maxWidth="800px">
+            <MotionBox initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 1 }}>
+              <Typography variant="h1" fontWeight={950} sx={{ fontSize: { xs: '3.5rem', md: '6rem' }, lineHeight: 1, mb: 2 }}>
+                BEYOND <br /> <span style={{ color: "#ef4444" }}>THE COURT.</span>
+              </Typography>
+              <Typography variant="h5" sx={{ color: 'rgba(255,255,255,0.7)', mb: 4, maxWidth: '600px' }}>
+                Join India's premier tennis academy. Expert coaching, world-class facilities, and a community of champions.
+              </Typography>
+              <Stack direction="row" spacing={2}>
+                <Button variant="contained" endIcon={<ArrowForwardIcon />} sx={heroButtonStyle}>
+                  Join Academy
+                </Button>
+                <Button variant="outlined" sx={outlineButtonStyle}>
+                  Explore Courts
+                </Button>
+              </Stack>
+            </MotionBox>
+          </Box>
+        </Container>
       </Box>
 
-      {/* 🔥 STATS */}
-      <Grid
-        container
-        justifyContent="center"
-        gap={6}
-        sx={{ py: 8, textAlign: "center" }}
-      >
-        {[
-          { label: "Players", value: counts.players + "+" },
-          { label: "Coaches", value: counts.coaches + "+" },
-          { label: "Courts", value: counts.courts + "+" }
-        ].map((s, i) => (
-          <Grid item key={i}>
-            <MotionBox whileHover={{ scale: 1.2 }}>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontWeight: 900,
-                  background: "linear-gradient(135deg,#f97316,#ef4444)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent"
-                }}
-              >
-                {s.value}
-              </Typography>
-              <Typography color="gray">{s.label}</Typography>
-            </MotionBox>
+      {/* 📊 STATS STRIP */}
+      <Box sx={{ py: 10, bgcolor: '#020617', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <Container>
+          <Grid container justifyContent="space-between" spacing={4}>
+            {[
+              { label: "Active Players", value: counts.players + "+" },
+              { label: "Expert Coaches", value: counts.coaches + "+" },
+              { label: "Premium Courts", value: counts.courts + "+" }
+            ].map((s, i) => (
+              <Grid item xs={12} md={4} key={i} sx={{ textAlign: 'center' }}>
+                <MotionBox whileInView={{ scale: [0.9, 1], opacity: [0, 1] }}>
+                  <Typography variant="h2" sx={statNumberStyle}>{s.value}</Typography>
+                  <Typography variant="subtitle1" sx={{ color: "rgba(255,255,255,0.5)", fontWeight: 700, letterSpacing: 2 }}>
+                    {s.label.toUpperCase()}
+                  </Typography>
+                </MotionBox>
+              </Grid>
+            ))}
           </Grid>
-        ))}
-      </Grid>
+        </Container>
+      </Box>
 
-      {/* 🔥 ZIG-ZAG SECTIONS */}
-      {sections.map((sec, i) => (
-        <Grid
-          container
-          key={i}
-          sx={{
-            py: 10,
-            px: { xs: 2, md: 10 },
-            flexDirection: i % 2 === 0 ? "row" : "row-reverse",
-            alignItems: "center"
-          }}
-        >
-          {/* IMAGE */}
-          <Grid item xs={12} md={6}>
-            <MotionBox
-              whileHover={{ scale: 1.05 }}
-              sx={{
-                height: 320,
-                borderRadius: 4,
-                overflow: "hidden",
-                position: "relative"
-              }}
-            >
-              <img
-                src={sec.img}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover"
-                }}
-              />
-
-              {/* 🔥 HOVER OVERLAY */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.5)",
-                  opacity: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "0.3s",
-                  "&:hover": { opacity: 1 }
-                }}
-              >
-                <Typography fontWeight={700}>Explore</Typography>
-              </Box>
-            </MotionBox>
-          </Grid>
-
-          {/* TEXT */}
-          <Grid item xs={12} md={6}>
-            <MotionBox
-              initial={{ opacity: 0, x: i % 2 === 0 ? -100 : 100 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <Typography variant="h4" fontWeight={800}>
-                {sec.title}
-              </Typography>
-              <Typography mt={2} color="gray">
-                {sec.desc}
-              </Typography>
-            </MotionBox>
-          </Grid>
-        </Grid>
-      ))}
-
-      {/* 🔥 FEATURES */}
-      <Grid container spacing={3} sx={{ p: 5 }}>
-        {["Expert Coaching", "Flexible Booking", "Match Practice"].map(
-          (f, i) => (
-            <Grid item xs={12} md={4} key={i}>
-              <MotionBox whileHover={{ y: -15 }}>
-                <Box
-                  sx={{
-                    p: 4,
-                    borderRadius: 4,
-                    backdropFilter: "blur(15px)",
-                    background: "rgba(255,255,255,0.05)",
-                    boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
-                  }}
-                >
-                  <Typography fontWeight={700}>{f}</Typography>
-                </Box>
+      {/* 🔄 ZIG-ZAG SECTIONS */}
+      <Container sx={{ py: 10 }}>
+        {sections.map((sec, i) => (
+          <Grid container key={i} spacing={8} alignItems="center" sx={{ mb: 15, flexDirection: i % 2 === 0 ? "row" : "row-reverse" }}>
+            <Grid item xs={12} md={6}>
+              <MotionBox initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}
+                sx={{ borderRadius: 8, overflow: "hidden", boxShadow: '0 50px 100px -20px rgba(0,0,0,0.5)', height: 450 }}>
+                <img src={sec.img} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={sec.title} />
               </MotionBox>
             </Grid>
-          )
-        )}
-      </Grid>
+            <Grid item xs={12} md={6}>
+              <MotionBox initial={{ opacity: 0, x: i % 2 === 0 ? 50 : -50 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
+                <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                  {sec.icon}
+                  <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 2 }}>OUR ADVANTAGE</Typography>
+                </Stack>
+                <Typography variant="h3" fontWeight={900} mb={2}>{sec.title}</Typography>
+                <Typography variant="h6" sx={{ color: "rgba(255,255,255,0.6)", mb: 4, fontWeight: 400 }}>{sec.desc}</Typography>
+                <Button variant="text" sx={{ color: 'white', fontWeight: 900, '&:hover': { color: '#ef4444' } }}>LEARN MORE —</Button>
+              </MotionBox>
+            </Grid>
+          </Grid>
+        ))}
+      </Container>
 
-      {/* 🔥 CTA */}
-      <Box
-        sx={{
-          py: 12,
-          textAlign: "center",
-          background: "linear-gradient(135deg,#0f172a,#1e293b)"
-        }}
-      >
-        <Typography variant="h3" fontWeight={900}>
-          Become a Champion 🚀
-        </Typography>
+      {/* 🚀 FEATURE GRID */}
+      <Box sx={{ py: 15, background: 'linear-gradient(to bottom, #020617, #0f172a)' }}>
+        <Container>
+          <Typography variant="h3" textAlign="center" fontWeight={900} mb={8}>ELITE FEATURES</Typography>
+          <Grid container spacing={4}>
+            {["Expert Coaching", "Flexible Booking", "Match Practice", "Video Analysis", "Strength Training", "Youth Programs"].map((f, i) => (
+              <Grid item xs={12} md={4} key={i}>
+                <MotionBox whileHover={{ y: -10, bgcolor: 'rgba(255,255,255,0.08)' }}
+                  sx={{ p: 5, borderRadius: 6, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', transition: '0.3s' }}>
+                  <Typography variant="h5" fontWeight={800} mb={2}>{f}</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>Elevate your game with specialized tools and tailored sessions designed for competitive athletes.</Typography>
+                </MotionBox>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
 
-        <Button
-          variant="contained"
-          sx={{
-            mt: 3,
-            px: 6,
-            py: 1.5,
-            borderRadius: 999,
-            background: "linear-gradient(135deg,#f97316,#ef4444)",
-            "&:hover": { transform: "scale(1.1)" }
-          }}
-        >
-          Start Training
-        </Button>
+      {/* 🔥 FINAL CTA */}
+      <Box sx={{ py: 20, textAlign: "center", position: 'relative' }}>
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '300px', height: '300px', bgcolor: '#ef4444', filter: 'blur(150px)', opacity: 0.1, zIndex: 0 }} />
+        <Container sx={{ position: 'relative', zIndex: 1 }}>
+          <Typography variant="h2" fontWeight={950} mb={2}>READY TO STEP UP?</Typography>
+          <Typography variant="h5" mb={6} sx={{ color: 'rgba(255,255,255,0.6)' }}>Book your first session today and join the legacy.</Typography>
+          <Button variant="contained" sx={heroButtonStyle}>START TRAINING NOW</Button>
+        </Container>
       </Box>
 
     </Box>
   );
 }
+
+// 🎨 CUSTOM STYLES
+const heroButtonStyle = {
+  px: 6, py: 2, borderRadius: 4, fontWeight: 900, fontSize: '1.1rem',
+  background: "linear-gradient(135deg,#f97316,#ef4444)",
+  boxShadow: "0 15px 35px rgba(239, 68, 68, 0.4)",
+  "&:hover": { transform: "scale(1.05)", filter: 'brightness(1.1)' },
+  transition: "all 0.3s"
+};
+
+const outlineButtonStyle = {
+  px: 6, py: 2, borderRadius: 4, fontWeight: 900, fontSize: '1.1rem',
+  borderColor: 'rgba(255,255,255,0.3)', color: 'white',
+  "&:hover": { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.05)' }
+};
+
+const statNumberStyle = {
+  fontWeight: 950, fontSize: '4.5rem', lineHeight: 1,
+  background: "linear-gradient(135deg,#f97316,#ef4444)",
+  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+};
