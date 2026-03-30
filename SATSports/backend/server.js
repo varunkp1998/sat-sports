@@ -3438,12 +3438,28 @@ app.post("/api/admin/program-pricing", async (req, res) => {
 });
 // 1. Get Player's Program Name
 app.get("/api/player/program/:id", (req, res) => {
-  db.query("SELECT programs.name FROM players JOIN programs ON players.program_id = programs.id WHERE players.id = ?", [req.params.id], (err, results) => {
-    if (err) return res.status(500).json(err);
-    res.json(results[0] || { name: "None" });
+  // Use 'title' from the DB but alias it 'AS name' for the frontend
+  const sql = `
+    SELECT programs.title AS name 
+    FROM players 
+    LEFT JOIN programs ON players.program_id = programs.id 
+    WHERE players.id = ?
+  `;
+
+  db.query(sql, [req.params.id], (err, results) => {
+    if (err) {
+      console.error("Database Error:", err);
+      return res.status(500).json({ error: "INTERNAL_SERVER_ERROR", details: err.sqlMessage });
+    }
+    
+    // If no program found, return "None" to prevent frontend crashes
+    const response = (results.length > 0 && results[0].name) 
+      ? results[0] 
+      : { name: "None" };
+
+    res.json(response);
   });
 });
-
 // 2. Get Player's Attendance % (Last 30 Days)
 app.get("/api/player/stats/attendance/:id", (req, res) => {
   const query = "SELECT (COUNT(IF(status = 'present', 1, NULL)) / COUNT(*)) * 100 AS percentage FROM attendance WHERE player_id = ? AND date > DATE_SUB(NOW(), INTERVAL 30 DAY)";
