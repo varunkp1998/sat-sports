@@ -1,6 +1,6 @@
 
 const multer = require("multer");
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ storage: storage });
 const jwt = require("jsonwebtoken");   // ✅ FIX
 const xlsx = require("xlsx");
 const express = require("express");
@@ -50,14 +50,16 @@ app.use('/invoices', express.static(INVOICES_DIR));
 // 4. Multer Storage (The "SAVE" Fix)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Save specifically to the PROFILES subfolder
-    cb(null, PROFILES_DIR); 
+    cb(null, PROFILES_DIR); // The absolute path we verified in logs
   },
   filename: (req, file, cb) => {
+    // Force the extension from the original file (e.g., .jpg)
     const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `coach-${Date.now()}${ext}`);
+    const uniqueName = `coach-${Date.now()}${ext}`; 
+    cb(null, uniqueName);
   }
 });
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -3522,7 +3524,7 @@ app.post("/api/coach/upload-photo", upload.single('photo'), async (req, res) => 
     const { userId } = req.body;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    // This URL will now correctly include the extension (e.g., /uploads/profiles/photo-123.jpg)
+    // 🟢 Use req.file.filename (e.g., coach-123.jpg)
     const photoUrl = `/uploads/profiles/${req.file.filename}`;
 
     await db.query(
@@ -3532,7 +3534,6 @@ app.post("/api/coach/upload-photo", upload.single('photo'), async (req, res) => 
 
     res.json({ url: photoUrl });
   } catch (err) {
-    console.error("Upload Error:", err);
-    res.status(500).json({ message: "Failed to update profile photo" });
+    res.status(500).json({ message: "Upload failed" });
   }
 });
