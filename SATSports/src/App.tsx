@@ -3845,13 +3845,7 @@ const th = {
   fontWeight: 700
 };
 
-import React, { useState } from "react";
-import { 
-  Box, List, ListItem, ListItemText, IconButton, Drawer, 
-  Collapse, Typography, Divider, useTheme 
-} from "@mui/material";
-import { Link, Routes, Route, useLocation } from "react-router-dom";
-import MenuIcon from "@mui/icons-material/Menu";
+
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 
@@ -3904,7 +3898,7 @@ const menuGroups = [
   }
 ];
 
-export default function AdminLayout() {
+function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     "Academy Management": true, // Keep one open by default if you like
