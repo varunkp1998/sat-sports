@@ -2983,24 +2983,7 @@ app.get("/api/admin/tournaments/:id/matches", async (req, res) => {
 
   res.json(rows);
 });
-app.get("/api/tournaments/:id/matches", async (req, res) => {
-  const { id } = req.params;
 
-  try {
-    const [rows] = await db.query(`
-      SELECT *
-      FROM matches
-      WHERE tournament_id = ?
-      ORDER BY match_order
-    `, [id]);
-
-    res.json(rows);
-
-  } catch (err) {
-    console.error("PUBLIC MATCH ERROR:", err);
-    res.status(500).json({ message: "Failed to fetch matches" });
-  }
-});
 app.post("/api/private-bookings", async (req, res) => {
   const { name, email, phone, location_id, booking_date, time_slot } = req.body;
 
@@ -3565,4 +3548,52 @@ app.post("/api/admin/subcategory-pricing", async (req, res) => {
   `;
   await db.query(query, [subcategory_id, sessions_per_month, price_weekly, price_monthly, price_yearly]);
   res.json({ success: true });
+});
+// GET /api/tournaments/:id - Get specific tournament info
+app.get("/api/tournaments/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await db.query(`
+      SELECT t.*, 
+      (SELECT COUNT(*) FROM tournament_players WHERE tournament_id = t.id) as player_count
+      FROM tournaments t 
+      WHERE t.id = ?
+    `, [id]);
+
+    if (rows.length === 0) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/tournaments/:id/matches - Get all matches for the bracket
+app.get("/api/tournaments/:id/matches", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await db.query(`
+      SELECT * FROM matches 
+      WHERE tournament_id = ? 
+      ORDER BY round ASC, match_order ASC
+    `, [id]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.put("/api/admin/matches/:id/score", async (req, res) => {
+  const { id } = req.params;
+  const { score1, score2, score_details, winner_id, status } = req.body;
+
+  try {
+    await db.query(`
+      UPDATE matches 
+      SET score1 = ?, score2 = ?, score_details = ?, winner_id = ?, status = ?
+      WHERE id = ?
+    `, [score1, score2, score_details, winner_id, status, id]);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });

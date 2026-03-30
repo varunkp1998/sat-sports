@@ -148,6 +148,16 @@ export default function TournamentDetails() {
                     <Typography fontWeight={900} color={set[1] > set[0] ? "#ef4444" : "white"}>{set[1]}</Typography>
                   </Box>
                 ))}
+                // Inside your MatchCard or Modal
+                {(selectedMatch.score_details || "0-0").split(',').map((set, i) => {
+    const [s1, s2] = set.trim().split('-');
+    return (
+      <Box key={i} sx={setBoxStyle}>
+        <Typography fontWeight={900} color={s1 > s2 ? "#ef4444" : "white"}>{s1}</Typography>
+        <Typography fontWeight={900} color={s2 > s1 ? "#ef4444" : "white"}>{s2}</Typography>
+      </Box>
+    );
+})}
              </Stack>
              <Stack direction="row" justifyContent="center" spacing={3}>
                 <Stack direction="row" spacing={1} alignItems="center"><PlaceIcon sx={{ color: '#ef4444', fontSize: 20 }} /><Typography variant="body2" fontWeight={800}>Court {selectedMatch.court_number || 1}</Typography></Stack>
