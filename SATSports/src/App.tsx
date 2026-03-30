@@ -184,286 +184,232 @@ const adminCardStyle = {
 /* ---------- PROGRAMS ---------- */
 
 
-function AdminPrograms() {
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [minAge, setMinAge] = useState("");
-  const [maxAge, setMaxAge] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
 
-  // 🔥 NEW STATES
-  const [pricingMap, setPricingMap] = useState<any>({});
+import AddCircleIcon from "@mui/icons-material/AddCircle";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+
+ function AdminPrograms() {
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [editingProgram, setEditingProgram] = useState<any>(null);
+  
+  // Program Form State
+  const [progTitle, setProgTitle] = useState("");
+  const [progDesc, setProgDesc] = useState("");
+  
+  // Sub-Category Form State (Scoped to which program is being expanded)
+  const [newSubCat, setNewSubCat] = useState<{ [key: number]: string }>({});
+
+  // Pricing State: [subCategoryId][sessionsPerMonth]
   const [pricingInputs, setPricingInputs] = useState<any>({});
 
   useEffect(() => {
-    loadPrograms();
+    loadAllData();
   }, []);
 
-  const loadPrograms = async () => {
+  const loadAllData = async () => {
     const res = await fetch(`${API_BASE}/api/admin/programs`);
     const data = await res.json();
+    setPrograms(data);
 
-    const list = Array.isArray(data) ? data : [];
-    setPrograms(list);
-
-    list.forEach((p: any) => loadPricing(p.id));
+    // Load subcategories for every program
+    data.forEach((p: any) => fetchSubCategories(p.id));
   };
 
-  const loadPricing = async (programId: number) => {
-    const res = await fetch(`${API_BASE}/api/programs/${programId}/pricing`);
+  const fetchSubCategories = async (programId: number) => {
+    const res = await fetch(`${API_BASE}/api/programs/${programId}/subcategories`);
+    const subcats = await res.json();
+    
+    setPrograms(prev => prev.map(p => 
+      p.id === programId ? { ...p, subcategories: subcats } : p
+    ));
+
+    // Fetch pricing for each subcategory
+    subcats.forEach((sc: any) => fetchPricing(sc.id));
+  };
+
+  const fetchPricing = async (subCatId: number) => {
+    const res = await fetch(`${API_BASE}/api/subcategories/${subCatId}/pricing`);
     const data = await res.json();
-
-    setPricingMap((prev: any) => ({
-      ...prev,
-      [programId]: data
-    }));
-  };
-
-  const saveProgram = () => {
-    if (!title || !minAge || !maxAge) {
-      alert("Title, Min Age and Max Age are required");
-      return;
-    }
-
-    const payload = {
-      title,
-      description,
-      min_age: Number(minAge),
-      max_age: Number(maxAge)
-    };
-
-    const url = editingId
-      ? `${API_BASE}/api/programs/${editingId}`
-      : `${API_BASE}/api/programs`;
-
-    const method = editingId ? "PUT" : "POST";
-
-    fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(() => {
-      resetForm();
-      loadPrograms();
+    
+    const formatted: any = {};
+    [8, 12].forEach(sessionCount => {
+      const match = data.find((d: any) => d.sessions_per_month === sessionCount);
+      formatted[sessionCount] = {
+        price_weekly: match?.price_weekly || "",
+        price_monthly: match?.price_monthly || "",
+        price_yearly: match?.price_yearly || ""
+      };
     });
+
+    setPricingInputs((prev: any) => ({ ...prev, [subCatId]: formatted }));
   };
 
-  const editProgram = (p: any) => {
-    setEditingId(p.id);
-    setTitle(p.title || "");
-    setDescription(p.description || "");
-    setMinAge(p.min_age || "");
-    setMaxAge(p.max_age || "");
-  };
+  // --- ACTIONS ---
 
-  const deleteProgram = (id: number) => {
-    if (!window.confirm("Delete this program?")) return;
+  const handleAddSubCat = async (programId: number) => {
+    const name = newSubCat[programId];
+    if (!name) return alert("Enter subcategory name");
 
-    fetch(`${API_BASE}/api/programs/${id}`, {
-      method: "DELETE"
-    })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message);
-        return data;
-      })
-      .then(() => {
-        alert("Deleted successfully ✅");
-        loadPrograms();
-      })
-      .catch((err) => alert(err.message));
-  };
-
-  const resetForm = () => {
-    setEditingId(null);
-    setTitle("");
-    setDescription("");
-    setMinAge("");
-    setMaxAge("");
-  };
-
-  // 🔥 PRICING HANDLERS
-  const handlePricingChange = (
-    programId: number,
-    sessions: number,
-    field: string,
-    value: any
-  ) => {
-    setPricingInputs((prev: any) => ({
-      ...prev,
-      [programId]: {
-        ...prev[programId],
-        [sessions]: {
-          ...prev[programId]?.[sessions],
-          [field]: value
-        }
-      }
-    }));
-  };
-
-  const savePricing = async (programId: number, sessions: number) => {
-    const data = pricingInputs[programId]?.[sessions];
-
-    await fetch(`${API_BASE}/api/admin/program-pricing`, {
+    await fetch(`${API_BASE}/api/admin/subcategories`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        program_id: programId,
-        sessions_per_month: sessions,
-        ...data
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ program_id: programId, name })
     });
 
-    loadPricing(programId);
-    alert("Pricing saved ✅");
+    setNewSubCat({ ...newSubCat, [programId]: "" });
+    fetchSubCategories(programId);
+  };
+
+  const handleUpdatePricing = async (subCatId: number, sessions: number) => {
+    const prices = pricingInputs[subCatId]?.[sessions];
+    await fetch(`${API_BASE}/api/admin/subcategory-pricing`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        subcategory_id: subCatId, 
+        sessions_per_month: sessions, 
+        ...prices 
+      })
+    });
+    alert("Pricing Saved ✅");
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* HEADER */}
-      <Card sx={{ mb: 3, borderRadius: 3, background: "linear-gradient(135deg,#c31432,#240b36)", color: "white" }}>
-        <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <SportsTennisIcon sx={{ fontSize: 40 }} />
+    <Box sx={{ p: 4, maxWidth: 1400, margin: "0 auto" }}>
+      
+      {/* 1. HEADER */}
+      <Card sx={{ mb: 4, borderRadius: 4, background: "linear-gradient(135deg,#800000,#2a0000)", color: "white" }}>
+        <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <SportsTennisIcon sx={{ fontSize: 50 }} />
           <Box>
-            <Typography variant="h5" fontWeight={700}>
-              Program Management
-            </Typography>
-            <Typography variant="body2">
-              Manage programs & pricing
-            </Typography>
+            <Typography variant="h4" fontWeight={900}>PROGRAM & PRICING CONSOLE</Typography>
+            <Typography variant="body2" sx={{ opacity: 0.7 }}>Manage Ball Stages (Red, Orange, Green) and Elite Training tiers</Typography>
           </Box>
         </CardContent>
       </Card>
 
-      {/* FORM */}
-      <Card sx={{ mb: 4, borderRadius: 3 }}>
-        <CardContent>
-          <Typography variant="h6">
-            {editingId ? "Edit Program" : "Add Program"}
-          </Typography>
-
-          <Grid container spacing={2} mt={1}>
-            <Grid item xs={12} md={3}>
-              <TextField fullWidth label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <TextField fullWidth label="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-            </Grid>
-
-            <Grid item xs={6} md={2}>
-              <TextField fullWidth type="number" label="Min Age" value={minAge} onChange={(e) => setMinAge(e.target.value)} />
-            </Grid>
-
-            <Grid item xs={6} md={2}>
-              <TextField fullWidth type="number" label="Max Age" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} />
-            </Grid>
-
-            <Grid item xs={12} md={1}>
-              <Button fullWidth variant="contained" onClick={saveProgram}>
-                {editingId ? "Save" : "Add"}
-              </Button>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* PROGRAM LIST */}
-      <Grid container spacing={3}>
+      {/* 2. PROGRAM LIST (WITH SUB-CATEGORIES) */}
+      <Stack spacing={4}>
         {programs.map((p) => (
-          <Grid item xs={12} md={4} key={p.id}>
-            <Card sx={{ borderRadius: 3 }}>
-              <CardContent>
-                <Typography variant="h6">{p.title}</Typography>
+          <Card key={p.id} sx={{ borderRadius: 4, boxShadow: "0 10px 30px rgba(0,0,0,0.05)", border: "1px solid #eee" }}>
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+                <Box>
+                  <Typography variant="h5" fontWeight={800} color="primary">{p.title}</Typography>
+                  <Typography variant="body2" color="text.secondary">{p.description}</Typography>
+                </Box>
+                <Button variant="outlined" color="error" startIcon={<DeleteOutlineIcon />}>Delete Program</Button>
+              </Stack>
 
-                <Chip label={`${p.min_age}-${p.max_age} yrs`} size="small" />
+              <Divider sx={{ mb: 3 }} />
 
-                <Typography mt={1}>{p.description}</Typography>
+              <Grid container spacing={3}>
+                {/* LEFT: SUB-CATEGORY LIST */}
+                <Grid item xs={12} lg={4}>
+                  <Typography variant="subtitle2" fontWeight={900} mb={2} sx={{ letterSpacing: 1 }}>
+                    LEVELS / SUB-CATEGORIES
+                  </Typography>
+                  
+                  <Stack spacing={1} mb={2}>
+                    {p.subcategories?.map((sc: any) => (
+                      <Paper key={sc.id} variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#fcfcfc' }}>
+                        <Box>
+                          <Typography fontWeight={700} fontSize={14}>{sc.name}</Typography>
+                          <Typography variant="caption" color="gray">{sc.min_age}-{sc.max_age} yrs</Typography>
+                        </Box>
+                        <Chip label="ID: sc-"+sc.id size="small" variant="outlined" />
+                      </Paper>
+                    ))}
+                  </Stack>
 
-                <Divider sx={{ my: 2 }} />
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField 
+                      fullWidth size="small" 
+                      placeholder="Add Level (e.g. Yellow Ball)" 
+                      value={newSubCat[p.id] || ""}
+                      onChange={(e) => setNewSubCat({ ...newSubCat, [p.id]: e.target.value })}
+                    />
+                    <IconButton color="primary" onClick={() => handleAddSubCat(p.id)}>
+                      <AddCircleIcon fontSize="large" />
+                    </IconButton>
+                  </Box>
+                </Grid>
 
-                {/* 🔥 PRICING */}
-                <Typography fontWeight={600}>Pricing</Typography>
+                {/* RIGHT: PRICING TIERS FOR EACH LEVEL */}
+                <Grid item xs={12} lg={8}>
+                   <Typography variant="subtitle2" fontWeight={900} mb={2} sx={{ letterSpacing: 1 }}>
+                    PRICING MANAGEMENT
+                  </Typography>
 
-                {[8, 12].map((sessions) => {
-                  const existing =
-                    pricingMap[p.id]?.find(
-                      (x: any) => x.sessions_per_month === sessions
-                    ) || {};
+                  <Grid container spacing={2}>
+                    {p.subcategories?.map((sc: any) => (
+                      <Grid item xs={12} key={sc.id}>
+                        <Paper sx={{ p: 2, bgcolor: "#f8f9fa", borderRadius: 3 }}>
+                          <Typography variant="body2" fontWeight={800} color="primary" mb={2}>
+                            SET PRICING FOR: {sc.name.toUpperCase()}
+                          </Typography>
 
-                  const input = pricingInputs[p.id]?.[sessions] || {};
-
-                  return (
-                    <Box key={sessions} mt={1}>
-                      <Typography fontSize={13}>
-                        {sessions} Sessions
-                      </Typography>
-
-                      <Grid container spacing={1}>
-                        <Grid item xs={4}>
-                          <TextField
-                            size="small"
-                            label="Weekly"
-                            value={input.price_weekly ?? existing.price_weekly ?? ""}
-                            onChange={(e) =>
-                              handlePricingChange(p.id, sessions, "price_weekly", e.target.value)
-                            }
-                          />
-                        </Grid>
-
-                        <Grid item xs={4}>
-                          <TextField
-                            size="small"
-                            label="Monthly"
-                            value={input.price_monthly ?? existing.price_monthly ?? ""}
-                            onChange={(e) =>
-                              handlePricingChange(p.id, sessions, "price_monthly", e.target.value)
-                            }
-                          />
-                        </Grid>
-
-                        <Grid item xs={4}>
-                          <TextField
-                            size="small"
-                            label="Yearly"
-                            value={input.price_yearly ?? existing.price_yearly ?? ""}
-                            onChange={(e) =>
-                              handlePricingChange(p.id, sessions, "price_yearly", e.target.value)
-                            }
-                          />
-                        </Grid>
+                          <Grid container spacing={3}>
+                            {[8, 12].map((sessions) => (
+                              <Grid item xs={12} md={6} key={sessions}>
+                                <Box sx={{ p: 2, bgcolor: "white", borderRadius: 2, border: "1px solid #ddd" }}>
+                                  <Typography variant="caption" fontWeight={900}>{sessions} SESSIONS / MONTH</Typography>
+                                  <Stack spacing={1.5} mt={1.5}>
+                                    <TextField 
+                                      label="Weekly Price" size="small" fullWidth
+                                      value={pricingInputs[sc.id]?.[sessions]?.price_weekly || ""}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setPricingInputs((prev: any) => ({
+                                          ...prev,
+                                          [sc.id]: {
+                                            ...prev[sc.id],
+                                            [sessions]: { ...prev[sc.id][sessions], price_weekly: val }
+                                          }
+                                        }))
+                                      }}
+                                    />
+                                    <TextField 
+                                      label="Monthly Price" size="small" fullWidth
+                                      value={pricingInputs[sc.id]?.[sessions]?.price_monthly || ""}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setPricingInputs((prev: any) => ({
+                                          ...prev,
+                                          [sc.id]: {
+                                            ...prev[sc.id],
+                                            [sessions]: { ...prev[sc.id][sessions], price_monthly: val }
+                                          }
+                                        }))
+                                      }}
+                                    />
+                                    <Button 
+                                      variant="contained" 
+                                      size="small" 
+                                      fullWidth 
+                                      onClick={() => handleUpdatePricing(sc.id, sessions)}
+                                      sx={{ mt: 1, bgcolor: "#444" }}
+                                    >
+                                      Save {sessions} Sessions
+                                    </Button>
+                                  </Stack>
+                                </Box>
+                              </Grid>
+                            ))}
+                          </Grid>
+                        </Paper>
                       </Grid>
-
-                      <Button
-                        size="small"
-                        onClick={() => savePricing(p.id, sessions)}
-                      >
-                        Save
-                      </Button>
-                    </Box>
-                  );
-                })}
-
-                <Divider sx={{ my: 2 }} />
-
-                <Stack direction="row" spacing={1}>
-                  <Button onClick={() => editProgram(p)}>Edit</Button>
-                  <Button color="error" onClick={() => deleteProgram(p.id)}>
-                    Delete
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
+                    ))}
+                  </Grid>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
         ))}
-      </Grid>
+      </Stack>
     </Box>
   );
 }
-
 
 function AdminNews() {
   const [items, setItems] = React.useState<any[]>([]);
