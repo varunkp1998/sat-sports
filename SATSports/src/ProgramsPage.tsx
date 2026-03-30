@@ -119,20 +119,25 @@ export default function ProgramsPage() {
 
                       {/* CTA BUTTON */}
                       <Box sx={{ p: 3, pt: 0 }}>
-                        <Button
-                          fullWidth
-                          variant="contained"
-                          sx={{
-                            py: 1.5,
-                            borderRadius: 3,
-                            fontWeight: 800,
-                            background: "linear-gradient(135deg,#f97316,#ef4444)",
-                            boxShadow: "0 10px 20px rgba(239, 68, 68, 0.2)",
-                            "&:hover": { filter: "brightness(1.2)" }
-                          }}
-                        >
-                          View Pricing & Register
-                        </Button>
+                      // Inside the grouped[category].map((p: any) => ...
+<Button
+  fullWidth
+  variant="contained"
+  onClick={() => {
+    // Redirect to registration page with Program ID as a query param
+    window.location.href = `/register?programId=${p.id}&programName=${encodeURIComponent(p.title)}`;
+  }}
+  sx={{
+    py: 1.5,
+    borderRadius: 3,
+    fontWeight: 800,
+    background: "linear-gradient(135deg,#f97316,#ef4444)",
+    boxShadow: "0 10px 20px rgba(239, 68, 68, 0.2)",
+    "&:hover": { filter: "brightness(1.2)" }
+  }}
+>
+  View Pricing & Register
+</Button>
                       </Box>
                     </Box>
                   </MotionBox>

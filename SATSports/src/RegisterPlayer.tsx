@@ -1,9 +1,13 @@
-// RegisterPlayer.tsx
-import { useState } from "react";
-import { Card, CardContent, TextField, Button, Stack, Typography } from "@mui/material";
+import { useState, useEffect } from "react";
+import { Card, CardContent, TextField, Button, Stack, Typography, Box } from "@mui/material";
 import API_BASE from "./api";
 
 export default function RegisterPlayer() {
+  // Get Program Info from URL
+  const queryParams = new URLSearchParams(window.location.search);
+  const programId = queryParams.get("programId");
+  const programName = queryParams.get("programName");
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -11,6 +15,7 @@ export default function RegisterPlayer() {
     age: "",
     parentName: "",
     parentPhone: "",
+    programId: programId || "", // Store the ID in the form
   });
 
   const handleChange = (e: any) => {
@@ -29,19 +34,21 @@ export default function RegisterPlayer() {
       body: JSON.stringify(form),
     });
 
-    alert("Application submitted successfully 🎾");
-    setForm({
-      name: "",
-      email: "",
-      phone: "",
-      age: "",
-      parentName: "",
-      parentPhone: "",
-    });
+    alert(`Application for ${programName || 'Program'} submitted successfully 🎾`);
+    // Redirect back or clear
+    window.location.href = "/programs"; 
   };
 
   return (
-    <section style={{ maxWidth: 500, margin: "40px auto" }}>
+    <section style={{ maxWidth: 500, margin: "40px auto", padding: "0 20px" }}>
+      {programName && (
+        <Box sx={{ mb: 2, textAlign: 'center', p: 2, bgcolor: '#fef2f2', borderRadius: 2, border: '1px solid #fecaca' }}>
+          <Typography variant="body2" color="error" fontWeight={700}>
+            ENROLLING IN: {programName.toUpperCase()}
+          </Typography>
+        </Box>
+      )}
+
       <Card sx={{ borderRadius: 3, boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}>
         <CardContent>
           <Typography variant="h5" fontWeight={700} mb={2}>
@@ -49,15 +56,15 @@ export default function RegisterPlayer() {
           </Typography>
 
           <Stack spacing={2}>
-            <TextField label="Student Name" name="name" value={form.name} onChange={handleChange} />
-            <TextField label="Email" name="email" value={form.email} onChange={handleChange} />
-            <TextField label="Phone" name="phone" value={form.phone} onChange={handleChange} />
-            <TextField label="Age" type="number" name="age" value={form.age} onChange={handleChange} />
+            <TextField label="Student Name" name="name" value={form.name} onChange={handleChange} fullWidth />
+            <TextField label="Email" name="email" value={form.email} onChange={handleChange} fullWidth />
+            <TextField label="Phone" name="phone" value={form.phone} onChange={handleChange} fullWidth />
+            <TextField label="Age" type="number" name="age" value={form.age} onChange={handleChange} fullWidth />
 
-            <TextField label="Parent Name (if under 12)" name="parentName" value={form.parentName} onChange={handleChange} />
-            <TextField label="Parent Phone" name="parentPhone" value={form.parentPhone} onChange={handleChange} />
+            <TextField label="Parent Name (if under 12)" name="parentName" value={form.parentName} onChange={handleChange} fullWidth />
+            <TextField label="Parent Phone" name="parentPhone" value={form.parentPhone} onChange={handleChange} fullWidth />
 
-            <Button variant="contained" color="error" size="large" onClick={submit}>
+            <Button variant="contained" color="error" size="large" onClick={submit} sx={{ py: 1.5, fontWeight: 700 }}>
               Submit Application
             </Button>
           </Stack>
