@@ -36,9 +36,24 @@ export default function Home() {
   }, []);
 
   const sections = [
-    { title: "Elite Coaching", desc: "Train with certified ITF professionals who have shaped national champions.", img: "https://images.unsplash.com/photo-1595435064219-510ccbdd4d40?auto=format&fit=crop&q=80", icon: <StarIcon sx={{ color: '#ef4444' }} /> },
-    { title: "Modern Infrastructure", desc: "Experience premium synthetic and clay courts equipped with tournament-grade lighting.", img: "https://images.unsplash.com/photo-1622279457486-62dcc4a4bd13?auto=format&fit=crop&q=80", icon: <SportsTennisIcon sx={{ color: '#ef4444' }} /> },
-    { title: "Performance Tracking", desc: "Data-driven insights to monitor your swing speed, accuracy, and physical endurance.", img: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&q=80", icon: <QueryStatsIcon sx={{ color: '#ef4444' }} /> }
+    { 
+      title: "Elite Coaching", 
+      desc: "Train with certified ITF professionals who have shaped national champions.", 
+      img: "/coach.jpg", // ✅ Path relative to the public folder
+      icon: <StarIcon sx={{ color: '#ef4444' }} /> 
+    },
+    { 
+      title: "Modern Infrastructure", 
+      desc: "Experience premium synthetic and clay courts equipped with tournament-grade lighting.", 
+      img: "/court.jpg", // ✅ Path relative to the public folder
+      icon: <SportsTennisIcon sx={{ color: '#ef4444' }} /> 
+    },
+    { 
+      title: "Performance Tracking", 
+      desc: "Data-driven insights to monitor your swing speed, accuracy, and physical endurance.", 
+      img: "/training.jpg", // ✅ Path relative to the public folder
+      icon: <QueryStatsIcon sx={{ color: '#ef4444' }} /> 
+    }
   ];
 
   return (
