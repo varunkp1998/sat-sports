@@ -3897,6 +3897,11 @@ const menuGroups = [
     ]
   }
 ];
+import { 
+
+  Collapse  // <--- Add this
+ 
+} from "@mui/material";
 import { useLocation } from "react-router-dom";
 function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
