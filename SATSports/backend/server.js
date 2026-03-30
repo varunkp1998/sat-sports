@@ -3499,14 +3499,14 @@ if (!fs.existsSync(uploadDir)) {
 // Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Ensure absolute path for Render
+    // Use path.join for cross-platform reliability
     cb(null, path.join(__dirname, 'uploads/profiles/'));
   },
   filename: (req, file, cb) => {
-    // Combine fieldname + timestamp + random + ORIGINAL EXTENSION
+    // Generate a unique name AND keep the original extension
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const extension = path.extname(file.originalname); // e.g., .jpg
-    cb(null, file.fieldname + '-' + uniqueSuffix + extension);
+    const ext = path.extname(file.originalname); // Get .jpg, .png, etc.
+    cb(null, `photo-${uniqueSuffix}${ext}`); 
   }
 });
 // THE UPLOAD ENDPOINT
@@ -3515,7 +3515,7 @@ app.post("/api/coach/upload-photo", upload.single('photo'), async (req, res) => 
     const { userId } = req.body;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    // req.file.filename now includes the extension thanks to the fix above
+    // This URL will now correctly include the extension (e.g., /uploads/profiles/photo-123.jpg)
     const photoUrl = `/uploads/profiles/${req.file.filename}`;
 
     await db.query(
@@ -3525,6 +3525,7 @@ app.post("/api/coach/upload-photo", upload.single('photo'), async (req, res) => 
 
     res.json({ url: photoUrl });
   } catch (err) {
-    res.status(500).json({ message: "Database update failed" });
+    console.error("Upload Error:", err);
+    res.status(500).json({ message: "Failed to update profile photo" });
   }
 });
