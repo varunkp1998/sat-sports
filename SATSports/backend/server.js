@@ -3443,3 +3443,26 @@ app.get("/api/player/stats/payments/:id", (req, res) => {
     res.json({ status: isUpToDate ? "Up-to-Date" : "Overdue" });
   });
 });
+app.get("/api/coach/stats/:coachId", async (req, res) => {
+  try {
+    const { coachId } = req.params;
+    // Get count of sessions for today
+    const [sessions] = await db.query(
+      "SELECT COUNT(*) as count FROM sessions WHERE coach_id = ? AND session_date = CURDATE()", 
+      [coachId]
+    );
+    // Get total unique players assigned to this coach
+    const [players] = await db.query(
+      "SELECT COUNT(DISTINCT player_id) as count FROM attendance WHERE coach_id = ?", 
+      [coachId]
+    );
+    
+    res.json({
+      sessionsToday: sessions[0].count || 0,
+      activePlayers: players[0].count || 0,
+      leaveBalance: 12 // This could be a fixed value or from a 'coaches' table
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
