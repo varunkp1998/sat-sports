@@ -3537,3 +3537,29 @@ app.post("/api/coach/upload-photo", upload.single('photo'), async (req, res) => 
     res.status(500).json({ message: "Upload failed" });
   }
 });
+// Get subcategories for a program
+app.get("/api/programs/:id/subcategories", async (req, res) => {
+  const [rows] = await db.query("SELECT * FROM program_subcategories WHERE program_id = ?", [req.params.id]);
+  res.json(rows);
+});
+
+// Create a subcategory
+app.post("/api/admin/subcategories", async (req, res) => {
+  const { program_id, title } = req.body;
+  await db.query("INSERT INTO program_subcategories (program_id, title) VALUES (?, ?)", [program_id, title]);
+  res.json({ success: true });
+});
+
+// Save pricing for a subcategory
+app.post("/api/admin/subcategory-pricing", async (req, res) => {
+  const { subcategory_id, sessions_per_month, price_weekly, price_monthly, price_yearly } = req.body;
+  
+  // Use "ON DUPLICATE KEY UPDATE" or check if exists
+  const query = `
+    INSERT INTO program_pricing (subcategory_id, sessions_per_month, price_weekly, price_monthly, price_yearly)
+    VALUES (?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE price_weekly = VALUES(price_weekly), price_monthly = VALUES(price_monthly), price_yearly = VALUES(price_yearly)
+  `;
+  await db.query(query, [subcategory_id, sessions_per_month, price_weekly, price_monthly, price_yearly]);
+  res.json({ success: true });
+});
