@@ -1,34 +1,41 @@
 import { useEffect, useState } from "react";
 import {
   Box, Typography, Card, CardContent,
-  Tabs, Tab, Stack, Button, IconButton
+  Tabs, Tab, Stack, Button, IconButton, Divider, Paper
 } from "@mui/material";
 
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import SaveIcon from "@mui/icons-material/Save";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 
 import API_BASE from "./api";
 
 export default function AdminTournamentDetail({ tournamentId }) {
-
   const [tab, setTab] = useState(0);
   const [players, setPlayers] = useState([]);
-  const [matches, setMatches] = useState({
-    round1: [], semi: [], final: null
-  });
+  const [rounds, setRounds] = useState([]); // Array of Rounds, each containing matches
+  const [saving, setSaving] = useState(false);
 
+  // 1. Load Players & Existing Bracket on Mount
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/tournaments/${tournamentId}/players`)
+    fetch(`${API_BASE}/api/admin/tournaments/${tournamentId}/details`)
       .then(res => res.json())
-      .then(setPlayers);
+      .then(data => {
+        setPlayers(data.players || []);
+        if (data.bracket_data) {
+          setRounds(JSON.parse(data.bracket_data));
+        }
+      });
   }, [tournamentId]);
 
+  // 2. Seeding Logic
   const shuffleSeeding = () => {
     setPlayers(prev => [...prev].sort(() => Math.random() - 0.5));
   };
 
-  const move = (i, dir) => {
+  const movePlayer = (i, dir) => {
     const arr = [...players];
     const j = i + dir;
     if (j < 0 || j >= arr.length) return;
@@ -36,184 +43,182 @@ export default function AdminTournamentDetail({ tournamentId }) {
     setPlayers(arr);
   };
 
+  // 3. Generate Initial Bracket
   const generateBrackets = () => {
-    if (players.length < 2) return alert("Add players first");
-    if (players.length % 2 !== 0) return alert("Players must be even");
-
-    const r1 = [];
+    if (players.length < 2) return alert("Add at least 2 players");
+    
+    const initialMatches = [];
     for (let i = 0; i < players.length; i += 2) {
-      r1.push({
-        p1: players[i]?.name,
-        p2: players[i+1]?.name,
-        winner: null
+      initialMatches.push({
+        id: `r0-m${i/2}`,
+        p1: players[i],
+        p2: players[i+1] || { name: "BYE", id: 'bye' }, 
+        winner: players[i+1] ? null : players[i] // Auto-win for BYE
       });
     }
-
-    setMatches({ round1: r1, semi: [], final: null });
+    setRounds([initialMatches]);
+    setTab(2);
   };
 
-  const pickWinner = (round, i, player) => {
-    const updated = { ...matches };
-    updated[round][i].winner = player;
+  // 4. Winner Selection & Round Progression
+  const selectWinner = (rIdx, mIdx, winner) => {
+    const newRounds = [...rounds];
+    newRounds[rIdx][mIdx].winner = winner;
 
-    if (round === "round1") {
-      const w = updated.round1.map(m=>m.winner).filter(Boolean);
-      if (w.length === updated.round1.length) {
-        const semi = [];
-        for (let i=0;i<w.length;i+=2) {
-          semi.push({ p1:w[i], p2:w[i+1], winner:null });
-        }
-        updated.semi = semi;
+    // Progression Logic: If this round is finished, prepare the next
+    const allWinnersSet = newRounds[rIdx].every(m => m.winner);
+
+    if (allWinnersSet && newRounds[rIdx].length > 1) {
+      const winners = newRounds[rIdx].map(m => m.winner);
+      const nextMatches = [];
+      for (let i = 0; i < winners.length; i += 2) {
+        nextMatches.push({
+          id: `r${rIdx+1}-m${i/2}`,
+          p1: winners[i],
+          p2: winners[i+1] || null,
+          winner: null
+        });
       }
+      newRounds[rIdx + 1] = nextMatches;
     }
-
-    if (round === "semi") {
-      const w = updated.semi.map(m=>m.winner).filter(Boolean);
-      if (w.length === updated.semi.length) {
-        updated.final = { p1:w[0], p2:w[1], winner:null };
-      }
-    }
-
-    setMatches(updated);
+    setRounds(newRounds);
   };
 
-  const pickFinalWinner = (p) => {
-    setMatches(prev => ({
-      ...prev,
-      final: { ...prev.final, winner: p }
-    }));
+  // 5. Save to Database
+  const saveBracket = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/tournaments/${tournamentId}/save-bracket`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bracketData: JSON.stringify(rounds) })
+      });
+      if (response.ok) alert("Tournament Progress Saved!");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-
-      <Typography variant="h4" fontWeight={800} mb={2}>
-        🏆 Tournament Dashboard
-      </Typography>
-
-      {/* EMPTY STATE */}
-      {players.length === 0 && (
-        <Card sx={{ p: 3 }}>
-          <Typography>No players added</Typography>
-          <Button
-            sx={{ mt: 2 }}
-            variant="contained"
-            onClick={() => window.location.href = `/admin/tournaments/${tournamentId}/players`}
+    <Box sx={{ p: 3, maxWidth: '1400px', margin: '0 auto' }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" fontWeight={900} color="primary">
+          🏆 Tournament Manager
+        </Typography>
+        {rounds.length > 0 && (
+          <Button 
+            variant="contained" 
+            startIcon={<SaveIcon />} 
+            onClick={saveBracket}
+            disabled={saving}
+            color="success"
           >
-            Add Players
+            {saving ? "Saving..." : "Save Progress"}
           </Button>
-        </Card>
-      )}
+        )}
+      </Stack>
 
-      <Tabs value={tab} onChange={(e,v)=>setTab(v)}>
+      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
         <Tab label="Overview" />
         <Tab label="Seeding" />
-        <Tab label="Brackets" />
+        <Tab label="Brackets" icon={<AccountTreeIcon />} iconPosition="start" />
       </Tabs>
 
       {/* OVERVIEW */}
-      {tab===0 && (
-        <Card sx={{ mt:2 }}>
+      {tab === 0 && (
+        <Card elevation={4}>
           <CardContent>
-            <Typography>Players: {players.length}</Typography>
-            <Button sx={{ mt:2 }} variant="contained" onClick={generateBrackets}>
-              Generate Brackets
+            <Typography variant="h6">Tournament Statistics</Typography>
+            <Divider sx={{ my: 2 }} />
+            <Typography>Total Registered Players: <b>{players.length}</b></Typography>
+            <Typography>Status: <b>{rounds.length > 0 ? "In Progress" : "Draft"}</b></Typography>
+            <Button 
+                variant="contained" 
+                sx={{ mt: 3 }} 
+                onClick={generateBrackets}
+                disabled={players.length < 2}
+            >
+              Initialize Bracket
             </Button>
           </CardContent>
         </Card>
       )}
 
       {/* SEEDING */}
-      {tab===1 && (
-        <Card sx={{ mt:2 }}>
-          <CardContent>
+      {tab === 1 && (
+        <Paper elevation={0} variant="outlined" sx={{ p: 2 }}>
+          <Stack direction="row" justifyContent="space-between" mb={2}>
+            <Typography variant="h6">Manual Seeding</Typography>
+            <Button variant="outlined" onClick={shuffleSeeding}>Randomize Seeds</Button>
+          </Stack>
+          <Stack spacing={1}>
+            {players.map((p, i) => (
+              <Card key={p.id} sx={{ p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography fontWeight="bold" sx={{ width: 40 }}>#{i + 1}</Typography>
+                <Typography sx={{ flexGrow: 1 }}>{p.name}</Typography>
+                <Box>
+                  <IconButton size="small" onClick={() => movePlayer(i, -1)} disabled={i === 0}>
+                    <ArrowUpwardIcon />
+                  </IconButton>
+                  <IconButton size="small" onClick={() => movePlayer(i, 1)} disabled={i === players.length - 1}>
+                    <ArrowDownwardIcon />
+                  </IconButton>
+                </Box>
+              </Card>
+            ))}
+          </Stack>
+        </Paper>
+      )}
 
-            <Button onClick={shuffleSeeding}>Shuffle</Button>
-
-            <Stack spacing={1} mt={2}>
-              {players.map((p,i)=>(
-                <Card key={p.id} sx={{ p:2 }}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography>#{i+1}</Typography>
-                    <Typography>{p.name}</Typography>
-
-                    <Box>
-                      <IconButton onClick={()=>move(i,-1)}>
-                        <ArrowUpwardIcon/>
-                      </IconButton>
-                      <IconButton onClick={()=>move(i,1)}>
-                        <ArrowDownwardIcon/>
-                      </IconButton>
-                    </Box>
-                  </Stack>
-                </Card>
+      {/* BRACKETS (Horizontal Scaling) */}
+      {tab === 2 && (
+        <Box sx={{ display: 'flex', gap: 6, overflowX: 'auto', pb: 4, minHeight: '600px', alignItems: 'center' }}>
+          {rounds.map((round, rIdx) => (
+            <Stack key={rIdx} spacing={6} sx={{ minWidth: 220 }}>
+              <Typography variant="overline" textAlign="center" sx={{ bgcolor: '#eee', borderRadius: 1 }}>
+                {rIdx === rounds.length - 1 && round.length === 1 ? "Championship" : `Round ${rIdx + 1}`}
+              </Typography>
+              
+              {round.map((match, mIdx) => (
+                <Paper key={match.id} elevation={6} sx={{ overflow: 'hidden', borderLeft: '6px solid #800000' }}>
+                  <Button 
+                    fullWidth 
+                    variant={match.winner?.id === match.p1?.id ? "contained" : "text"}
+                    onClick={() => selectWinner(rIdx, mIdx, match.p1)}
+                    sx={{ justifyContent: 'start', py: 1.5, borderRadius: 0 }}
+                    color="success"
+                  >
+                    {match.p1?.name || "TBD"}
+                  </Button>
+                  <Divider>VS</Divider>
+                  <Button 
+                    fullWidth 
+                    variant={match.winner?.id === match.p2?.id ? "contained" : "text"}
+                    onClick={() => selectWinner(rIdx, mIdx, match.p2)}
+                    sx={{ justifyContent: 'start', py: 1.5, borderRadius: 0 }}
+                    color="success"
+                  >
+                    {match.p2?.name || "TBD"}
+                  </Button>
+                </Paper>
               ))}
             </Stack>
+          ))}
 
-          </CardContent>
-        </Card>
+          {/* CHAMPION BOX */}
+          {rounds.length > 0 && rounds[rounds.length - 1][0]?.winner && (
+            <Stack alignItems="center" spacing={1} sx={{ minWidth: 250 }}>
+              <EmojiEventsIcon sx={{ fontSize: 80, color: '#FFD700' }} />
+              <Typography variant="h5" fontWeight="900">TOURNAMENT WINNER</Typography>
+              <Paper sx={{ p: 2, bgcolor: '#800000', color: '#fff', textAlign: 'center', width: '100%' }}>
+                <Typography variant="h6">{rounds[rounds.length - 1][0].winner.name}</Typography>
+              </Paper>
+            </Stack>
+          )}
+        </Box>
       )}
-
-      {/* BRACKETS */}
-      {tab===2 && (
-        <Stack direction="row" spacing={4} mt={2}>
-
-          <Stack spacing={2}>
-            <Typography>Round 1</Typography>
-            {matches.round1.map((m,i)=>(
-              <Card key={i} sx={{ p:2 }}>
-                <Button onClick={()=>pickWinner("round1",i,m.p1)}>
-                  {m.p1}
-                </Button>
-                <Button onClick={()=>pickWinner("round1",i,m.p2)}>
-                  {m.p2}
-                </Button>
-              </Card>
-            ))}
-          </Stack>
-
-          <Stack spacing={2}>
-            <Typography>Semi</Typography>
-            {matches.semi.map((m,i)=>(
-              <Card key={i} sx={{ p:2 }}>
-                <Button onClick={()=>pickWinner("semi",i,m.p1)}>
-                  {m.p1}
-                </Button>
-                <Button onClick={()=>pickWinner("semi",i,m.p2)}>
-                  {m.p2}
-                </Button>
-              </Card>
-            ))}
-          </Stack>
-
-          <Stack spacing={2}>
-            <Typography>Final</Typography>
-
-            {matches.final && (
-              <Card sx={{ p:2 }}>
-                <Button onClick={()=>pickFinalWinner(matches.final.p1)}>
-                  {matches.final.p1}
-                </Button>
-                <Button onClick={()=>pickFinalWinner(matches.final.p2)}>
-                  {matches.final.p2}
-                </Button>
-              </Card>
-            )}
-
-            {matches.final?.winner && (
-              <Card sx={{ p:2, background:"#16a34a", color:"#fff" }}>
-                <EmojiEventsIcon/>
-                <Typography>
-                  Champion: {matches.final.winner}
-                </Typography>
-              </Card>
-            )}
-
-          </Stack>
-
-        </Stack>
-      )}
-
     </Box>
   );
 }

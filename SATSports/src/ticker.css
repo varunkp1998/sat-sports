@@ -1,0 +1,11 @@
+.ticker-scroll {
+    display: inline-block;
+    animation: scroll-left 35s linear infinite;
+  }
+  @keyframes scroll-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .ticker-scroll:hover {
+    animation-play-state: paused;
+  }
