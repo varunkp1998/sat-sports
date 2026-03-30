@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import {
-  Box, Typography, Grid, Tabs, Tab, TextField, Chip, 
-  Container, InputAdornment, Fade, Divider
-} from "@mui/material";
+    Box, Typography, Grid, Tabs, Tab, TextField, Chip, 
+    Container, InputAdornment, Fade, Divider, 
+    Stack // <--- ADD THIS LINE
+  } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import SearchIcon from "@mui/icons-material/Search";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
