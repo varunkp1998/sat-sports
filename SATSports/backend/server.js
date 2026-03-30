@@ -3499,14 +3499,13 @@ if (!fs.existsSync(uploadDir)) {
 // Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Use path.join for cross-platform reliability
-    cb(null, path.join(__dirname, 'uploads/profiles/'));
+    cb(null, path.join(__dirname, 'uploads/profiles'));
   },
   filename: (req, file, cb) => {
-    // Generate a unique name AND keep the original extension
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname); // Get .jpg, .png, etc.
-    cb(null, `photo-${uniqueSuffix}${ext}`); 
+    // This part is CRITICAL to stop the "Cannot GET" error
+    const ext = path.extname(file.originalname) || '.jpg'; 
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + ext;
+    cb(null, uniqueName);
   }
 });
 // THE UPLOAD ENDPOINT
