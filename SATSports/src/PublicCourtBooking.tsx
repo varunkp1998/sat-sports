@@ -1,18 +1,18 @@
 import { useState } from "react";
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  TextField,
-  Button,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Alert,
+  Box, Card, CardContent, Typography, TextField, Button, Stack,
+  ToggleButton, ToggleButtonGroup, Alert, Container, InputAdornment, IconButton, Fade
 } from "@mui/material";
+import { motion } from "framer-motion";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
+import PersonIcon from "@mui/icons-material/Person";
+import PhoneIcon from "@mui/icons-material/Phone";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import API_BASE from "./api";
+
+const MotionBox = motion(Box);
 
 export default function PublicCourtBooking() {
   const [name, setName] = useState("");
@@ -33,158 +33,160 @@ export default function PublicCourtBooking() {
       return;
     }
 
-    const res = await fetch(`${API_BASE}/api/court-bookings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        phone,
-        court_name: court,
-        booking_date: date,
-        start_time: startTime,
-        end_time: endTime,
-      }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/api/court-bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name, phone, court_name: court,
+          booking_date: date, start_time: startTime, end_time: endTime,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Booking failed");
 
-    if (!res.ok) {
-      setError(data.message || "Booking failed");
-      return;
+      setMsg("🎉 Court booked successfully!");
+      // Reset fields
+      setName(""); setPhone(""); setDate(""); 
+      setStartTime(""); setEndTime(""); setCourt(null);
+    } catch (err: any) {
+      setError(err.message);
     }
-
-    setMsg("🎉 Court booked successfully!");
-    setName("");
-    setPhone("");
-    setDate("");
-    setStartTime("");
-    setEndTime("");
-    setCourt(null);
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        p: 2,
-      }}
-    >
-      <Card
-        sx={{
-          width: "100%",
-          maxWidth: 520,
-          borderRadius: 4,
-          boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
-        }}
-      >
-        <CardContent>
-          <Stack spacing={2}>
-            <Box display="flex" alignItems="center" gap={1}>
-              <SportsTennisIcon color="success" />
-              <Typography variant="h5" fontWeight={700}>
-                Book a Court
-              </Typography>
-            </Box>
+    <Box sx={{ 
+      minHeight: "100vh", bgcolor: "#020617", color: "white", py: 6,
+      background: "radial-gradient(circle at bottom left, rgba(239, 68, 68, 0.1), transparent), #020617"
+    }}>
+      <Container maxWidth="sm">
+        {/* Navigation */}
+        <IconButton onClick={() => window.history.back()} sx={{ color: "white", mb: 2 }}>
+          <ArrowBackIcon />
+        </IconButton>
 
-            {msg && <Alert severity="success">{msg}</Alert>}
-            {error && <Alert severity="error">{error}</Alert>}
+        <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          {/* Header */}
+          <Box textAlign="center" mb={4}>
+            <Typography variant="h3" fontWeight={900} sx={{ letterSpacing: -1 }}>
+              COURT <span style={{ color: "#ef4444" }}>RESERVATION</span>
+            </Typography>
+            <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
+              Pick a court and time to start playing.
+            </Typography>
+          </Box>
 
-            <TextField
-              label="Your Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              fullWidth
-            />
+          <Card sx={glassStyle}>
+            <CardContent sx={{ p: { xs: 3, md: 4 } }}>
+              <Stack spacing={3}>
+                
+                {msg && <Fade in={!!msg}><Alert severity="success" sx={alertStyle}>{msg}</Alert></Fade>}
+                {error && <Fade in={!!error}><Alert severity="error" sx={alertStyle}>{error}</Alert></Fade>}
 
-            <TextField
-              label="Phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              fullWidth
-            />
+                {/* User Details */}
+                <TextField
+                  label="Your Name" value={name} onChange={(e) => setName(e.target.value)}
+                  fullWidth sx={inputStyle}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon sx={{color: '#ef4444'}}/></InputAdornment> }}
+                />
 
-            <TextField
-              type="date"
-              label="Date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
+                <TextField
+                  label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)}
+                  fullWidth sx={inputStyle}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon sx={{color: '#ef4444'}}/></InputAdornment> }}
+                />
 
-            <Stack direction="row" spacing={2}>
-              <TextField
-                type="time"
-                label="From"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
+                {/* Date & Time */}
+                <TextField
+                  type="date" label="Booking Date" value={date} 
+                  onChange={(e) => setDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth sx={inputStyle}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon sx={{color: '#ef4444'}}/></InputAdornment> }}
+                />
 
-              <TextField
-                type="time"
-                label="To"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
-            </Stack>
+                <Stack direction="row" spacing={2}>
+                  <TextField
+                    type="time" label="From" value={startTime} 
+                    onChange={(e) => setStartTime(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth sx={inputStyle}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{color: '#ef4444'}}/></InputAdornment> }}
+                  />
+                  <TextField
+                    type="time" label="To" value={endTime} 
+                    onChange={(e) => setEndTime(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth sx={inputStyle}
+                  />
+                </Stack>
 
-            <Box>
-              <Typography fontWeight={600} mb={1}>
-                Select Court
-              </Typography>
-
-              <ToggleButtonGroup
-                value={court}
-                exclusive
-                onChange={(_, v) => setCourt(v)}
-                fullWidth
-              >
-                {["Court 1", "Court 2", "Court 3", "Court 4"].map((c) => (
-                  <ToggleButton
-                    key={c}
-                    value={c}
-                    sx={{
-                      borderRadius: 2,
-                      fontWeight: 600,
-                      textTransform: "none",
-                    }}
+                {/* Court Selection */}
+                <Box>
+                  <Typography variant="body2" sx={{ mb: 1.5, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>
+                    SELECT A COURT
+                  </Typography>
+                  <ToggleButtonGroup
+                    value={court} exclusive onChange={(_, v) => setCourt(v)}
+                    fullWidth sx={{ gap: 1, '& .MuiToggleButtonGroup-grouped': { border: 'none !important', borderRadius: '12px !important' } }}
                   >
-                    🎾 {c}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-            </Box>
+                    {["Court 1", "Court 2", "Court 3", "Court 4"].map((c) => (
+                      <ToggleButton
+                        key={c} value={c}
+                        sx={{
+                          bgcolor: court === c ? "#ef4444" : "rgba(255,255,255,0.05)",
+                          color: "white", fontWeight: 700, py: 1.5, flex: 1,
+                          border: "1px solid rgba(255,255,255,0.1) !important",
+                          transition: "all 0.3s",
+                          "&:hover": { bgcolor: court === c ? "#dc2626" : "rgba(255,255,255,0.15)" },
+                          "&.Mui-selected": { bgcolor: "#ef4444", color: "white" }
+                        }}
+                      >
+                        {c}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Box>
 
-            <Button
-              variant="contained"
-              size="large"
-              onClick={submit}
-              sx={{
-                mt: 1,
-                py: 1.5,
-                fontSize: 16,
-                fontWeight: 700,
-                borderRadius: 3,
-                background: "linear-gradient(135deg, #ff512f, #dd2476)",
-                boxShadow: "0 8px 20px rgba(221,36,118,0.4)",
-                ":hover": {
-                  background: "linear-gradient(135deg, #dd2476, #ff512f)",
-                },
-              }}
-            >
-              🎾 Book Court
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
+                <Button
+                  variant="contained" size="large" onClick={submit}
+                  sx={{
+                    py: 2, borderRadius: 4, fontWeight: 900, fontSize: '1.1rem',
+                    background: "linear-gradient(135deg, #f97316, #ef4444)",
+                    boxShadow: "0 10px 30px rgba(239, 68, 68, 0.4)",
+                    "&:hover": { transform: "translateY(-2px)", filter: "brightness(1.1)" },
+                    transition: "all 0.3s"
+                  }}
+                >
+                  RESERVE NOW 🎾
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        </MotionBox>
+      </Container>
     </Box>
   );
 }
+
+// 🎨 Styles
+const glassStyle = {
+  borderRadius: 6, background: "rgba(255,255,255,0.02)", backdropFilter: "blur(20px)",
+  border: "1px solid rgba(255,255,255,0.08)", color: "white", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)"
+};
+
+const inputStyle = {
+  "& .MuiOutlinedInput-root": {
+    color: "white",
+    "& fieldset": { borderColor: "rgba(255,255,255,0.1)", borderRadius: "14px" },
+    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.3)" },
+    "&.Mui-focused fieldset": { borderColor: "#ef4444" },
+    bgcolor: "rgba(255,255,255,0.02)"
+  },
+  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#ef4444" },
+  "& .MuiSvgIcon-root": { color: "#ef4444" }
+};
+
+const alertStyle = { borderRadius: "12px", fontWeight: 600, bgcolor: "rgba(0,0,0,0.2)", color: "white" };
