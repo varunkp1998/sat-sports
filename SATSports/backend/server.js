@@ -26,11 +26,31 @@ const fs = require('fs');
 
 const folders = ['./uploads/profiles', './invoices'];
 const path = require('path');
+const fs = require('fs');
 
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-console.log("Checking uploads path:", path.join(process.cwd(), 'uploads'));
-app.use("/invoices", express.static(path.join(__dirname, "invoices")));
+// Define ONE source of truth for the path
+const UPLOADS_ROOT = path.join(__dirname, 'uploads');
+const PROFILES_DIR = path.join(UPLOADS_ROOT, 'profiles');
 
+// Create the folders using the absolute path
+if (!fs.existsSync(PROFILES_DIR)) {
+    fs.mkdirSync(PROFILES_DIR, { recursive: true });
+    console.log("✅ Created absolute directory:", PROFILES_DIR);
+}
+
+// 1. Static Middleware (The "GET" Fix)
+app.use('/uploads', express.static(UPLOADS_ROOT));
+
+// 2. Multer Storage (The "SAVE" Fix)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, PROFILES_DIR); // Use the same absolute path
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `coach-${Date.now()}${ext}`);
+  }
+});
 folders.forEach(folder => {
   if (!fs.existsSync(folder)) {
     fs.mkdirSync(folder, { recursive: true });
@@ -3499,17 +3519,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, 'uploads/profiles'));
-  },
-  filename: (req, file, cb) => {
-    // This part is CRITICAL to stop the "Cannot GET" error
-    const ext = path.extname(file.originalname) || '.jpg'; 
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + ext;
-    cb(null, uniqueName);
-  }
-});
+
 // THE UPLOAD ENDPOINT
 app.post("/api/coach/upload-photo", upload.single('photo'), async (req, res) => {
   try {
