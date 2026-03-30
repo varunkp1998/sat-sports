@@ -317,8 +317,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
                           <Typography fontWeight={700} fontSize={14}>{sc.name}</Typography>
                           <Typography variant="caption" color="gray">{sc.min_age}-{sc.max_age} yrs</Typography>
                         </Box>
-                        <Chip label="ID: sc-"+sc.id size="small" variant="outlined" />
-                      </Paper>
+                        <Chip label={`ID: sc-${sc.id}`} size="small" variant="outlined" />                      </Paper>
                     ))}
                   </Stack>
 
