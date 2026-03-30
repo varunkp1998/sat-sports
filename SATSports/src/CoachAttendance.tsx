@@ -1,25 +1,15 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Button,
-  Stack,
-  Chip,
-  IconButton,
-  CircularProgress,
-  InputAdornment,
-  Avatar
+  Box, Typography, Grid, Card, CardContent, TextField, ToggleButton, ToggleButtonGroup, 
+  Button, Stack, Chip, IconButton, CircularProgress, InputAdornment, Avatar, Container, Fade
 } from "@mui/material";
+import { motion } from "framer-motion";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SearchIcon from "@mui/icons-material/Search";
 import API_BASE from "./api";
+
+const MotionBox = motion(Box);
 
 export default function CoachAttendance() {
   const { sessionId } = useParams();
@@ -30,31 +20,27 @@ export default function CoachAttendance() {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasLoaded, setHasLoaded] = useState(false); // 🛑 CRITICAL: Prevents accidental wipes on mount
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  // 1. LOAD PLAYERS
+  // 1. LOAD PLAYERS (Same Logic)
   useEffect(() => {
     setLoading(true);
     fetch(`${API_BASE}/api/session/${sessionId}/players`)
       .then(res => res.json())
       .then(data => {
-        setPlayers(
-          data.map((p: any) => ({
-            ...p,
-            present: p.present ?? true, // Respect existing DB status if available
-            remark: p.remark || ""
-          }))
-        );
+        setPlayers(data.map((p: any) => ({
+          ...p,
+          present: p.present ?? true,
+          remark: p.remark || ""
+        })));
         setHasLoaded(true);
       })
       .finally(() => setLoading(false));
   }, [sessionId]);
 
-  // 2. DEBOUNCED AUTO-SAVE
+  // 2. AUTO-SAVE (Same Logic)
   useEffect(() => {
-    // Only save if data has been fetched AND there are players to save
     if (!hasLoaded || players.length === 0) return;
-
     const timeout = setTimeout(async () => {
       setSaving(true);
       try {
@@ -62,178 +48,191 @@ export default function CoachAttendance() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            attendance: players.map(p => ({
-              playerId: p.id,
-              present: p.present,
-              remark: p.remark
-            }))
+            attendance: players.map(p => ({ playerId: p.id, present: p.present, remark: p.remark }))
           })
         });
         setLastSaved(new Date());
-      } catch (err) {
-        console.error("Auto-save failed:", err);
-      } finally {
-        setSaving(false);
-      }
-    }, 1000); // 1 second debounce
-
+      } catch (err) { console.error("Auto-save failed:", err); } 
+      finally { setSaving(false); }
+    }, 1000);
     return () => clearTimeout(timeout);
   }, [players, hasLoaded, sessionId]);
 
-  // UPDATE PLAYER
   const updatePlayer = (id: number, field: string, value: any) => {
-    setPlayers(prev =>
-      prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
-    );
+    setPlayers(prev => prev.map(p => (p.id === id ? { ...p, [field]: value } : p)));
   };
 
   const markAll = (val: boolean) => {
     setPlayers(prev => prev.map(p => ({ ...p, present: val })));
   };
 
-  // Memoized Search Filter
   const filtered = useMemo(() => {
-    return players.filter(p =>
-      p.name.toLowerCase().includes(search.toLowerCase())
-    );
+    return players.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
   }, [players, search]);
 
   if (loading) return (
-    <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+    <Box display="flex" justifyContent="center" alignItems="center" height="100vh" bgcolor="#020617">
       <CircularProgress color="error" />
     </Box>
   );
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, background: "#f8fafc", minHeight: "100vh" }}>
-      
-      {/* HEADER BAR */}
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems={{ xs: "start", sm: "center" }} mb={4}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <IconButton onClick={() => navigate(-1)} sx={{ mr: 1, bgcolor: "#fff" }}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Box>
-            <Typography variant="h4" fontWeight={900} color="#111827">Roster</Typography>
-            <Typography variant="body2" color="text.secondary">Attendance is saved automatically</Typography>
-          </Box>
-        </Stack>
+    <Box sx={{ background: "#020617", color: "white", minHeight: "100vh", py: 6 }}>
+      <Container maxWidth="xl">
+        
+        {/* TOP NAV & STATUS */}
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems="center" mb={6}>
+          <Stack direction="row" spacing={3} alignItems="center">
+            <IconButton onClick={() => navigate(-1)} sx={{ bgcolor: "rgba(255,255,255,0.05)", color: "white", "&:hover": { bgcolor: "#ef4444" } }}>
+              <ArrowBackIcon />
+            </IconButton>
+            <Box>
+              <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 2 }}>SESSION ROSTER</Typography>
+              <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5 }}>PLAYER <span style={{ color: "#ef4444" }}>LOG</span></Typography>
+            </Box>
+          </Stack>
 
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Chip
-            label={saving ? "Saving Changes..." : "All Changes Saved"}
-            color={saving ? "warning" : "success"}
-            variant={saving ? "filled" : "outlined"}
-            sx={{ fontWeight: 700, px: 1 }}
-          />
-          {lastSaved && (
-            <Typography fontSize={12} fontWeight={600} color="text.secondary">
-              Last synced: {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Typography>
-          )}
-        </Stack>
-      </Stack>
-
-      {/* ACTION BAR */}
-      <Card sx={{ p: 2, mb: 4, borderRadius: 4, border: "1px solid #e2e8f0", boxShadow: "none" }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center">
-          <TextField
-            fullWidth
-            placeholder="Search by player name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ bgcolor: "#fff" }}
-          />
-
-          <Stack direction="row" spacing={1} sx={{ width: { xs: "100%", md: "auto" } }}>
-            <Button
-              fullWidth
-              variant="contained"
-              disableElevation
-              onClick={() => markAll(true)}
-              sx={{ bgcolor: "#22c55e", "&:hover": { bgcolor: "#16a34a" }, whiteSpace: "nowrap" }}
-            >
-              All Present
-            </Button>
-            <Button
-              fullWidth
-              variant="contained"
-              disableElevation
-              onClick={() => markAll(false)}
-              sx={{ bgcolor: "#ef4444", "&:hover": { bgcolor: "#dc2626" }, whiteSpace: "nowrap" }}
-            >
-              All Absent
-            </Button>
+          <Stack alignItems={{ xs: "center", sm: "flex-end" }} spacing={1}>
+            <Chip 
+              label={saving ? "SYNCING DATA..." : "ALL RECORDS SYNCED"} 
+              sx={syncChipStyle(saving)} 
+            />
+            {lastSaved && (
+              <Typography sx={{ opacity: 0.4, fontWeight: 800, fontSize: '0.7rem' }}>
+                LAST CLOUD SYNC: {lastSaved.toLocaleTimeString()}
+              </Typography>
+            )}
           </Stack>
         </Stack>
-      </Card>
 
-      {/* PLAYER LIST */}
-      <Grid container spacing={3}>
-        {filtered.length === 0 ? (
-          <Grid item xs={12}>
-            <Typography textAlign="center" color="text.secondary" py={10}>No players found.</Typography>
-          </Grid>
-        ) : (
-          filtered.map(p => (
-            <Grid item xs={12} md={6} lg={4} key={p.id}>
-              <Card
-                sx={{
-                  borderRadius: 4,
-                  border: p.present ? "2px solid #22c55e" : "2px solid #ef4444",
-                  bgcolor: p.present ? "rgba(34, 197, 94, 0.02)" : "rgba(239, 68, 68, 0.02)",
-                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+        {/* BULK ACTIONS & SEARCH */}
+        <Box sx={actionBarBoxStyle}>
+          <Grid container spacing={3} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                placeholder="FIND PLAYER BY NAME..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                sx={searchFieldStyle}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: "#ef4444" }} /></InputAdornment>,
                 }}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                    <Avatar sx={{ bgcolor: p.present ? "#22c55e" : "#ef4444", fontWeight: 800 }}>
-                      {p.name.charAt(0)}
-                    </Avatar>
-                    <Typography variant="h6" fontWeight={800} sx={{ flexGrow: 1 }}>
-                      {p.name}
-                    </Typography>
-                  </Stack>
-
-                  <ToggleButtonGroup
-                    fullWidth
-                    value={p.present ? "present" : "absent"}
-                    exclusive
-                    onChange={(e, val) => {
-                      if (val !== null) updatePlayer(p.id, "present", val === "present");
-                    }}
-                    sx={{ mb: 2, bgcolor: "#fff" }}
-                  >
-                    <ToggleButton value="present" sx={{ fontWeight: 700, "&.Mui-selected": { bgcolor: "#22c55e", color: "white", "&:hover": { bgcolor: "#16a34a" } } }}>
-                      PRESENT
-                    </ToggleButton>
-                    <ToggleButton value="absent" sx={{ fontWeight: 700, "&.Mui-selected": { bgcolor: "#ef4444", color: "white", "&:hover": { bgcolor: "#dc2626" } } }}>
-                      ABSENT
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={2}
-                    placeholder="Add performance notes..."
-                    value={p.remark}
-                    onChange={(e) => updatePlayer(p.id, "remark", e.target.value)}
-                    sx={{ bgcolor: "#fff", borderRadius: 2 }}
-                  />
-                </CardContent>
-              </Card>
+              />
             </Grid>
-          ))
-        )}
-      </Grid>
+            <Grid item xs={12} md={6}>
+              <Stack direction="row" spacing={2}>
+                <Button fullWidth onClick={() => markAll(true)} sx={bulkBtnStyle("#22c55e")}>MARK ALL PRESENT</Button>
+                <Button fullWidth onClick={() => markAll(false)} sx={bulkBtnStyle("#ef4444")}>MARK ALL ABSENT</Button>
+              </Stack>
+            </Grid>
+          </Grid>
+        </Box>
+
+        {/* ROSTER GRID */}
+        <Grid container spacing={3}>
+          {filtered.length === 0 ? (
+            <Box sx={{ width: '100%', textAlign: 'center', py: 10, opacity: 0.3 }}>
+              <Typography variant="h5" fontWeight={900}>NO PLAYERS MATCH YOUR SEARCH</Typography>
+            </Box>
+          ) : (
+            filtered.map(p => (
+              <Grid item xs={12} md={6} lg={4} key={p.id}>
+                <MotionBox whileHover={{ scale: 1.02 }}>
+                  <Card sx={playerCardStyle(p.present)}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Stack direction="row" spacing={2} alignItems="center" mb={3}>
+                        <Avatar sx={avatarStyle(p.present)}>{p.name.charAt(0)}</Avatar>
+                        <Typography variant="h6" fontWeight={900}>{p.name.toUpperCase()}</Typography>
+                      </Stack>
+
+                      <ToggleButtonGroup
+                        fullWidth
+                        value={p.present ? "present" : "absent"}
+                        exclusive
+                        onChange={(_, val) => { if (val !== null) updatePlayer(p.id, "present", val === "present"); }}
+                        sx={toggleGroupStyle}
+                      >
+                        <ToggleButton value="present" sx={toggleBtnStyle("#22c55e")}>PRESENT</ToggleButton>
+                        <ToggleButton value="absent" sx={toggleBtnStyle("#ef4444")}>ABSENT</ToggleButton>
+                      </ToggleButtonGroup>
+
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={2}
+                        placeholder="ADD PERFORMANCE NOTES OR DRILL PROGRESS..."
+                        value={p.remark}
+                        onChange={(e) => updatePlayer(p.id, "remark", e.target.value)}
+                        sx={remarkFieldStyle}
+                      />
+                    </CardContent>
+                  </Card>
+                </MotionBox>
+              </Grid>
+            ))
+          )}
+        </Grid>
+      </Container>
     </Box>
   );
 }
+
+// 💅 ELITE STYLING TOKENS
+const syncChipStyle = (saving: boolean) => ({
+  bgcolor: saving ? "rgba(245, 158, 11, 0.1)" : "rgba(34, 197, 94, 0.1)",
+  color: saving ? "#f59e0b" : "#22c55e",
+  fontWeight: 900,
+  border: `1px solid ${saving ? "#f59e0b" : "#22c55e"}`,
+  borderRadius: 2,
+  letterSpacing: 1
+});
+
+const actionBarBoxStyle = { background: "rgba(255,255,255,0.02)", p: 3, borderRadius: 4, mb: 6, border: "1px solid rgba(255,255,255,0.05)" };
+
+const searchFieldStyle = {
+  "& .MuiOutlinedInput-root": {
+    color: "white", bgcolor: "rgba(255,255,255,0.03)", borderRadius: 3, fontWeight: 800,
+    "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
+    "&:hover fieldset": { borderColor: "#ef4444" }
+  }
+};
+
+const bulkBtnStyle = (color: string) => ({
+  bgcolor: "rgba(255,255,255,0.03)", color: color, fontWeight: 900, borderRadius: 3, py: 1.5,
+  border: `1px solid ${color}44`,
+  "&:hover": { bgcolor: color, color: "white" }
+});
+
+const playerCardStyle = (present: boolean) => ({
+  borderRadius: 5,
+  background: "rgba(255,255,255,0.03)",
+  backdropFilter: "blur(15px)",
+  border: `1px solid ${present ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
+  color: "white",
+  transition: "0.3s"
+});
+
+const avatarStyle = (present: boolean) => ({
+  bgcolor: present ? "#22c55e" : "#ef4444",
+  fontWeight: 900,
+  width: 50, height: 50,
+  boxShadow: `0 0 20px ${present ? "#22c55e44" : "#ef444444"}`
+});
+
+const toggleGroupStyle = { 
+  mb: 3, bgcolor: "rgba(0,0,0,0.2)", p: 0.5, borderRadius: 3,
+  "& .MuiToggleButton-root": { border: "none", borderRadius: 2, mx: 0.5 }
+};
+
+const toggleBtnStyle = (color: string) => ({
+  fontWeight: 900, color: "rgba(255,255,255,0.3)",
+  "&.Mui-selected": { bgcolor: color, color: "white", "&:hover": { bgcolor: color } }
+});
+
+const remarkFieldStyle = {
+  "& .MuiOutlinedInput-root": {
+    color: "white", bgcolor: "rgba(0,0,0,0.2)", borderRadius: 3, fontSize: '0.8rem', fontWeight: 600,
+    "& fieldset": { borderColor: "rgba(255,255,255,0.05)" }
+  }
+};

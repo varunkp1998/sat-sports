@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Drawer,
@@ -9,65 +9,18 @@ import {
   Typography,
   Divider,
   Button,
-  Card,
-  Grid,
-  Avatar,
-  Skeleton,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { Link, Outlet, useLocation } from "react-router-dom";
-import axios from "axios";
-import API_BASE from "./api"; // Ensure this is imported
-
-// --- Stat Card Sub-Component ---
-const CoachStat = ({ title, value, icon, loading }: any) => (
-  <Card sx={{ p: 2, borderRadius: "12px", boxShadow: "0 2px 10px rgba(0,0,0,0.04)", border: "1px solid #e5e7eb" }}>
-    <Box display="flex" alignItems="center" gap={2}>
-      <Box sx={{ fontSize: "1.5rem", p: 1, bgcolor: "#f3f4f6", borderRadius: "8px" }}>{icon}</Box>
-      <Box sx={{ flexGrow: 1 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600 }}>
-          {title}
-        </Typography>
-        {loading ? (
-          <Skeleton width="60%" height={30} />
-        ) : (
-          <Typography variant="h6" fontWeight="bold">{value}</Typography>
-        )}
-      </Box>
-    </Box>
-  </Card>
-);
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 export default function CoachLayout() {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ sessionsToday: 0, playersCount: 0, leavesLeft: 0 });
-  
   const location = useLocation();
-  const username = localStorage.getItem("username") || "Coach";
-  const coachId = localStorage.getItem("userId");
-
-  // --- API Fetch Logic ---
-  useEffect(() => {
-    const fetchCoachData = async () => {
-      try {
-        setLoading(true);
-        // Replace with your actual backend URL
-        const res = await axios.get(`${API_BASE}/api/coach/dashboard-stats/${coachId}`);
-        setStats(res.data);
-      } catch (err) {
-        console.error("Error fetching coach stats:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (coachId) fetchCoachData();
-  }, [coachId]);
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.clear();
-    window.location.href = "/";
+    navigate("/");
   };
 
   const menuItems = [
@@ -78,12 +31,22 @@ export default function CoachLayout() {
   ];
 
   const SidebarContent = (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", background: "#111827", color: "white" }}>
-      <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <img src="/logo.png" style={{ height: 35 }} alt="Logo" />
-        <Typography variant="h6" fontWeight="bold">SAT COACH</Typography>
+    <Box sx={{ 
+      height: "100%", 
+      display: "flex", 
+      flexDirection: "column", 
+      background: "#020617", // Matches the Dashboard background
+      color: "white",
+      borderRight: "1px solid rgba(255,255,255,0.05)"
+    }}>
+      {/* LOGO SECTION */}
+      <Box sx={{ p: 4, mb: 2, textAlign: 'center' }}>
+        <Typography variant="h5" fontWeight={950} sx={{ letterSpacing: -1 }}>
+          SAT <span style={{ color: "#ef4444" }}>COACH</span>
+        </Typography>
       </Box>
 
+      {/* NAVIGATION */}
       <List sx={{ flexGrow: 1, px: 2 }}>
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -95,99 +58,106 @@ export default function CoachLayout() {
               to={item.path}
               onClick={() => setOpen(false)}
               sx={{
-                borderRadius: "8px",
+                borderRadius: "12px",
                 mb: 1,
-                backgroundColor: isActive ? "rgba(239, 68, 68, 0.15)" : "transparent",
-                color: isActive ? "#ef4444" : "#9ca3af",
-                "&:hover": { background: "#1f2937", color: "white" }
+                py: 1.5,
+                backgroundColor: isActive ? "#ef4444" : "transparent",
+                color: "white",
+                transition: "0.3s",
+                "&:hover": { 
+                  background: isActive ? "#ef4444" : "rgba(255,255,255,0.05)",
+                }
               }}
             >
               <ListItemText 
-                primary={item.label} 
-                primaryTypographyProps={{ fontWeight: isActive ? 700 : 500 }}
+                primary={item.label.toUpperCase()} 
+                primaryTypographyProps={{ 
+                  fontWeight: 900, 
+                  fontSize: '0.85rem',
+                  letterSpacing: 1 
+                }}
               />
             </ListItem>
           );
         })}
       </List>
 
-      <Box sx={{ p: 2 }}>
-        <Divider sx={{ bgcolor: "#374151", mb: 2 }} />
+      {/* BOTTOM ACTION */}
+      <Box sx={{ p: 3 }}>
+        <Divider sx={{ bgcolor: "rgba(255,255,255,0.1)", mb: 2 }} />
         <Button
           fullWidth
-          variant="contained"
+          variant="outlined"
           onClick={handleLogout}
           sx={{
-            bgcolor: "rgba(239, 68, 68, 0.1)",
-            color: "#ef4444",
-            fontWeight: "bold",
-            textTransform: 'none',
-            "&:hover": { bgcolor: "rgba(239, 68, 68, 0.2)" }
+            borderColor: "rgba(255,255,255,0.2)",
+            color: "white",
+            fontWeight: 900,
+            borderRadius: "10px",
+            "&:hover": { bgcolor: "#ef4444", borderColor: "#ef4444" }
           }}
         >
-          Logout
+          LOGOUT
         </Button>
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f8fafc" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#020617" }}>
       
-      {/* MOBILE TOP BAR */}
+      {/* MOBILE HEADER (Visible only on small screens) */}
       <Box sx={{
           display: { xs: "flex", md: "none" },
-          width: "100%", background: "#111827", color: "white",
-          p: 1.5, alignItems: "center", position: "fixed", top: 0, zIndex: 1100
+          width: "100%", 
+          background: "rgba(2, 6, 23, 0.8)", 
+          backdropFilter: "blur(10px)",
+          color: "white",
+          p: 2, 
+          alignItems: "center", 
+          position: "fixed", 
+          top: 0, 
+          zIndex: 1100,
+          borderBottom: "1px solid rgba(255,255,255,0.05)"
       }}>
-        <IconButton onClick={() => setOpen(true)} sx={{ color: "white" }}><MenuIcon /></IconButton>
-        <Typography sx={{ ml: 1, fontWeight: 600 }}>Coach Portal</Typography>
+        <IconButton onClick={() => setOpen(true)} sx={{ color: "white" }}>
+          <MenuIcon />
+        </IconButton>
+        <Typography variant="h6" sx={{ ml: 2, fontWeight: 900, fontSize: '1rem' }}>
+          COACH PORTAL
+        </Typography>
       </Box>
 
-      {/* DESKTOP SIDEBAR */}
-      <Box sx={{ width: 260, minWidth: 260, display: { xs: "none", md: "block" }, position: "fixed", height: "100vh" }}>
+      {/* DESKTOP SIDEBAR (Static) */}
+      <Box sx={{ 
+        width: 280, 
+        display: { xs: "none", md: "block" }, 
+        position: "fixed", 
+        height: "100vh",
+        zIndex: 1200
+      }}>
         {SidebarContent}
       </Box>
 
-      {/* MAIN CONTENT */}
-      <Box sx={{ flex: 1, ml: { md: "260px" }, mt: { xs: "60px", md: 0 }, p: { xs: 2, md: 4 } }}>
-        
-        {/* HEADER SECTION */}
-        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography variant="h4" fontWeight="800" color="#111827">
-              Hi, Coach {username.split(' ')[0]}! 👋
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Here is what's happening with your sessions today.
-            </Typography>
-          </Box>
-          <Avatar sx={{ width: 50, height: 50, bgcolor: '#ef4444', fontWeight: 'bold' }}>
-            {username.charAt(0)}
-          </Avatar>
-        </Box>
-
-        {/* QUICK STATS CARDS */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={4}>
-            <CoachStat title="Sessions Today" value={stats.sessionsToday} icon="📅" loading={loading} />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <CoachStat title="Total Players" value={stats.playersCount} icon="👥" loading={loading} />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <CoachStat title="Leave Balance" value={`${stats.leavesLeft} Days`} icon="📝" loading={loading} />
-          </Grid>
-        </Grid>
-
-        <Divider sx={{ mb: 4 }} />
-
-        {/* This is where the specific page content (Dashboard/Sessions/Profile) renders */}
+      {/* MAIN CONTENT AREA */}
+      <Box sx={{ 
+        flex: 1, 
+        ml: { md: "280px" }, // Offset by sidebar width
+        mt: { xs: "70px", md: 0 }, // Offset by mobile header
+        minHeight: "100vh",
+        background: "#020617" // Seamless transition to Dashboard
+      }}>
+        {/* Your CoachDashboard.tsx will render inside this Outlet */}
         <Outlet />
       </Box>
 
       {/* MOBILE DRAWER */}
-      <Drawer anchor="left" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: 260, border: "none" } }}>
+      <Drawer 
+        anchor="left" 
+        open={open} 
+        onClose={() => setOpen(false)} 
+        PaperProps={{ sx: { width: 280, border: "none" } }}
+      >
         {SidebarContent}
       </Drawer>
 
