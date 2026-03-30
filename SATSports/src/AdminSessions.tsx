@@ -12,15 +12,17 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddBoxIcon from "@mui/icons-material/AddBox";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import API_BASE from "./api";
 
 export default function AdminSessions() {
+  // Data States
   const [sessions, setSessions] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [coaches, setCoaches] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
 
-  // UI States
+  // Form States
   const [editingId, setEditingId] = useState<number | null>(null);
   const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [startTime, setStartTime] = useState<any>(dayjs().set('hour', 9).set('minute', 0));
@@ -30,9 +32,8 @@ export default function AdminSessions() {
   const [programIds, setProgramIds] = useState<number[]>([]);
   const [filterDate, setFilterDate] = useState(dayjs().format("YYYY-MM-DD"));
 
-  // Toast State
+  // UI States
   const [toast, setToast] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
-
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -49,23 +50,27 @@ export default function AdminSessions() {
       setCoaches(await cRes.json());
       setPrograms(await pRes.json());
     } catch (err) {
-      showToast("Failed to load data from server", "error");
+      handleToast("Error connecting to server", "error");
     }
   };
 
   useEffect(() => { loadData(); }, []);
 
-  const showToast = (message: string, severity: "success" | "error") => {
+  const handleToast = (message: string, severity: "success" | "error") => {
     setToast({ open: true, message, severity });
   };
 
-  const filteredSessions = sessions.filter(s => 
-    dayjs(s.session_date).format("YYYY-MM-DD") === filterDate
-  );
+  const resetForm = () => {
+    setEditingId(null);
+    setProgramIds([]);
+    setLocationId("");
+    setCoachId("");
+    setDate(dayjs().format("YYYY-MM-DD"));
+  };
 
   const saveSession = async () => {
     if (!locationId || !coachId || programIds.length === 0) {
-      return showToast("Please select a Coach, Location, and Programs", "error");
+      return handleToast("Please complete all fields", "error");
     }
     
     const payload = {
@@ -78,30 +83,23 @@ export default function AdminSessions() {
     };
 
     try {
+      const method = editingId ? "PUT" : "POST";
       const url = editingId ? `${API_BASE}/api/admin/sessions/${editingId}` : `${API_BASE}/api/admin/sessions`;
+      
       const res = await fetch(url, {
-        method: editingId ? "PUT" : "POST",
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
       if (res.ok) {
-        showToast(editingId ? "Session updated!" : "Session scheduled successfully!", "success");
+        handleToast(editingId ? "Session updated" : "Session scheduled!", "success");
         loadData();
         resetForm();
-      } else {
-        showToast("Error saving session", "error");
       }
-    } catch {
-      showToast("Network error", "error");
+    } catch (err) {
+      handleToast("Network error", "error");
     }
-  };
-
-  const resetForm = () => {
-    setEditingId(null);
-    setProgramIds([]);
-    setLocationId("");
-    setCoachId("");
   };
 
   const editSession = (s: any) => {
@@ -116,23 +114,25 @@ export default function AdminSessions() {
   };
 
   const deleteSession = async (id: number) => {
-    if (!window.confirm("Permanent Delete?")) return;
+    if (!window.confirm("Delete this session?")) return;
     const res = await fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" });
     if (res.ok) {
-      showToast("Session deleted", "success");
+      handleToast("Session removed", "success");
       loadData();
     }
   };
+
+  const filteredSessions = sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={containerStyle}>
         
-        {/* HEADER */}
+        {/* TOP BAR */}
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems="center" mb={6}>
           <Box>
             <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">Training Schedule</Typography>
-            <Typography variant="body2" color="text.secondary">Plan academy hours and coach assignments</Typography>
+            <Typography variant="body2" color="text.secondary">Manage court availability and staff</Typography>
           </Box>
           
           <Paper sx={filterPaperStyle}>
@@ -147,18 +147,17 @@ export default function AdminSessions() {
           </Paper>
         </Stack>
 
-        {/* EDITOR - FIXED SPACING */}
+        {/* INPUT CARD */}
         <Fade in timeout={600}>
           <Card sx={glassCardStyle}>
             <CardContent sx={{ p: { xs: 3, md: 6 } }}>
               <Typography variant="h6" fontWeight={800} mb={5} display="flex" alignItems="center">
                 <AddBoxIcon sx={{ mr: 1.5, color: '#3b82f6' }} />
-                {editingId ? "Edit Session Details" : "Schedule New Session"}
+                {editingId ? "Edit Session Details" : "New Training Session"}
               </Typography>
 
-              {/* The "Stack" below is the key fix for the cramped inputs */}
-              <Stack spacing={4}>
-                {/* ROW 1: TIME */}
+              <Stack spacing={5}>
+                {/* ROW 1: THE TIME */}
                 <Grid container spacing={3}>
                   <Grid item xs={12} md={4}>
                     <TextField fullWidth label="Session Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
@@ -171,7 +170,7 @@ export default function AdminSessions() {
                   </Grid>
                 </Grid>
 
-                {/* ROW 2: RESOURCES */}
+                {/* ROW 2: THE RESOURCES */}
                 <Grid container spacing={3}>
                   <Grid item xs={12} md={6}>
                     <TextField select fullWidth label="Assigned Coach" value={coachId} onChange={(e) => setCoachId(e.target.value)} sx={inputStyle}>
@@ -185,7 +184,7 @@ export default function AdminSessions() {
                   </Grid>
                 </Grid>
 
-                {/* ROW 3: PROGRAMS */}
+                {/* ROW 3: THE PROGRAMS */}
                 <Box>
                   <TextField
                     select fullWidth label="Target Programs" value={programIds}
@@ -199,9 +198,9 @@ export default function AdminSessions() {
                 <Box pt={1}>
                   <Stack direction="row" spacing={2}>
                     <Button onClick={saveSession} sx={primaryBtnStyle}>
-                      {editingId ? "Update Schedule" : "Confirm Session"}
+                      {editingId ? "Save Changes" : "Confirm Session"}
                     </Button>
-                    {editingId && <Button onClick={resetForm} variant="text" sx={{ fontWeight: 800 }}>Cancel</Button>}
+                    {editingId && <Button onClick={resetForm} variant="text" sx={{ fontWeight: 800, color: '#64748b' }}>Cancel</Button>}
                   </Stack>
                 </Box>
               </Stack>
@@ -209,7 +208,7 @@ export default function AdminSessions() {
           </Card>
         </Fade>
 
-        {/* LIST SECTION */}
+        {/* AGENDA SECTION */}
         <Box mt={10}>
           <Typography variant="h5" fontWeight={900} mb={3} letterSpacing="-1px">Daily Agenda</Typography>
           {filteredSessions.length === 0 ? (
@@ -228,7 +227,11 @@ export default function AdminSessions() {
                 <TableBody>
                   {filteredSessions.map(s => (
                     <TableRow key={s.id} sx={{ '&:hover': { bgcolor: '#fcfcfd' } }}>
-                      <TableCell sx={{ py: 3 }}><Typography variant="body2" fontWeight={800}>{dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} – {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}</Typography></TableCell>
+                      <TableCell sx={{ py: 3 }}>
+                        <Typography variant="body2" fontWeight={800} color="#1e293b">
+                          {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} – {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}
+                        </Typography>
+                      </TableCell>
                       <TableCell><Typography variant="body2" fontWeight={700} color="#3b82f6">{s.coachName}</Typography></TableCell>
                       <TableCell><Typography variant="caption" fontWeight={700} color="text.secondary">{s.programTitles}</Typography></TableCell>
                       <TableCell align="right">
@@ -243,9 +246,14 @@ export default function AdminSessions() {
           )}
         </Box>
 
-        {/* TOAST SYSTEM */}
-        <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })}>
-          <Alert severity={toast.severity} variant="filled" sx={{ width: '100%', fontWeight: 700 }}>
+        {/* TOAST NOTIFICATION */}
+        <Snackbar 
+          open={toast.open} 
+          autoHideDuration={4000} 
+          onClose={() => setToast({ ...toast, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert severity={toast.severity} variant="filled" sx={{ width: '100%', fontWeight: 700, borderRadius: 2 }}>
             {toast.message}
           </Alert>
         </Snackbar>
@@ -254,11 +262,11 @@ export default function AdminSessions() {
   );
 }
 
-// --- MODERN STYLES ---
+// --- FULL STYLE OBJECTS ---
 const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
 const filterPaperStyle = { p: "10px 20px", display: 'flex', alignItems: 'center', borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none' };
 const countChipStyle = { ml: 2, bgcolor: '#4f46e5', color: 'white', fontWeight: 900 };
-const glassCardStyle = { borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 20px 40px -12px rgba(0,0,0,0.05)', bgcolor: 'white' };
+const glassCardStyle = { borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 20px 40px -12px rgba(0,0,0,0.05)', bgcolor: 'white', overflow: 'visible' };
 const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: '#fcfcfd', "& fieldset": { borderColor: '#e2e8f0' } } };
 const primaryBtnStyle = {
   px: 6, py: 1.5, borderRadius: 3, fontWeight: 900, textTransform: 'none',
@@ -267,5 +275,5 @@ const primaryBtnStyle = {
   "&:hover": { transform: 'translateY(-2px)', boxShadow: '0 20px 30px -10px rgba(37, 99, 235, 0.5)' }
 };
 const tableWrapperStyle = { borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: 'none' };
-const thStyle = { fontWeight: 900, color: '#64748b', fontSize: '0.75rem', letterSpacing: 1.5 };
-const emptyPaperStyle = { p: 8, textAlign: 'center', color: '#94a3b8', borderRadius: 6, border: '1px dashed #cbd5e1', fontWeight: 700 };
+const thStyle = { fontWeight: 900, color: '#64748b', fontSize: '0.75rem', letterSpacing: 1.5, py: 2 };
+const emptyPaperStyle = { p: 8, textAlign: 'center', color: '#94a3b8', borderRadius: 6, border: '1px dashed #cbd5e1', bgcolor: 'transparent', fontWeight: 700 };
