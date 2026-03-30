@@ -3846,6 +3846,12 @@ const th = {
 };
 
 
+
+import { 
+ 
+  Collapse
+} from "@mui/material";
+import { useLocation } from "react-router-dom";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 
@@ -3897,22 +3903,23 @@ const menuGroups = [
     ]
   }
 ];
-import { 
 
-  Collapse  // <--- Add this
- 
-} from "@mui/material";
-import { useLocation } from "react-router-dom";
-function AdminLayout() {
+export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "Academy Management": true, // Keep one open by default if you like
+    "Academy Management": true, 
   });
   
   const location = useLocation();
+  const navigate = useNavigate();
 
   const toggleGroup = (groupName: string) => {
     setOpenGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
+  };
+
+  const handleLogout = () => {
+    localStorage.clear(); // Clears token, role, userId
+    window.location.href = "/login";
   };
 
   const NavItem = ({ item, isChild = false }: { item: any, isChild?: boolean }) => {
@@ -3925,19 +3932,21 @@ function AdminLayout() {
         onClick={() => setMobileOpen(false)}
         sx={{
           pl: isChild ? 4 : 2,
-          backgroundColor: isActive ? "#374151" : "transparent",
+          backgroundColor: isActive ? "rgba(239, 68, 68, 0.1)" : "transparent",
           borderLeft: isActive ? "4px solid #ef4444" : "4px solid transparent",
           "&:hover": { backgroundColor: "#1f2937" },
           mb: 0.5,
-          borderRadius: "0 8px 8px 0"
+          mx: 1,
+          borderRadius: "4px",
+          width: "auto"
         }}
       >
         <ListItemText 
           primary={item.label} 
           primaryTypographyProps={{ 
-            fontSize: "0.9rem", 
+            fontSize: "0.85rem", 
             fontWeight: isActive ? 600 : 400,
-            color: isActive ? "white" : "#9ca3af"
+            color: isActive ? "#ef4444" : "#9ca3af"
           }} 
         />
       </ListItem>
@@ -3945,16 +3954,30 @@ function AdminLayout() {
   };
 
   const SidebarContent = (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", background: "#111827", color: "white" }}>
-      <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
+    <Box sx={{ 
+      height: "100%", 
+      display: "flex", 
+      flexDirection: "column", 
+      background: "#111827", 
+      color: "white" 
+    }}>
+      {/* BRAND LOGO */}
+      <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
         <img src="/logo.png" style={{ height: 35 }} alt="Logo" />
-        <Typography variant="h6" fontWeight="bold">SAT Admin</Typography>
+        <Typography variant="h6" fontWeight="bold" sx={{ letterSpacing: 1 }}>SAT ADMIN</Typography>
       </Box>
 
-      <List sx={{ flexGrow: 1, overflowY: "auto", px: 1 }}>
+      {/* SCROLLABLE MENU */}
+      <List sx={{ 
+        flexGrow: 1, 
+        overflowY: "auto", 
+        px: 1,
+        // Custom sleek scrollbar for dark theme
+        "&::-webkit-scrollbar": { width: "5px" },
+        "&::-webkit-scrollbar-thumb": { background: "#374151", borderRadius: "10px" }
+      }}>
         {menuGroups.map((group) => (
-          <Box key={group.group} sx={{ mb: 2 }}>
-            {/* If group has only 1 item and no real "grouping" needed, show directly */}
+          <Box key={group.group} sx={{ mb: 1 }}>
             {group.items.length === 1 && group.group === "Main" ? (
               <NavItem item={group.items[0]} />
             ) : (
@@ -3962,13 +3985,22 @@ function AdminLayout() {
                 <ListItem 
                   button 
                   onClick={() => toggleGroup(group.group)}
-                  sx={{ py: 0.5, "&:hover": { background: "transparent" } }}
+                  sx={{ py: 1, "&:hover": { background: "transparent" } }}
                 >
                   <ListItemText 
                     primary={group.group} 
-                    primaryTypographyProps={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", textTransform: "uppercase" }} 
+                    primaryTypographyProps={{ 
+                      fontSize: "0.7rem", 
+                      fontWeight: 700, 
+                      color: "#4b5563", 
+                      textTransform: "uppercase",
+                      letterSpacing: 1.2
+                    }} 
                   />
-                  {openGroups[group.group] ? <ExpandLess sx={{ fontSize: 18, color: "#6b7280" }} /> : <ExpandMore sx={{ fontSize: 18, color: "#6b7280" }} />}
+                  {openGroups[group.group] ? 
+                    <ExpandLess sx={{ fontSize: 16, color: "#4b5563" }} /> : 
+                    <ExpandMore sx={{ fontSize: 16, color: "#4b5563" }} />
+                  }
                 </ListItem>
                 <Collapse in={openGroups[group.group]} timeout="auto" unmountOnExit>
                   <List component="div" disablePadding>
@@ -3980,25 +4012,59 @@ function AdminLayout() {
           </Box>
         ))}
       </List>
+
+      {/* LOGOUT BUTTON (FIXED AT BOTTOM) */}
+      <Box sx={{ p: 2, flexShrink: 0 }}>
+        <Divider sx={{ bgcolor: "#1f2937", mb: 2 }} />
+        <ListItem 
+          button 
+          onClick={handleLogout}
+          sx={{ 
+            borderRadius: "8px", 
+            bgcolor: "rgba(239, 68, 68, 0.1)", 
+            "&:hover": { bgcolor: "rgba(239, 68, 68, 0.2)" },
+            justifyContent: "center"
+          }}
+        >
+          <ListItemText 
+            primary="Logout" 
+            primaryTypographyProps={{ 
+              fontWeight: 700, 
+              color: "#ef4444", 
+              textAlign: "center",
+              fontSize: "0.9rem"
+            }} 
+          />
+        </ListItem>
+      </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f9fafb" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f3f4f6" }}>
       
       {/* MOBILE HEADER */}
       <Box sx={{ 
         display: { xs: "flex", md: "none" }, 
         width: "100%", bgcolor: "#111827", color: "white", 
         p: 2, position: "fixed", top: 0, zIndex: 1100,
-        justifyContent: "space-between", alignItems: "center" 
+        justifyContent: "space-between", alignItems: "center",
+        boxShadow: "0px 2px 10px rgba(0,0,0,0.3)"
       }}>
-        <Typography variant="h6">SAT Sports</Typography>
-        <IconButton onClick={() => setMobileOpen(true)} sx={{ color: "white" }}><MenuIcon /></IconButton>
+        <Typography variant="h6" fontWeight="bold">SAT Sports</Typography>
+        <IconButton onClick={() => setMobileOpen(true)} sx={{ color: "white" }}>
+          <MenuIcon />
+        </IconButton>
       </Box>
 
       {/* DESKTOP SIDEBAR */}
-      <Box sx={{ width: 260, display: { xs: "none", md: "block" }, position: "fixed", height: "100vh" }}>
+      <Box sx={{ 
+        width: 260, 
+        display: { xs: "none", md: "block" }, 
+        position: "fixed", 
+        height: "100vh",
+        borderRight: "1px solid #e5e7eb"
+      }}>
         {SidebarContent}
       </Box>
 
@@ -4007,7 +4073,7 @@ function AdminLayout() {
         anchor="left"
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        PaperProps={{ sx: { width: 260, bgcolor: "#111827" } }}
+        PaperProps={{ sx: { width: 260, border: "none" } }}
       >
         {SidebarContent}
       </Drawer>
@@ -4017,15 +4083,15 @@ function AdminLayout() {
         flexGrow: 1, 
         p: { xs: 2, md: 4 }, 
         ml: { md: "260px" }, 
-        mt: { xs: "60px", md: 0 },
-        width: "100%"
+        mt: { xs: "64px", md: 0 },
+        width: "100%",
+        maxWidth: "100vw"
       }}>
-        <h2>Admin Dashboard</h2>
-
-<AdminBreadcrumbs />
-
-<Routes>
-<Route path="/" element={<AdminDashboard />} />
+        {/* Your application content routes would go here */}
+        <Routes>
+           {/* Add your specific routes as needed */}
+           <Route path="/" element={<Typography variant="h4">Welcome, Admin</Typography>} />
+           <Route path="/" element={<AdminDashboard />} />
 <Route path="programs" element={<AdminPrograms />} />
   <Route path="news" element={<AdminNews />} />
   <Route path="players" element={<AdminPlayers />} />
@@ -4043,13 +4109,11 @@ function AdminLayout() {
   <Route path="applications" element={<AdminApplications />} />
   <Route path="payroll" element={<AdminCoachPayroll />} />
   <Route path="private-bookings" element={<AdminPrivateBookings />} />
-</Routes>
-</Box>
-
-</Box>
-);
+        </Routes>
+      </Box>
+    </Box>
+  );
 }
-
 /* ---------- CONTACT ---------- */
 
 
