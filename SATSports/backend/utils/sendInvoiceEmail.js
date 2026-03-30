@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const resend = require("./resend");
-
+const { Resend } = require('resend'); // ✅ Right (looking for the npm package)
 async function sendInvoiceEmail({ player, payment, invoicePath }) {
   try {
     const fullPath = path.join(__dirname, "..", invoicePath);
