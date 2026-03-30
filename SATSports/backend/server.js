@@ -1412,21 +1412,24 @@ app.get("/api/coach/profile/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const [[coach]] = await db.query(
-      `SELECT id, name, email 
+    const [rows] = await db.query(
+      `SELECT id, name, email, photo 
        FROM coaches 
        WHERE user_id = ?`,
       [userId]
     );
+
+    const coach = rows[0];
 
     if (!coach) {
       return res.status(404).json({ message: "Coach not found" });
     }
 
     res.json({
-      coachId: coach.id,   // 🔥 ADD THIS
+      coachId: coach.id,
       name: coach.name,
       email: coach.email,
+      photo: coach.photo, // 🖼️ This sends the file path to the UI
       role: "coach"
     });
 
@@ -3464,5 +3467,47 @@ app.get("/api/coach/stats/:coachId", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+const fs = require('fs');
+
+// Create uploads folder if it doesn't exist
+const uploadDir = './uploads/profiles/';
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Storage Configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Saves as: coach-123-1711812345.jpg
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `coach-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+
+
+// THE UPLOAD ENDPOINT
+app.post("/api/coach/upload-photo", upload.single('photo'), async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const photoUrl = `/uploads/profiles/${req.file.filename}`;
+
+    // Update the database
+    await db.query(
+      "UPDATE coaches SET photo = ? WHERE user_id = ?",
+      [photoUrl, userId]
+    );
+
+    res.json({ url: photoUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database update failed" });
   }
 });
