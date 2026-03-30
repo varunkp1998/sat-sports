@@ -2,6 +2,7 @@
 const multer = require("multer");
 const jwt = require("jsonwebtoken");   // ✅ FIX
 const xlsx = require("xlsx");
+const { spawn } = require('child_process');
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
@@ -3629,4 +3630,38 @@ app.put("/api/admin/matches/:id/score", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+app.post('/api/analyze-serve', upload.single('video'), (req, res) => {
+  const videoPath = req.file.path;
+  const playerId = req.body.playerId;
+
+  // Spawn Python process to run your analyzer
+  const pythonProcess = spawn('python', [
+      'bridge_analyzer.py', 
+      videoPath
+  ]);
+
+  let dataString = '';
+
+  pythonProcess.stdout.on('data', (data) => {
+      dataString += data.toString();
+  });
+
+  pythonProcess.on('close', (code) => {
+      try {
+          const analysisResult = JSON.parse(dataString);
+          
+          // Save analysisResult.score to your database here
+          // e.g., db.query("INSERT INTO performance_logs ...")
+
+          res.json({
+              success: true,
+              message: "Analysis Complete",
+              data: analysisResult,
+              pdfUrl: `/reports/serve_feedback_${playerId}.pdf`
+          });
+      } catch (err) {
+          res.status(500).json({ error: "Analysis failed to parse" });
+      }
+  });
 });

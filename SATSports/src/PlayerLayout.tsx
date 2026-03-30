@@ -12,11 +12,16 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
+
+// Standard Portal Components
 import PlayerDashboard from "./PlayerDashboard";
 import PlayerAttendance from "./PlayerAttendance";
 import PlayerLeave from "./PlayerLeave";
 import PlayerPayments from "./PlayerPayments";
-import PlayerProfile from "./PlayerProfile"; // Import the Profile component
+import PlayerProfile from "./PlayerProfile";
+
+// --- AI PERFORMANCE COMPONENT ---
+import PlayerPerformance from "./PlayerPerformanceAI"; 
 
 export default function PlayerLayout() {
   const [open, setOpen] = useState(false);
@@ -29,8 +34,10 @@ export default function PlayerLayout() {
 
   const menuItems = [
     { label: "🏠 Dashboard", path: "/player" },
-    { label: "👤 My Profile", path: "/player/profile" }, // New Profile Link
+    { label: "👤 My Profile", path: "/player/profile" },
     { label: "📅 Attendance", path: "/player/attendance" },
+    // Nav item for the AI features
+    { label: "🎾 AI Serve Analysis", path: "/player/performance" }, 
     { label: "📝 Apply Leave", path: "/player/leave" },
     { label: "💳 Payments", path: "/player/payments" }
   ];
@@ -55,8 +62,9 @@ export default function PlayerLayout() {
               sx={{
                 borderRadius: "8px",
                 mb: 1,
-                backgroundColor: isActive ? "rgba(37, 99, 235, 0.1)" : "transparent",
+                backgroundColor: isActive ? "rgba(37, 99, 235, 0.2)" : "transparent",
                 color: isActive ? "#60a5fa" : "#9ca3af",
+                borderLeft: isActive ? "4px solid #2563eb" : "4px solid transparent",
                 "&:hover": { background: "#1f2937", color: "white" }
               }}
             >
@@ -91,7 +99,7 @@ export default function PlayerLayout() {
 
   return (
     <Box sx={{ width: "100%", display: "flex", flexDirection: "column" }}>
-
+      
       {/* MOBILE TOPBAR */}
       <Box
         sx={{
@@ -114,14 +122,7 @@ export default function PlayerLayout() {
 
       <Box sx={{ display: "flex", minHeight: "100vh" }}>
         {/* DESKTOP SIDEBAR */}
-        <Box
-          sx={{
-            width: 260,
-            display: { xs: "none", md: "block" },
-            position: "fixed",
-            height: "100vh"
-          }}
-        >
+        <Box sx={{ width: 260, display: { xs: "none", md: "block" }, position: "fixed", height: "100vh" }}>
           {SidebarContent}
         </Box>
 
@@ -135,11 +136,12 @@ export default function PlayerLayout() {
             maxWidth: '100vw'
           }}
         >
-          {/* Main Router Logic */}
           <Routes>
             <Route path="/" element={<PlayerDashboard />} />
             <Route path="profile" element={<PlayerProfile />} />
             <Route path="attendance" element={<PlayerAttendance />} />
+            {/* --- AI PERFORMANCE ROUTE --- */}
+            <Route path="performance" element={<PlayerPerformance />} /> 
             <Route path="leave" element={<PlayerLeave />} />
             <Route path="payments" element={<PlayerPayments />} />
           </Routes>
@@ -155,7 +157,6 @@ export default function PlayerLayout() {
       >
         {SidebarContent}
       </Drawer>
-
     </Box>
   );
 }
