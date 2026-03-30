@@ -3845,158 +3845,212 @@ const th = {
   fontWeight: 700
 };
 
+import React, { useState } from "react";
+import { 
+  Box, List, ListItem, ListItemText, IconButton, Drawer, 
+  Collapse, Typography, Divider, useTheme 
+} from "@mui/material";
+import { Link, Routes, Route, useLocation } from "react-router-dom";
+import MenuIcon from "@mui/icons-material/Menu";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
 
-function AdminLayout() {
-  const [open, setOpen] = useState(false);
+// --- Grouped Menu Configuration ---
+const menuGroups = [
+  {
+    group: "Main",
+    items: [{ label: "📊 Dashboard", path: "/admin" }]
+  },
+  {
+    group: "Academy Management",
+    items: [
+      { label: "📘 Programs", path: "/admin/programs" },
+      { label: "📅 Sessions", path: "/admin/sessions" },
+      { label: "📍 Locations", path: "/admin/locations" },
+    ]
+  },
+  {
+    group: "People",
+    items: [
+      { label: "👤 Players", path: "/admin/players" },
+      { label: "🎾 Coaches", path: "/admin/coaches" },
+      { label: "📄 Applications", path: "/admin/applications" },
+    ]
+  },
+  {
+    group: "Operations",
+    items: [
+      { label: "📅 Attendance", path: "/admin/attendance" },
+      { label: "📝 Leave Management", path: "/admin/leaves" },
+      { label: "🟢 Live Coaches", path: "/admin/live" },
+    ]
+  },
+  {
+    group: "Finance & Reports",
+    items: [
+      { label: "💰 Revenue", path: "/admin/revenue" },
+      { label: "💼 Payroll", path: "/admin/payroll" },
+      { label: "📊 Reports", path: "/admin/reports" },
+    ]
+  },
+  {
+    group: "Events & Bookings",
+    items: [
+      { label: "🏆 Tournaments", path: "/admin/tournaments" },
+      { label: "🎾 Private Sessions", path: "/admin/private-bookings" },
+      { label: "🏟️ Court Bookings", path: "/admin/court-bookings" },
+      { label: "📰 News", path: "/admin/news" },
+    ]
+  }
+];
 
-  const menuItems = [
-    { label: "📊 Dashboard", path: "/admin" },
-    { label: "📘 Programs", path: "/admin/programs" },
-    { label: "👤 Players", path: "/admin/players" },
-    { label: "🎾 Coaches", path: "/admin/coaches" },
-    { label: "📅 Attendance", path: "/admin/attendance" },
-    { label: "💰 Revenue", path: "/admin/revenue" },
-    { label: "📊 Reports", path: "/admin/reports" },
-    { label: "📅 Sessions", path: "/admin/sessions" },
-    { label: "📝 Leave Management", path: "/admin/leaves" },
-    { label: "📍 Locations", path: "/admin/locations" },
-    { label: "🏆 Tournaments", path: "/admin/tournaments" },
-    { label: "Private Sessions", path: "/admin/private-bookings" },
-    { label: "📰 News", path: "/admin/news" },
-    { label: "🟢 Live Coaches", path: "/admin/live" },
-    { label: "Court Bookings", path: "/admin/court-bookings" },
-    { label: "📄 Applications", path: "/admin/applications" },
-    { label: "💼 Payroll", path: "/admin/payroll" }
-  ];
+export default function AdminLayout() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    "Academy Management": true, // Keep one open by default if you like
+  });
+  
+  const location = useLocation();
 
-  return (
-    <Box sx={{ display: "flex",    flexDirection: { xs: "column", md: "row" }   // ✅ ADD THIS
-  }}>
+  const toggleGroup = (groupName: string) => {
+    setOpenGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
+  };
 
-      {/* MOBILE TOP BAR */}
-      <Box
-  sx={{
-    display: { xs: "flex", md: "none" },
-    position: "sticky",   // ✅ FIX
-    top: 0,               // ✅ stick to top
-    zIndex: 1000,         // ✅ stay above content
-    width: "100%",
-    background: "#111827",
-    color: "white",
-    p: 1,
-    alignItems: "center",
-    justifyContent: "space-between"
-  }}
->
-  <span style={{ fontWeight: 600 }}>Admin</span>
-
-  <IconButton onClick={() => setOpen(true)} sx={{ color: "white" }}>
-    <MenuIcon />
-  </IconButton>
-</Box>
-
-      {/* DESKTOP SIDEBAR */}
-{/* DESKTOP SIDEBAR */}
-<Box
-  sx={{
-    width: 250,
-    background: "#111827",
-    color: "white",
-    height: "100vh",
-    position: "fixed",
-    left: 0,
-    top: 0,
-    display: { xs: "none", md: "flex" }, // Change to flex
-    flexDirection: "column",            // Stack logo and list
-  }}
->
-  <Box sx={{ p: 2, flexShrink: 0 }}> {/* flexShrink: 0 keeps logo fixed */}
-    <img src="/logo.png" style={{ height: 40 }} />
-    <h3 style={{ margin: "10px 0" }}>SAT Sports</h3>
-  </Box>
-
-  <List sx={{ 
-    flexGrow: 1,           // Take up remaining space
-    overflowY: "auto",     // Enable scrolling here
-    overflowX: "hidden",
-    '&::-webkit-scrollbar': { width: '5px' }, // Optional: Make scrollbar thin
-    '&::-webkit-scrollbar-thumb': { background: '#374151', borderRadius: '10px' }
-  }}>
-    {menuItems.map(item => (
+  const NavItem = ({ item, isChild = false }: { item: any, isChild?: boolean }) => {
+    const isActive = location.pathname === item.path;
+    return (
       <ListItem
         button
-        key={item.path}
         component={Link}
         to={item.path}
+        onClick={() => setMobileOpen(false)}
         sx={{
-          '&:hover': { background: "#1f2937" }
+          pl: isChild ? 4 : 2,
+          backgroundColor: isActive ? "#374151" : "transparent",
+          borderLeft: isActive ? "4px solid #ef4444" : "4px solid transparent",
+          "&:hover": { backgroundColor: "#1f2937" },
+          mb: 0.5,
+          borderRadius: "0 8px 8px 0"
         }}
       >
-        <ListItemText primary={item.label} />
+        <ListItemText 
+          primary={item.label} 
+          primaryTypographyProps={{ 
+            fontSize: "0.9rem", 
+            fontWeight: isActive ? 600 : 400,
+            color: isActive ? "white" : "#9ca3af"
+          }} 
+        />
       </ListItem>
-    ))}
-  </List>
-</Box>
-      {/* MOBILE DRAWER */}
-      <Drawer
-  anchor="right"   // ✅ ADD THIS
-  open={open}
-  onClose={() => setOpen(false)}
->
-          <Box sx={{ width: 250 }}>
-          <List>
-            {menuItems.map(item => (
-              <ListItem
-                button
-                key={item.path}
-                component={Link}
-                to={item.path}
-                onClick={() => setOpen(false)}
-              >
-                <ListItemText primary={item.label} />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-      </Drawer>
+    );
+  };
 
-      {/* MAIN CONTENT */}
-      <Box
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          ml: { md: "250px" },
-        }}
-      >
-        <h2>Admin Dashboard</h2>
-
-        <AdminBreadcrumbs />
-
-        <Routes>
-        <Route path="/" element={<AdminDashboard />} />
-        <Route path="programs" element={<AdminPrograms />} />
-          <Route path="news" element={<AdminNews />} />
-          <Route path="players" element={<AdminPlayers />} />
-          <Route path="coaches" element={<AdminCoaches />} />
-          <Route path="attendance" element={<AdminAttendance />} />
-          <Route path="revenue" element={<AdminRevenue />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="sessions" element={<AdminSessions />} />
-          <Route path="leaves" element={<AdminLeaves />} />
-          <Route path="locations" element={<AdminLocations />} />
-          <Route path="tournaments" element={<AdminTournaments />} />
-          <Route path="tournaments/:id/matches" element={<TournamentBracket />} />
-          <Route path="live" element={<AdminLivePresence />} />
-          <Route path="court-bookings" element={<AdminCourtBookings />} />
-          <Route path="applications" element={<AdminApplications />} />
-          <Route path="payroll" element={<AdminCoachPayroll />} />
-          <Route path="private-bookings" element={<AdminPrivateBookings />} />
-        </Routes>
+  const SidebarContent = (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", background: "#111827", color: "white" }}>
+      <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
+        <img src="/logo.png" style={{ height: 35 }} alt="Logo" />
+        <Typography variant="h6" fontWeight="bold">SAT Admin</Typography>
       </Box>
 
+      <List sx={{ flexGrow: 1, overflowY: "auto", px: 1 }}>
+        {menuGroups.map((group) => (
+          <Box key={group.group} sx={{ mb: 2 }}>
+            {/* If group has only 1 item and no real "grouping" needed, show directly */}
+            {group.items.length === 1 && group.group === "Main" ? (
+              <NavItem item={group.items[0]} />
+            ) : (
+              <>
+                <ListItem 
+                  button 
+                  onClick={() => toggleGroup(group.group)}
+                  sx={{ py: 0.5, "&:hover": { background: "transparent" } }}
+                >
+                  <ListItemText 
+                    primary={group.group} 
+                    primaryTypographyProps={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", textTransform: "uppercase" }} 
+                  />
+                  {openGroups[group.group] ? <ExpandLess sx={{ fontSize: 18, color: "#6b7280" }} /> : <ExpandMore sx={{ fontSize: 18, color: "#6b7280" }} />}
+                </ListItem>
+                <Collapse in={openGroups[group.group]} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {group.items.map(item => <NavItem key={item.path} item={item} isChild />)}
+                  </List>
+                </Collapse>
+              </>
+            )}
+          </Box>
+        ))}
+      </List>
     </Box>
   );
+
+  return (
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f9fafb" }}>
+      
+      {/* MOBILE HEADER */}
+      <Box sx={{ 
+        display: { xs: "flex", md: "none" }, 
+        width: "100%", bgcolor: "#111827", color: "white", 
+        p: 2, position: "fixed", top: 0, zIndex: 1100,
+        justifyContent: "space-between", alignItems: "center" 
+      }}>
+        <Typography variant="h6">SAT Sports</Typography>
+        <IconButton onClick={() => setMobileOpen(true)} sx={{ color: "white" }}><MenuIcon /></IconButton>
+      </Box>
+
+      {/* DESKTOP SIDEBAR */}
+      <Box sx={{ width: 260, display: { xs: "none", md: "block" }, position: "fixed", height: "100vh" }}>
+        {SidebarContent}
+      </Box>
+
+      {/* MOBILE DRAWER */}
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        PaperProps={{ sx: { width: 260, bgcolor: "#111827" } }}
+      >
+        {SidebarContent}
+      </Drawer>
+
+      {/* MAIN CONTENT AREA */}
+      <Box sx={{ 
+        flexGrow: 1, 
+        p: { xs: 2, md: 4 }, 
+        ml: { md: "260px" }, 
+        mt: { xs: "60px", md: 0 },
+        width: "100%"
+      }}>
+        <h2>Admin Dashboard</h2>
+
+<AdminBreadcrumbs />
+
+<Routes>
+<Route path="/" element={<AdminDashboard />} />
+<Route path="programs" element={<AdminPrograms />} />
+  <Route path="news" element={<AdminNews />} />
+  <Route path="players" element={<AdminPlayers />} />
+  <Route path="coaches" element={<AdminCoaches />} />
+  <Route path="attendance" element={<AdminAttendance />} />
+  <Route path="revenue" element={<AdminRevenue />} />
+  <Route path="reports" element={<AdminReports />} />
+  <Route path="sessions" element={<AdminSessions />} />
+  <Route path="leaves" element={<AdminLeaves />} />
+  <Route path="locations" element={<AdminLocations />} />
+  <Route path="tournaments" element={<AdminTournaments />} />
+  <Route path="tournaments/:id/matches" element={<TournamentBracket />} />
+  <Route path="live" element={<AdminLivePresence />} />
+  <Route path="court-bookings" element={<AdminCourtBookings />} />
+  <Route path="applications" element={<AdminApplications />} />
+  <Route path="payroll" element={<AdminCoachPayroll />} />
+  <Route path="private-bookings" element={<AdminPrivateBookings />} />
+</Routes>
+</Box>
+
+</Box>
+);
 }
+
 /* ---------- CONTACT ---------- */
 
 
