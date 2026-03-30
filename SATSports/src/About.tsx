@@ -30,7 +30,7 @@ export default function About() {
         <Container sx={{ position: "relative", zIndex: 2, textAlign: 'center' }}>
           <MotionBox initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
             <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 4 }}>
-              ESTABLISHED 2024
+              ESTABLISHED 2012
             </Typography>
             <Typography variant="h1" fontWeight={950} sx={{ fontSize: { xs: '3rem', md: '5.5rem' }, mb: 2 }}>
               THE ACADEMY <span style={{ color: "#ef4444" }}>LIFE</span>
