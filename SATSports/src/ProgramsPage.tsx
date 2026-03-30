@@ -124,7 +124,7 @@ export default function ProgramsPage() {
   variant="contained"
   onClick={() => {
     // Redirect to registration page with Program ID as a query param
-    window.location.href = `/register?programId=${p.id}&programName=${encodeURIComponent(p.title)}`;
+    window.location.href = `/register-player?programId=${p.id}&programName=${encodeURIComponent(p.title)}`;
   }}
   sx={{
     py: 1.5,
