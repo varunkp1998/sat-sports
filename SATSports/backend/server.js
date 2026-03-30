@@ -3464,28 +3464,30 @@ app.get("/api/player/stats/payments/:id", (req, res) => {
 app.get("/api/coach/dashboard-stats/:coachId", async (req, res) => {
   try {
     const { coachId } = req.params;
-    
-    // 1. Get count of sessions for today
+
+    // 1. Get count of sessions for TODAY from training_sessions
     const [sessions] = await db.query(
-      "SELECT COUNT(*) as count FROM sessions WHERE coach_id = ? AND session_date = CURDATE()", 
+      "SELECT COUNT(*) as count FROM training_sessions WHERE coach_id = ? AND session_date = CURDATE()", 
       [coachId]
     );
 
-    // 2. Get total unique players assigned to this coach
-    // Note: Ensure your attendance table actually has a coach_id column!
+    // 2. Get total unique players assigned to this coach's training_sessions
+    // We sub-query training_sessions to find all players linked to this coach
     const [players] = await db.query(
-      "SELECT COUNT(DISTINCT player_id) as count FROM attendance WHERE session_id IN (SELECT id FROM sessions WHERE coach_id = ?)", 
+      `SELECT COUNT(DISTINCT player_id) as count 
+       FROM attendance 
+       WHERE session_id IN (SELECT id FROM training_sessions WHERE coach_id = ?)`, 
       [coachId]
     );
     
     res.json({
       sessionsToday: sessions[0].count || 0,
       activePlayers: players[0].count || 0,
-      leaveBalance: 12 
+      leaveBalance: 12 // Placeholder
     });
   } catch (err) {
     console.error("Dashboard Stats Error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Failed to load dashboard stats" });
   }
 });
 // Create uploads folder if it doesn't exist
