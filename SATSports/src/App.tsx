@@ -146,7 +146,6 @@ export default function App() {
   <Route path="profile" element={<CoachProfile />} />   {/* 👈 ADD THIS */}
   <Route path="/coach/sessions/:sessionId/attendance" element={<CoachAttendance />} />
 
-</Route>
 <Route path="/tournaments/:id" element={<TournamentDetails />} />
             <Route path="/player/*" element={<PlayerLayout />} />
 
