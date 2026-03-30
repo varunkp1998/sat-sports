@@ -3896,37 +3896,47 @@ function AdminLayout() {
 </Box>
 
       {/* DESKTOP SIDEBAR */}
-      <Box
+{/* DESKTOP SIDEBAR */}
+<Box
+  sx={{
+    width: 250,
+    background: "#111827",
+    color: "white",
+    height: "100vh",
+    position: "fixed",
+    left: 0,
+    top: 0,
+    display: { xs: "none", md: "flex" }, // Change to flex
+    flexDirection: "column",            // Stack logo and list
+  }}
+>
+  <Box sx={{ p: 2, flexShrink: 0 }}> {/* flexShrink: 0 keeps logo fixed */}
+    <img src="/logo.png" style={{ height: 40 }} />
+    <h3 style={{ margin: "10px 0" }}>SAT Sports</h3>
+  </Box>
+
+  <List sx={{ 
+    flexGrow: 1,           // Take up remaining space
+    overflowY: "auto",     // Enable scrolling here
+    overflowX: "hidden",
+    '&::-webkit-scrollbar': { width: '5px' }, // Optional: Make scrollbar thin
+    '&::-webkit-scrollbar-thumb': { background: '#374151', borderRadius: '10px' }
+  }}>
+    {menuItems.map(item => (
+      <ListItem
+        button
+        key={item.path}
+        component={Link}
+        to={item.path}
         sx={{
-          width: 250,
-          background: "#111827",
-          color: "white",
-          height: "100vh",
-          position: "fixed",
-          overflowY: "auto",
-          overflowX: "hidden",
-          display: { xs: "none", md: "block" }
+          '&:hover': { background: "#1f2937" }
         }}
       >
-        <Box sx={{ p: 2 }}>
-          <img src="/logo.png" style={{ height: 40 }} />
-          <h3>SAT Sports</h3>
-        </Box>
-
-        <List>
-          {menuItems.map(item => (
-            <ListItem
-              button
-              key={item.path}
-              component={Link}
-              to={item.path}
-            >
-              <ListItemText primary={item.label} />
-            </ListItem>
-          ))}
-        </List>
-      </Box>
-
+        <ListItemText primary={item.label} />
+      </ListItem>
+    ))}
+  </List>
+</Box>
       {/* MOBILE DRAWER */}
       <Drawer
   anchor="right"   // ✅ ADD THIS
