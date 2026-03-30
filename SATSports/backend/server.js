@@ -3460,30 +3460,34 @@ app.get("/api/player/stats/payments/:id", (req, res) => {
     res.json({ status: isUpToDate ? "Up-to-Date" : "Overdue" });
   });
 });
-app.get("/api/coach/stats/:coachId", async (req, res) => {
+// Change "/api/coach/stats/:coachId" to "/api/coach/dashboard-stats/:coachId"
+app.get("/api/coach/dashboard-stats/:coachId", async (req, res) => {
   try {
     const { coachId } = req.params;
-    // Get count of sessions for today
+    
+    // 1. Get count of sessions for today
     const [sessions] = await db.query(
       "SELECT COUNT(*) as count FROM sessions WHERE coach_id = ? AND session_date = CURDATE()", 
       [coachId]
     );
-    // Get total unique players assigned to this coach
+
+    // 2. Get total unique players assigned to this coach
+    // Note: Ensure your attendance table actually has a coach_id column!
     const [players] = await db.query(
-      "SELECT COUNT(DISTINCT player_id) as count FROM attendance WHERE coach_id = ?", 
+      "SELECT COUNT(DISTINCT player_id) as count FROM attendance WHERE session_id IN (SELECT id FROM sessions WHERE coach_id = ?)", 
       [coachId]
     );
     
     res.json({
       sessionsToday: sessions[0].count || 0,
       activePlayers: players[0].count || 0,
-      leaveBalance: 12 // This could be a fixed value or from a 'coaches' table
+      leaveBalance: 12 
     });
   } catch (err) {
+    console.error("Dashboard Stats Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
-
 // Create uploads folder if it doesn't exist
 const uploadDir = './uploads/profiles/';
 if (!fs.existsSync(uploadDir)) {
