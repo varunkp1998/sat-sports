@@ -36,8 +36,7 @@ const path = require('path');
 
 // 1. Serve Profile Photos & General Uploads
 // This points to the absolute path of the 'uploads' folder
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // 2. Serve Invoices 
 // This points to the absolute path of the 'invoices' folder
 app.use("/invoices", express.static(path.join(__dirname, "invoices")));
@@ -3494,15 +3493,14 @@ if (!fs.existsSync(uploadDir)) {
 // Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    cb(null, './uploads/profiles/');
   },
   filename: (req, file, cb) => {
-    // Saves as: coach-123-1711812345.jpg
+    // This line ensures the .jpg or .png is kept!
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `coach-${uniqueSuffix}${path.extname(file.originalname)}`);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
-
 
 
 // THE UPLOAD ENDPOINT
