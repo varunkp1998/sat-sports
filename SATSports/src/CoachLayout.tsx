@@ -17,6 +17,7 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import axios from "axios";
+import API_BASE from "./api"; // Ensure this is imported
 
 // --- Stat Card Sub-Component ---
 const CoachStat = ({ title, value, icon, loading }: any) => (
@@ -52,7 +53,7 @@ export default function CoachLayout() {
       try {
         setLoading(true);
         // Replace with your actual backend URL
-        const res = await axios.get(`http://localhost:5000/api/coach/dashboard-stats/${coachId}`);
+        const res = await axios.get(`${API_BASE}/api/coach/dashboard-stats/${coachId}`);
         setStats(res.data);
       } catch (err) {
         console.error("Error fetching coach stats:", err);
