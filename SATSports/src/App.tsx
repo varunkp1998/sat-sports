@@ -4090,7 +4090,6 @@ const menuGroups = [
         {/* Your application content routes would go here */}
         <Routes>
            {/* Add your specific routes as needed */}
-           <Route path="/" element={<Typography variant="h4">Welcome, Admin</Typography>} />
            <Route path="/" element={<AdminDashboard />} />
 <Route path="programs" element={<AdminPrograms />} />
   <Route path="news" element={<AdminNews />} />
