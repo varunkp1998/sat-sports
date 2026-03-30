@@ -119,7 +119,6 @@ export default function ProgramsPage() {
 
                       {/* CTA BUTTON */}
                       <Box sx={{ p: 3, pt: 0 }}>
-                      // Inside the grouped[category].map((p: any) => ...
 <Button
   fullWidth
   variant="contained"
