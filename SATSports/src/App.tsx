@@ -1087,7 +1087,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 
 /* ---------- TOURNAMENTS ---------- */
 import { 
- Skeleton 
+ Skeleton ,Container
 } from "@mui/material";
 
 const MotionBox = motion(Box);
