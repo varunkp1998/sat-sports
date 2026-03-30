@@ -138,6 +138,11 @@ export default function App() {
   <Route index element={<CoachDashboard />} />
   <Route path="sessions" element={<CoachSessions />} />
   <Route path="leave" element={<CoachLeave />} />
+  <Route path="profile" element={<CoachProfile />} />
+</Route>
+  <Route index element={<CoachDashboard />} />
+  <Route path="sessions" element={<CoachSessions />} />
+  <Route path="leave" element={<CoachLeave />} />
   <Route path="profile" element={<CoachProfile />} />   {/* 👈 ADD THIS */}
   <Route path="/coach/sessions/:sessionId/attendance" element={<CoachAttendance />} />
 
