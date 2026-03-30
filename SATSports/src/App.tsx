@@ -3897,7 +3897,7 @@ const menuGroups = [
     ]
   }
 ];
-
+import { useLocation } from "react-router-dom";
 function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
