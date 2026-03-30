@@ -1,11 +1,14 @@
-.ticker-scroll {
+@keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); } /* Works because we doubled the array in .concat() */
+  }
+  
+  .ticker-scroll {
     display: inline-block;
-    animation: scroll-left 35s linear infinite;
+    white-space: nowrap;
+    animation: scroll 30s linear infinite;
   }
-  @keyframes scroll-left {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
-  }
+  
   .ticker-scroll:hover {
     animation-play-state: paused;
   }
