@@ -25,6 +25,11 @@ const allowedOrigins = [
 const fs = require('fs');
 
 const folders = ['./uploads/profiles', './invoices'];
+const path = require('path');
+
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+console.log("Checking uploads path:", path.join(process.cwd(), 'uploads'));
+app.use("/invoices", express.static(path.join(__dirname, "invoices")));
 
 folders.forEach(folder => {
   if (!fs.existsSync(folder)) {
@@ -32,14 +37,11 @@ folders.forEach(folder => {
     console.log(`Created directory: ${folder}`);
   }
 });
-const path = require('path');
 
 // 1. Serve Profile Photos & General Uploads
 // This points to the absolute path of the 'uploads' folder
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // 2. Serve Invoices 
 // This points to the absolute path of the 'invoices' folder
-app.use("/invoices", express.static(path.join(__dirname, "invoices")));
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
