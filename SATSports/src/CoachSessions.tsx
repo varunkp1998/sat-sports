@@ -5,10 +5,13 @@ import {
 import { motion } from "framer-motion";
 import API_BASE from "./api";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+
+// Required for parsing custom time strings like "14:30:00"
+dayjs.extend(customParseFormat);
 
 const MotionBox = motion(Box);
 
-// Types
 type Session = {
   id: number;
   session_date: string;
@@ -32,38 +35,44 @@ export default function CoachSessions() {
   const [coachId, setCoachId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState(dayjs().format("YYYY-MM-DD"));
   
-  // UI States
+  // LIVE CLOCK STATE - This is the "No-Bug" secret sauce
+  const [now, setNow] = useState(dayjs());
+
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null); 
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Memoized Filtered Sessions
+  // 1. LIVE CLOCK HEARTBEAT (Updates every 10 seconds)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(dayjs());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 2. Memoized Filtered Sessions
   const filteredSessions = useMemo(() => {
     return sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate);
   }, [sessions, filterDate]);
 
-  // 2. Load Coach & Sessions (Sequential)
+  // 3. Initial Load logic
   useEffect(() => {
     const initData = async () => {
       try {
         setLoading(true);
         const userId = localStorage.getItem("userId");
-        if (!userId) {
-          setError("AUTHENTICATION_REQUIRED: PLEASE LOG IN.");
-          return;
-        }
+        if (!userId) return setError("AUTH_FAILED: LOGIN REQUIRED");
 
         const profileRes = await fetch(`${API_BASE}/api/coach/profile/${userId}`);
         const profile = await profileRes.json();
         const cid = profile.coachId;
-        
         setCoachId(cid);
-        localStorage.setItem("coachId", cid);
 
         const sessionRes = await fetch(`${API_BASE}/api/coach/sessions/${cid}`);
         const sessionData = await sessionRes.json();
         setSessions(sessionData);
 
+        // Fetch check-in statuses
         const statusPromises = sessionData.map((s: Session) => 
           fetch(`${API_BASE}/api/coach/checkin/status?coachId=${cid}&sessionId=${s.id}&date=${dayjs(s.session_date).format("YYYY-MM-DD")}`)
             .then(res => res.json())
@@ -80,9 +89,8 @@ export default function CoachSessions() {
           };
         });
         setCheckedInMap(newMap);
-
       } catch (err) {
-        setError("SYSTEM_SYNC_ERROR: UNABLE TO RETRIEVE ARENA DATA.");
+        setError("ARENA_OFFLINE: DATABASE SYNC ERROR");
       } finally {
         setLoading(false);
       }
@@ -90,39 +98,29 @@ export default function CoachSessions() {
     initData();
   }, []);
 
-  // 3. Handle Check-In
   const handleCheckIn = async (sessionId: number, locationId: number) => {
-    if (!navigator.geolocation) {
-      alert("GPS location is not supported by your browser.");
-      return;
-    }
+    if (!navigator.geolocation) return alert("GPS Required");
     setActionLoading(sessionId);
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      async (pos) => {
         try {
-          const { latitude, longitude } = position.coords;
           const res = await fetch(`${API_BASE}/api/coach/checkin`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ coachId, sessionId, locationId, lat: latitude, lng: longitude }),
+            body: JSON.stringify({ coachId, sessionId, locationId, lat: pos.coords.latitude, lng: pos.coords.longitude }),
           });
           const data = await res.json();
           if (res.ok) {
-            setCheckedInMap(prev => ({
-              ...prev,
-              [sessionId]: { checkedIn: true, completed: false, isLate: data.isLate || 0 }
-            }));
-          } else { alert(data.message || "Check-in failed"); }
-        } catch (err) { alert("Connection error."); }
-        finally { setActionLoading(null); }
+            setCheckedInMap(prev => ({ ...prev, [sessionId]: { checkedIn: true, completed: false, isLate: data.isLate || 0 } }));
+          } else { alert(data.message); }
+        } finally { setActionLoading(null); }
       },
-      () => { setActionLoading(null); alert("Location Access Denied."); },
-      { enableHighAccuracy: true, timeout: 10000 }
+      () => { setActionLoading(null); alert("Location Access Denied"); }
     );
   };
 
   const handleCheckOut = async (sessionId: number) => {
-    if (!window.confirm("ARE YOU SURE YOU WANT TO TERMINATE THIS SESSION?")) return;
+    if (!window.confirm("TERMINATE SESSION?")) return;
     setActionLoading(sessionId);
     try {
       await fetch(`${API_BASE}/api/coach/checkout`, {
@@ -130,10 +128,7 @@ export default function CoachSessions() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ coachId, sessionId }),
       });
-      setCheckedInMap(prev => ({
-        ...prev,
-        [sessionId]: { ...prev[sessionId], checkedIn: false, completed: true }
-      }));
+      setCheckedInMap(prev => ({ ...prev, [sessionId]: { ...prev[sessionId], checkedIn: false, completed: true } }));
     } finally { setActionLoading(null); }
   };
 
@@ -146,8 +141,6 @@ export default function CoachSessions() {
   return (
     <Box sx={{ background: "#020617", color: "white", minHeight: "100vh", py: 6 }}>
       <Container maxWidth="xl">
-        
-        {/* HEADER */}
         <Box sx={{ mb: 6 }}>
           <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 3 }}>FIELD COMMAND</Typography>
           <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5 }}>MY <span style={{ color: "#ef4444" }}>SESSIONS</span></Typography>
@@ -155,7 +148,6 @@ export default function CoachSessions() {
 
         {error && <Alert severity="error" sx={errorAlertStyle}>{error}</Alert>}
 
-        {/* SEARCH & FILTER BAR */}
         <Box sx={actionBarBoxStyle}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={3} alignItems="center">
             <TextField
@@ -167,8 +159,8 @@ export default function CoachSessions() {
               sx={datePickerStyle}
             />
             <Box sx={{ flexGrow: 1 }} />
-            <Typography sx={{ fontWeight: 900, fontSize: '0.8rem', color: '#ef4444', letterSpacing: 1 }}>
-               ● {filteredSessions.length} SESSIONS ACTIVE
+            <Typography sx={{ fontWeight: 950, fontSize: '0.8rem', color: '#ef4444' }}>
+               LIVE CLOCK: {now.format("HH:mm:ss")}
             </Typography>
           </Stack>
         </Box>
@@ -176,12 +168,15 @@ export default function CoachSessions() {
         <Grid container spacing={4}>
           {filteredSessions.map((s) => {
             const state = checkedInMap[s.id] || { checkedIn: false, completed: false, isLate: 0 };
-            const diffMin = dayjs(`${s.session_date} ${s.start_time}`, "YYYY-MM-DD HH:mm:ss").diff(dayjs(), "minute");
+            
+            // Critical Fix: Combining date and time strings for accurate comparison
+            const sessionStart = dayjs(`${dayjs(s.session_date).format("YYYY-MM-DD")} ${s.start_time}`);
+            const diffMin = sessionStart.diff(now, "minute");
 
-            const isLive = diffMin <= 15 && diffMin > -120;
-            const isUpcoming = diffMin > 15 && diffMin < 60;
-            const statusLabel = isLive ? "LIVE" : isUpcoming ? "SOON" : "SCHEDULED";
-            const statusColor = isLive ? "#22c55e" : isUpcoming ? "#f59e0b" : "rgba(255,255,255,0.2)";
+            // isLive: Enables 20 mins before and stays on for 3 hours (180 mins)
+            const isLive = diffMin <= 20 && diffMin > -180;
+            const isUpcoming = diffMin > 20 && diffMin < 60;
+            const statusColor = isLive ? "#22c55e" : isUpcoming ? "#f59e0b" : "rgba(255,255,255,0.1)";
 
             return (
               <Grid item xs={12} md={6} lg={4} key={s.id}>
@@ -194,24 +189,13 @@ export default function CoachSessions() {
                           <Typography variant="h4" fontWeight={950}>{dayjs(s.session_date).format("DD")}</Typography>
                           <Typography variant="overline" sx={{ opacity: 0.5, fontWeight: 900 }}>{dayjs(s.session_date).format("MMM YYYY")}</Typography>
                         </Box>
-                        <Stack alignItems="flex-end" spacing={1}>
-                          <Chip label={statusLabel} sx={statusChipStyle(statusColor)} />
-                          {state.isLate === 1 && <Chip label="LATE ENTRY" size="small" sx={lateChipStyle} />}
-                        </Stack>
+                        <Chip label={isLive ? "LIVE" : isUpcoming ? "SOON" : "SCHEDULED"} sx={statusChipStyle(statusColor)} />
                       </Stack>
 
-                      <Stack spacing={1.5} mb={3}>
+                      <Stack spacing={1.5} mb={4}>
                         <Typography variant="h6" fontWeight={800}>⏰ {s.start_time} – {s.end_time || "--"}</Typography>
                         <Typography variant="body1" fontWeight={700} sx={{ opacity: 0.8 }}>📍 {s.locationName}</Typography>
                       </Stack>
-
-                      {s.programTitles && (
-                        <Box mb={4} display="flex" flexWrap="wrap" gap={1}>
-                          {s.programTitles.split(",").map((p, i) => (
-                            <Chip key={i} label={p.trim()} size="small" sx={programChipStyle} />
-                          ))}
-                        </Box>
-                      )}
 
                       <Box>
                         {actionLoading === s.id ? (
@@ -225,21 +209,17 @@ export default function CoachSessions() {
                                 sx={isLive ? primaryBtnStyle : disabledBtnStyle}
                                 onClick={() => handleCheckIn(s.id, s.location_id)}
                               >
-                                {isLive ? "INITIALIZE CHECK-IN" : "WAITING FOR WINDOW"}
+                                {isLive ? "INITIALIZE CHECK-IN" : `OPEN IN ${diffMin} MINS`}
                               </Button>
                             )}
-
                             {state.checkedIn && (
                               <Stack spacing={2}>
                                 <Button fullWidth sx={attendanceBtnStyle} onClick={() => window.location.href = `/coach/sessions/${s.id}/attendance`}>MARK ATTENDANCE</Button>
                                 <Button fullWidth variant="outlined" sx={checkoutBtnStyle} onClick={() => handleCheckOut(s.id)}>CLOSE SESSION</Button>
                               </Stack>
                             )}
-
                             {state.completed && (
-                              <Box sx={finalizedBoxStyle}>
-                                <Typography fontWeight={950}>✔ MISSION COMPLETED</Typography>
-                              </Box>
+                              <Box sx={finalizedBoxStyle}><Typography fontWeight={950}>✔ SESSION CLOSED</Typography></Box>
                             )}
                           </>
                         )}
@@ -256,13 +236,11 @@ export default function CoachSessions() {
   );
 }
 
-// 💅 ELITE DESIGN SYSTEM
-const sessionCardStyle = (completed: boolean) => ({ borderRadius: 6, background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", color: "white", opacity: completed ? 0.5 : 1 });
+// 💅 STYLE TOKENS (Keep these consistent)
+const sessionCardStyle = (completed: boolean) => ({ borderRadius: 6, background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", color: "white", opacity: completed ? 0.4 : 1 });
 const actionBarBoxStyle = { background: "rgba(255,255,255,0.02)", p: 3, borderRadius: 4, mb: 6, border: "1px solid rgba(255,255,255,0.05)" };
 const datePickerStyle = { "& .MuiOutlinedInput-root": { color: "white", borderRadius: 3, bgcolor: "rgba(255,255,255,0.02)", "& fieldset": { borderColor: "rgba(255,255,255,0.1)" } }, "& .MuiInputLabel-root": { color: "#ef4444", fontWeight: 900 } };
 const statusChipStyle = (color: string) => ({ bgcolor: color, color: "#fff", fontWeight: 900, borderRadius: 1, fontSize: '0.65rem' });
-const lateChipStyle = { bgcolor: 'rgba(239, 68, 68, 0.2)', color: '#ff4444', border: '1px solid #ff4444', fontWeight: 900, borderRadius: 1 };
-const programChipStyle = { borderRadius: 1, border: "1px solid rgba(239, 68, 68, 0.3)", color: "rgba(255,255,255,0.7)", fontWeight: 800, fontSize: '0.7rem' };
 const actionBtnBase = { py: 1.8, borderRadius: 3, fontWeight: 950 };
 const primaryBtnStyle = { ...actionBtnBase, background: "linear-gradient(135deg, #f97316, #ef4444)", color: 'white' };
 const disabledBtnStyle = { ...actionBtnBase, bgcolor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.2)" };
