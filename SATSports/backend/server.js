@@ -1,6 +1,5 @@
 
 const multer = require("multer");
-const upload = multer({ storage: storage });
 const jwt = require("jsonwebtoken");   // ✅ FIX
 const xlsx = require("xlsx");
 const express = require("express");
@@ -59,6 +58,7 @@ const storage = multer.diskStorage({
     cb(null, uniqueName);
   }
 });
+const upload = multer({ storage: storage });
 
 app.use(cors({
   origin: function (origin, callback) {
