@@ -3904,7 +3904,7 @@ const menuGroups = [
   }
 ];
 
-export default function AdminLayout() {
+ function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     "Academy Management": true, 
