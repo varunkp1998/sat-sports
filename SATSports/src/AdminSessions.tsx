@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import {
   Box, Typography, Card, CardContent, Stack, TextField, Button, 
   MenuItem, Table, TableHead, TableRow, TableCell, TableBody, 
-  IconButton, useMediaQuery, useTheme, Fade, Grid, Chip, Paper, 
-  Divider, Snackbar, Alert
+  IconButton, useMediaQuery, useTheme, Fade, Paper, 
+  Snackbar, Alert, Chip
 } from "@mui/material";
 import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -12,7 +12,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddBoxIcon from "@mui/icons-material/AddBox";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import API_BASE from "./api";
 
 export default function AdminSessions() {
@@ -50,15 +49,11 @@ export default function AdminSessions() {
       setCoaches(await cRes.json());
       setPrograms(await pRes.json());
     } catch (err) {
-      handleToast("Error connecting to server", "error");
+      setToast({ open: true, message: "Server connection failed", severity: "error" });
     }
   };
 
   useEffect(() => { loadData(); }, []);
-
-  const handleToast = (message: string, severity: "success" | "error") => {
-    setToast({ open: true, message, severity });
-  };
 
   const resetForm = () => {
     setEditingId(null);
@@ -70,7 +65,8 @@ export default function AdminSessions() {
 
   const saveSession = async () => {
     if (!locationId || !coachId || programIds.length === 0) {
-      return handleToast("Please complete all fields", "error");
+      setToast({ open: true, message: "Please fill all fields", severity: "error" });
+      return;
     }
     
     const payload = {
@@ -93,12 +89,12 @@ export default function AdminSessions() {
       });
 
       if (res.ok) {
-        handleToast(editingId ? "Session updated" : "Session scheduled!", "success");
+        setToast({ open: true, message: editingId ? "Session Updated" : "Session Scheduled!", severity: "success" });
         loadData();
         resetForm();
       }
     } catch (err) {
-      handleToast("Network error", "error");
+      setToast({ open: true, message: "Network Error", severity: "error" });
     }
   };
 
@@ -114,11 +110,15 @@ export default function AdminSessions() {
   };
 
   const deleteSession = async (id: number) => {
-    if (!window.confirm("Delete this session?")) return;
-    const res = await fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      handleToast("Session removed", "success");
-      loadData();
+    if (!window.confirm("Are you sure you want to delete this session?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setToast({ open: true, message: "Session Deleted", severity: "success" });
+        loadData();
+      }
+    } catch (err) {
+      setToast({ open: true, message: "Delete failed", severity: "error" });
     }
   };
 
@@ -128,11 +128,11 @@ export default function AdminSessions() {
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={containerStyle}>
         
-        {/* TOP BAR */}
+        {/* HEADER SECTION */}
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems="center" mb={6}>
           <Box>
             <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">Training Schedule</Typography>
-            <Typography variant="body2" color="text.secondary">Manage court availability and staff</Typography>
+            <Typography variant="body2" color="text.secondary">Configure court times and staff assignments</Typography>
           </Box>
           
           <Paper sx={filterPaperStyle}>
@@ -147,60 +147,50 @@ export default function AdminSessions() {
           </Paper>
         </Stack>
 
-        {/* INPUT CARD */}
+        {/* INPUT SECTION - STACKED FOR MAXIMUM SPACE */}
         <Fade in timeout={600}>
           <Card sx={glassCardStyle}>
             <CardContent sx={{ p: { xs: 3, md: 6 } }}>
-              <Typography variant="h6" fontWeight={800} mb={5} display="flex" alignItems="center">
+              <Typography variant="h6" fontWeight={800} mb={4} display="flex" alignItems="center" color="#1e293b">
                 <AddBoxIcon sx={{ mr: 1.5, color: '#3b82f6' }} />
-                {editingId ? "Edit Session Details" : "New Training Session"}
+                {editingId ? "Edit Training Details" : "Schedule New Session"}
               </Typography>
 
-              <Stack spacing={5}>
-                {/* ROW 1: THE TIME */}
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={4}>
-                    <TextField fullWidth label="Session Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TimePicker label="Start Time" value={startTime} onChange={setStartTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TimePicker label="End Time" value={endTime} onChange={setEndTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
-                  </Grid>
-                </Grid>
+              {/* CRITICAL FIX: The Stack below ensures 1 field per row */}
+              <Stack spacing={4} sx={{ maxWidth: '700px' }}>
+                
+                <TextField fullWidth label="Session Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
+                
+                <TimePicker label="Start Time" value={startTime} onChange={setStartTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
+                
+                <TimePicker label="End Time" value={endTime} onChange={setEndTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
 
-                {/* ROW 2: THE RESOURCES */}
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <TextField select fullWidth label="Assigned Coach" value={coachId} onChange={(e) => setCoachId(e.target.value)} sx={inputStyle}>
-                      {coaches.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-                    </TextField>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField select fullWidth label="Location / Court" value={locationId} onChange={(e) => setLocationId(e.target.value)} sx={inputStyle}>
-                      {locations.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
-                    </TextField>
-                  </Grid>
-                </Grid>
+                <TextField select fullWidth label="Assigned Coach" value={coachId} onChange={(e) => setCoachId(e.target.value)} sx={inputStyle}>
+                  {coaches.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+                </TextField>
 
-                {/* ROW 3: THE PROGRAMS */}
-                <Box>
-                  <TextField
-                    select fullWidth label="Target Programs" value={programIds}
-                    onChange={(e) => setProgramIds(typeof e.target.value === "string" ? e.target.value.split(",").map(Number) : (e.target.value as number[]))}
-                    SelectProps={{ multiple: true }} sx={inputStyle}
-                  >
-                    {programs.map(p => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
-                  </TextField>
-                </Box>
+                <TextField select fullWidth label="Location / Court" value={locationId} onChange={(e) => setLocationId(e.target.value)} sx={inputStyle}>
+                  {locations.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
+                </TextField>
 
-                <Box pt={1}>
+                <TextField
+                  select fullWidth label="Target Programs" value={programIds}
+                  onChange={(e) => setProgramIds(typeof e.target.value === "string" ? e.target.value.split(",").map(Number) : (e.target.value as number[]))}
+                  SelectProps={{ multiple: true }} sx={inputStyle}
+                >
+                  {programs.map(p => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
+                </TextField>
+
+                <Box pt={2}>
                   <Stack direction="row" spacing={2}>
                     <Button onClick={saveSession} sx={primaryBtnStyle}>
-                      {editingId ? "Save Changes" : "Confirm Session"}
+                      {editingId ? "Update Schedule" : "Confirm Session"}
                     </Button>
-                    {editingId && <Button onClick={resetForm} variant="text" sx={{ fontWeight: 800, color: '#64748b' }}>Cancel</Button>}
+                    {editingId && (
+                      <Button onClick={resetForm} variant="outlined" sx={{ borderRadius: 3, fontWeight: 700, px: 4 }}>
+                        Cancel
+                      </Button>
+                    )}
                   </Stack>
                 </Box>
               </Stack>
@@ -208,11 +198,12 @@ export default function AdminSessions() {
           </Card>
         </Fade>
 
-        {/* AGENDA SECTION */}
+        {/* LIST SECTION */}
         <Box mt={10}>
           <Typography variant="h5" fontWeight={900} mb={3} letterSpacing="-1px">Daily Agenda</Typography>
+          
           {filteredSessions.length === 0 ? (
-            <Paper sx={emptyPaperStyle}>No sessions scheduled for this date.</Paper>
+            <Paper sx={emptyPaperStyle}>No training sessions scheduled for this date.</Paper>
           ) : (
             <Paper sx={tableWrapperStyle}>
               <Table>
@@ -232,8 +223,12 @@ export default function AdminSessions() {
                           {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} – {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}
                         </Typography>
                       </TableCell>
-                      <TableCell><Typography variant="body2" fontWeight={700} color="#3b82f6">{s.coachName}</Typography></TableCell>
-                      <TableCell><Typography variant="caption" fontWeight={700} color="text.secondary">{s.programTitles}</Typography></TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={700} color="#3b82f6">{s.coachName}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" fontWeight={700} color="text.secondary">{s.programTitles}</Typography>
+                      </TableCell>
                       <TableCell align="right">
                         <IconButton size="small" onClick={() => editSession(s)} sx={{ mr: 1 }}><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error" onClick={() => deleteSession(s.id)}><DeleteIcon fontSize="small" /></IconButton>
@@ -246,7 +241,7 @@ export default function AdminSessions() {
           )}
         </Box>
 
-        {/* TOAST NOTIFICATION */}
+        {/* NOTIFICATION TOAST */}
         <Snackbar 
           open={toast.open} 
           autoHideDuration={4000} 
@@ -262,9 +257,9 @@ export default function AdminSessions() {
   );
 }
 
-// --- FULL STYLE OBJECTS ---
+// --- REFINED STYLES ---
 const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
-const filterPaperStyle = { p: "10px 20px", display: 'flex', alignItems: 'center', borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none' };
+const filterPaperStyle = { p: "10px 20px", display: 'flex', alignItems: 'center', borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none', bgcolor: 'white' };
 const countChipStyle = { ml: 2, bgcolor: '#4f46e5', color: 'white', fontWeight: 900 };
 const glassCardStyle = { borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 20px 40px -12px rgba(0,0,0,0.05)', bgcolor: 'white', overflow: 'visible' };
 const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: '#fcfcfd', "& fieldset": { borderColor: '#e2e8f0' } } };
