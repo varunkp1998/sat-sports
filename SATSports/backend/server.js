@@ -3413,3 +3413,33 @@ app.post("/api/admin/program-pricing", async (req, res) => {
 
   res.json({ success: true });
 });
+// 1. Get Player's Program Name
+app.get("/api/player/program/:id", (req, res) => {
+  db.query("SELECT programs.name FROM players JOIN programs ON players.program_id = programs.id WHERE players.id = ?", [req.params.id], (err, results) => {
+    if (err) return res.status(500).json(err);
+    res.json(results[0] || { name: "None" });
+  });
+});
+
+// 2. Get Player's Attendance % (Last 30 Days)
+app.get("/api/player/stats/attendance/:id", (req, res) => {
+  const query = "SELECT (COUNT(IF(status = 'present', 1, NULL)) / COUNT(*)) * 100 AS percentage FROM attendance WHERE player_id = ? AND date > DATE_SUB(NOW(), INTERVAL 30 DAY)";
+  db.query(query, [req.params.id], (err, results) => {
+    if (err) return res.status(500).json(err);
+    res.json(results[0] || { percentage: 0 });
+  });
+});
+
+// 3. Get Player's Payment Status
+app.get("/api/player/stats/payments/:id", (req, res) => {
+  // Logic needed: Check the last required payment date vs today. This is simplified:
+  db.query("SELECT plan, created_at FROM payments WHERE player_id = ? ORDER BY created_at DESC LIMIT 1", [req.params.id], (err, results) => {
+    if (err) return res.status(500).json(err);
+    const lastPayment = results[0];
+    if (!lastPayment) return res.json({ status: "Pending Registration" });
+    
+    // Simplest logic: If a payment exists within the last month, they are up to date.
+    const isUpToDate = new Date() - new Date(lastPayment.created_at) < (31 * 24 * 60 * 60 * 1000); 
+    res.json({ status: isUpToDate ? "Up-to-Date" : "Overdue" });
+  });
+});
