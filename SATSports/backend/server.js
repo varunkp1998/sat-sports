@@ -2524,17 +2524,34 @@ app.delete("/api/admin/locations/:id", async (req, res) => {
 
   res.json({ success: true });
 });
-app.get("/api/player/profile/:userId", async (req, res) => {
+app.get("/api/player/details/:userId", async (req, res) => {
   const { userId } = req.params;
 
-  const [[row]] = await db.query(`
-    SELECT p.name, p.age, pr.title AS programTitle
-    FROM players p
-    LEFT JOIN programs pr ON pr.id = p.program_id
-    WHERE p.user_id = ?
-  `, [userId]);
+  try {
+    // We join programs for the title and coaches for the coach name
+    const [rows] = await db.query(`
+      SELECT 
+        p.name, 
+        p.age, 
+        p.created_at,
+        pr.title AS program_title,
+        c.name AS coach_name
+      FROM players p
+      LEFT JOIN programs pr ON p.program_id = pr.id
+      LEFT JOIN coaches c ON p.coach_id = c.id
+      WHERE p.user_id = ?
+    `, [userId]);
 
-  res.json(row || {});
+    // If no player found, return a 404 or an empty object
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("SQL Error in /api/player/details:", error);
+    res.status(500).json({ error: "Internal Server Error", details: error.message });
+  }
 });
 app.get("/api/player/attendance/:userId", async (req, res) => {
   const { userId } = req.params;
