@@ -1,26 +1,18 @@
 import { useEffect, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
-  Typography,
-  Select,
-  MenuItem,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Grid
+  Box, Button, Card, Typography, Select, MenuItem, Table, TableHead, 
+  TableRow, TableCell, TableBody, Grid, Container, Stack, Paper, Chip, 
+  InputLabel, FormControl, Divider, useTheme, useMediaQuery
 } from "@mui/material";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import HistoryIcon from "@mui/icons-material/History";
+import ReceiptIcon from "@mui/icons-material/Receipt";
+import { motion } from "framer-motion";
 import API_BASE from "./api";
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-export {};
+const MotionBox = motion(Box);
+
+declare global { interface Window { Razorpay: any; } }
 
 export default function PlayerPayments() {
   const [plan, setPlan] = useState("monthly");
@@ -31,87 +23,54 @@ export default function PlayerPayments() {
   const [amount, setAmount] = useState(0);
   const [payments, setPayments] = useState([]);
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const playerId = localStorage.getItem("userId");
 
-  // ✅ Load programs + payments
   useEffect(() => {
-    fetch(`${API_BASE}/api/programs`)
-      .then(res => res.json())
-      .then(setPrograms);
+    fetch(`${API_BASE}/api/programs`).then(res => res.json()).then(setPrograms);
+    fetch(`${API_BASE}/api/player/payments/${playerId}`).then(res => res.json()).then(setPayments);
+  }, [playerId]);
 
-    fetch(`${API_BASE}/api/player/payments/${playerId}`)
-      .then(res => res.json())
-      .then(setPayments);
-  }, []);
-
-  // ✅ Load pricing when program changes
   useEffect(() => {
     if (!selectedProgram) return;
-
     fetch(`${API_BASE}/api/programs/${selectedProgram}/pricing`)
       .then(res => res.json())
-      .then(data => {
-        setPricing(data);
-      });
+      .then(data => setPricing(data));
   }, [selectedProgram]);
 
-  // ✅ Calculate amount dynamically
   useEffect(() => {
     const p = pricing.find(p => p.sessions_per_month === sessions);
-
     if (!p) return;
-
-    let price = 0;
-
-    if (plan === "weekly") price = p.price_weekly;
-    if (plan === "monthly") price = p.price_monthly;
-    if (plan === "yearly") price = p.price_yearly;
-
-    setAmount(price);
+    const priceMap: any = { weekly: p.price_weekly, monthly: p.price_monthly, yearly: p.price_yearly };
+    setAmount(priceMap[plan] || 0);
   }, [plan, sessions, pricing]);
 
   const handlePayment = async () => {
-    if (!window.Razorpay) {
-      alert("Razorpay SDK not loaded");
-      return;
-    }
+    if (!window.Razorpay) { alert("Razorpay SDK not loaded"); return; }
 
     const res = await fetch(`${API_BASE}/api/payment/create-order`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        amount,
-        plan,
-        playerId,
-        programId: selectedProgram,
-        sessions
-      })
+      body: JSON.stringify({ amount, plan, playerId, programId: selectedProgram, sessions })
     });
 
     const order = await res.json();
 
     const options = {
-      key: "rzp_test_YOUR_KEY",
+      key: "rzp_test_YOUR_KEY", 
       amount: order.amount,
       currency: "INR",
-      name: "Sports Academy",
+      name: "SAT Sports Academy",
       description: `${sessions} sessions - ${plan}`,
       order_id: order.id,
-
-      handler: async (response) => {
+      theme: { color: "#ef4444" },
+      handler: async (response: any) => {
         await fetch(`${API_BASE}/api/payment/verify`, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({
-            ...response,
-            playerId,
-            plan,
-            amount,
-            programId: selectedProgram,
-            sessions
-          })
+          body: JSON.stringify({ ...response, playerId, plan, amount, programId: selectedProgram, sessions })
         });
-
         alert("Payment Successful");
         window.location.reload();
       }
@@ -122,108 +81,134 @@ export default function PlayerPayments() {
   };
 
   return (
-    <Box>
-      <Typography variant="h5">💳 Payments</Typography>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#020617", color: "white", py: 6 }}>
+      <Container maxWidth="md">
+        
+        <Stack direction="row" alignItems="center" spacing={2} mb={4}>
+          <AccountBalanceWalletIcon sx={{ fontSize: 40, color: "#ef4444" }} />
+          <Typography variant="h3" fontWeight={900}>PAYMENTS</Typography>
+        </Stack>
 
-      {/* 🔥 PAYMENT CARD */}
-      <Card sx={{ p: 3, mt: 2 }}>
-        <Grid container spacing={2}>
+        <Grid container spacing={4}>
+          {/* 🔥 PAYMENT SELECTION CARD */}
+          <Grid item xs={12} md={5}>
+            <MotionBox initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+              <Card sx={glassStyle}>
+                <Typography variant="h6" fontWeight={800} mb={3}>Subscription Setup</Typography>
+                
+                <Stack spacing={3}>
+                  <FormControl fullWidth sx={selectStyle}>
+                    <InputLabel>Select Program</InputLabel>
+                    <Select value={selectedProgram} label="Select Program" onChange={(e) => setSelectedProgram(e.target.value)}>
+                      {programs.map(p => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
+                    </Select>
+                  </FormControl>
 
-          {/* Program */}
-          <Grid item xs={12}>
-            <Typography>Select Program</Typography>
-            <Select
-              fullWidth
-              value={selectedProgram}
-              onChange={(e) => setSelectedProgram(e.target.value)}
-            >
-              {programs.map(p => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.title}
-                </MenuItem>
-              ))}
-            </Select>
+                  <Stack direction="row" spacing={2}>
+                    <FormControl fullWidth sx={selectStyle}>
+                      <InputLabel>Sessions</InputLabel>
+                      <Select value={sessions} label="Sessions" onChange={(e) => setSessions(Number(e.target.value))}>
+                        <MenuItem value={8}>8 Sessions</MenuItem>
+                        <MenuItem value={12}>12 Sessions</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth sx={selectStyle}>
+                      <InputLabel>Plan</InputLabel>
+                      <Select value={plan} label="Plan" onChange={(e) => setPlan(e.target.value)}>
+                        <MenuItem value="weekly">Weekly</MenuItem>
+                        <MenuItem value="monthly">Monthly</MenuItem>
+                        <MenuItem value="yearly">Yearly</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Stack>
+
+                  <Box sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(255,255,255,0.05)", textAlign: 'center' }}>
+                    <Typography variant="caption" color="rgba(255,255,255,0.5)">TOTAL AMOUNT</Typography>
+                    <Typography variant="h4" fontWeight={900} color="#ef4444">₹{amount}</Typography>
+                  </Box>
+
+                  <Button
+                    variant="contained" fullWidth size="large" onClick={handlePayment} disabled={!amount}
+                    sx={{
+                      py: 2, borderRadius: 3, fontWeight: 900,
+                      background: "linear-gradient(135deg, #f97316, #ef4444)",
+                      boxShadow: "0 10px 20px rgba(239, 68, 68, 0.3)",
+                      "&:hover": { filter: "brightness(1.1)" }
+                    }}
+                  >
+                    PROCEED TO PAY
+                  </Button>
+                </Stack>
+              </Card>
+            </MotionBox>
           </Grid>
 
-          {/* Sessions */}
-          <Grid item xs={6}>
-            <Typography>Sessions</Typography>
-            <Select
-              fullWidth
-              value={sessions}
-              onChange={(e) => setSessions(Number(e.target.value))}
-            >
-              <MenuItem value={8}>8 Sessions</MenuItem>
-              <MenuItem value={12}>12 Sessions</MenuItem>
-            </Select>
-          </Grid>
+          {/* 🔥 PAYMENT HISTORY */}
+          <Grid item xs={12} md={7}>
+            <MotionBox initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                <HistoryIcon sx={{ color: "rgba(255,255,255,0.5)" }} />
+                <Typography variant="h6" fontWeight={700}>Transaction History</Typography>
+              </Stack>
 
-          {/* Plan */}
-          <Grid item xs={6}>
-            <Typography>Plan</Typography>
-            <Select
-              fullWidth
-              value={plan}
-              onChange={(e) => setPlan(e.target.value)}
-            >
-              <MenuItem value="weekly">Weekly</MenuItem>
-              <MenuItem value="monthly">Monthly</MenuItem>
-              <MenuItem value="yearly">Yearly</MenuItem>
-            </Select>
+              <Paper sx={{ ...glassStyle, p: 0, overflow: 'hidden' }}>
+                <Table size={isMobile ? "small" : "medium"}>
+                  <TableHead sx={{ bgcolor: "rgba(255,255,255,0.05)" }}>
+                    <TableRow>
+                      <TableCell sx={headerStyle}>Program</TableCell>
+                      <TableCell sx={headerStyle}>Sessions</TableCell>
+                      <TableCell sx={headerStyle}>Amount</TableCell>
+                      <TableCell sx={headerStyle}>Invoice</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {payments.map((p, i) => (
+                      <TableRow key={i} sx={{ "&:hover": { bgcolor: "rgba(255,255,255,0.02)" } }}>
+                        <TableCell sx={cellStyle}>
+                            <Typography variant="body2" fontWeight={700}>{p.program_name}</Typography>
+                            <Typography variant="caption" color="gray">{new Date(p.date).toLocaleDateString()}</Typography>
+                        </TableCell>
+                        <TableCell sx={cellStyle}>{p.sessions} Sssns</TableCell>
+                        <TableCell sx={cellStyle}><Typography fontWeight={700}>₹{p.amount}</Typography></TableCell>
+                        <TableCell sx={cellStyle}>
+                          <IconButton href={p.invoice_url} target="_blank" sx={{ color: "#ef4444" }}>
+                            <ReceiptIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </Stack>
+                </TableBody>
+              </Paper>
+            </MotionBox>
           </Grid>
-
-          {/* Amount */}
-          <Grid item xs={12}>
-            <Typography variant="h6">
-              Amount: ₹{amount}
-            </Typography>
-          </Grid>
-
-          {/* Pay */}
-          <Grid item xs={12}>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handlePayment}
-              disabled={!amount}
-            >
-              Pay Now
-            </Button>
-          </Grid>
-
         </Grid>
-      </Card>
-
-      {/* 🔥 PAYMENT HISTORY */}
-      <Typography mt={4}>Payment History</Typography>
-
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Date</TableCell>
-            <TableCell>Program</TableCell>
-            <TableCell>Sessions</TableCell>
-            <TableCell>Amount</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Invoice</TableCell>
-          </TableRow>
-        </TableHead>
-
-        <TableBody>
-          {payments.map((p, i) => (
-            <TableRow key={i}>
-              <TableCell>{p.date}</TableCell>
-              <TableCell>{p.program_name}</TableCell>
-              <TableCell>{p.sessions}</TableCell>
-              <TableCell>₹{p.amount}</TableCell>
-              <TableCell>{p.status}</TableCell>
-              <TableCell>
-                <Button href={p.invoice_url}>Download</Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      </Container>
     </Box>
   );
 }
+
+// 🎨 Styles
+const glassStyle = {
+  p: 3,
+  borderRadius: 5,
+  background: "rgba(255,255,255,0.03)",
+  backdropFilter: "blur(20px)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  color: "white"
+};
+
+const selectStyle = {
+  "& .MuiOutlinedInput-root": {
+    color: "white",
+    "& fieldset": { borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px" },
+    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.3)" },
+    "&.Mui-focused fieldset": { borderColor: "#ef4444" }
+  },
+  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" },
+  "& .MuiSelect-icon": { color: "white" }
+};
+
+const headerStyle = { color: "rgba(255,255,255,0.5)", fontWeight: 800, borderBottom: "1px solid rgba(255,255,255,0.1)" };
+const cellStyle = { color: "white", borderBottom: "1px solid rgba(255,255,255,0.05)", py: 2 };
