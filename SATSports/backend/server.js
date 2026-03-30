@@ -24,43 +24,40 @@ const allowedOrigins = [
 ];
 const fs = require('fs');
 
-const folders = ['./uploads/profiles', './invoices'];
 const path = require('path');
 
-// Define ONE source of truth for the path
+// 1. Define Absolute Paths (The Source of Truth)
 const UPLOADS_ROOT = path.join(__dirname, 'uploads');
 const PROFILES_DIR = path.join(UPLOADS_ROOT, 'profiles');
+const INVOICES_DIR = path.join(__dirname, 'invoices');
 
-// Create the folders using the absolute path
-if (!fs.existsSync(PROFILES_DIR)) {
-    fs.mkdirSync(PROFILES_DIR, { recursive: true });
-    console.log("✅ Created absolute directory:", PROFILES_DIR);
-}
+// 2. Create Folders safely
+const dirs = [PROFILES_DIR, INVOICES_DIR];
+dirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`✅ Absolute directory ready: ${dir}`);
+  }
+});
 
-// 1. Static Middleware (The "GET" Fix)
+// 3. Static Middleware (The "GET" Fix)
+// When browser asks for /uploads/..., Express looks in UPLOADS_ROOT
 app.use('/uploads', express.static(UPLOADS_ROOT));
 
-// 2. Multer Storage (The "SAVE" Fix)
+// When browser asks for /invoices/..., Express looks in INVOICES_DIR
+app.use('/invoices', express.static(INVOICES_DIR));
+
+// 4. Multer Storage (The "SAVE" Fix)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, PROFILES_DIR); // Use the same absolute path
+    // Save specifically to the PROFILES subfolder
+    cb(null, PROFILES_DIR); 
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname) || '.jpg';
     cb(null, `coach-${Date.now()}${ext}`);
   }
 });
-folders.forEach(folder => {
-  if (!fs.existsSync(folder)) {
-    fs.mkdirSync(folder, { recursive: true });
-    console.log(`Created directory: ${folder}`);
-  }
-});
-
-// 1. Serve Profile Photos & General Uploads
-// This points to the absolute path of the 'uploads' folder
-// 2. Serve Invoices 
-// This points to the absolute path of the 'invoices' folder
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
