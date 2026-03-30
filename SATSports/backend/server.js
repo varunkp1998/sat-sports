@@ -22,10 +22,25 @@ const allowedOrigins = [
   "https://www.sat-sports.in",
   "https://sat-sports.in"
 ];
-const path = require("path");
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use("/invoices", require("express").static("invoices"));
+const fs = require('fs');
 
+const folders = ['./uploads/profiles', './invoices'];
+
+folders.forEach(folder => {
+  if (!fs.existsSync(folder)) {
+    fs.mkdirSync(folder, { recursive: true });
+    console.log(`Created directory: ${folder}`);
+  }
+});
+const path = require('path');
+
+// 1. Serve Profile Photos & General Uploads
+// This points to the absolute path of the 'uploads' folder
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// 2. Serve Invoices 
+// This points to the absolute path of the 'invoices' folder
+app.use("/invoices", express.static(path.join(__dirname, "invoices")));
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -3469,7 +3484,6 @@ app.get("/api/coach/stats/:coachId", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-const fs = require('fs');
 
 // Create uploads folder if it doesn't exist
 const uploadDir = './uploads/profiles/';
