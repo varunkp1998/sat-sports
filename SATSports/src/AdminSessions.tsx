@@ -15,38 +15,51 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import API_BASE from "./api";
 
 export default function AdminSessions() {
-  const [sessions, setSessions] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [coaches, setCoaches] = useState([]);
-  const [programs, setPrograms] = useState([]);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [coaches, setCoaches] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
 
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
-  const [startTime, setStartTime] = useState(dayjs().set('hour', 9).set('minute', 0));
-  const [endTime, setEndTime] = useState(dayjs().set('hour', 10).set('minute', 0));
-  const [locationId, setLocationId] = useState("");
-  const [coachId, setCoachId] = useState("");
-  const [programIds, setProgramIds] = useState([]);
+  const [startTime, setStartTime] = useState<any>(dayjs().set('hour', 9).set('minute', 0));
+  const [endTime, setEndTime] = useState<any>(dayjs().set('hour', 10).set('minute', 0));
+  const [locationId, setLocationId] = useState<string | number>("");
+  const [coachId, setCoachId] = useState<string | number>("");
+  const [programIds, setProgramIds] = useState<number[]>([]);
   const [filterDate, setFilterDate] = useState(dayjs().format("YYYY-MM-DD"));
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const loadSessions = () => {
-    fetch(`${API_BASE}/api/admin/sessions`).then(res => res.json()).then(setSessions);
+  const loadData = async () => {
+    try {
+      const [sRes, lRes, cRes, pRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/sessions`),
+        fetch(`${API_BASE}/api/admin/locations`),
+        fetch(`${API_BASE}/api/admin/coaches`),
+        fetch(`${API_BASE}/api/admin/programs`)
+      ]);
+      setSessions(await sRes.json());
+      setLocations(await lRes.json());
+      setCoaches(await cRes.json());
+      setPrograms(await pRes.json());
+    } catch (err) {
+      console.error("Failed to load admin data", err);
+    }
   };
 
-  useEffect(() => {
-    loadSessions();
-    fetch(`${API_BASE}/api/admin/locations`).then(r => r.json()).then(setLocations);
-    fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json()).then(setCoaches);
-    fetch(`${API_BASE}/api/admin/programs`).then(r => r.json()).then(setPrograms);
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
-  const filteredSessions = sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate);
+  const filteredSessions = sessions.filter(s => 
+    dayjs(s.session_date).format("YYYY-MM-DD") === filterDate
+  );
 
-  const saveSession = () => {
-    if (!locationId || !coachId) return alert("Please select Location and Coach");
+  const saveSession = async () => {
+    if (!locationId || !coachId || programIds.length === 0) {
+      return alert("Please fill in Location, Coach, and at least one Program.");
+    }
+    
     const payload = {
       session_date: dayjs(date).format("YYYY-MM-DD"),
       start_time: startTime.format("HH:mm:ss"),
@@ -56,14 +69,17 @@ export default function AdminSessions() {
       program_ids: programIds
     };
 
-    fetch(editingId ? `${API_BASE}/api/admin/sessions/${editingId}` : `${API_BASE}/api/admin/sessions`, {
-      method: editingId ? "PUT" : "POST",
+    const url = editingId ? `${API_BASE}/api/admin/sessions/${editingId}` : `${API_BASE}/api/admin/sessions`;
+    const method = editingId ? "PUT" : "POST";
+
+    await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    }).then(() => {
-      loadSessions();
-      resetForm();
     });
+
+    loadData();
+    resetForm();
   };
 
   const resetForm = () => {
@@ -73,111 +89,120 @@ export default function AdminSessions() {
     setCoachId("");
   };
 
-  const editSession = (s) => {
+  const editSession = (s: any) => {
     setEditingId(s.id);
     setDate(dayjs(s.session_date).format("YYYY-MM-DD"));
     setStartTime(dayjs(s.start_time, "HH:mm:ss"));
     setEndTime(dayjs(s.end_time, "HH:mm:ss"));
     setLocationId(s.location_id);
     setCoachId(s.coach_id);
-    setProgramIds(s.programIds || []);
+    setProgramIds(s.program_ids || []);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const deleteSession = (id) => {
+  const deleteSession = async (id: number) => {
     if (!window.confirm("Permanent Delete?")) return;
-    fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" }).then(loadSessions);
+    await fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" });
+    loadData();
   };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={containerStyle}>
         
-        {/* HEADER & FILTER */}
+        {/* HEADER & DATE PICKER */}
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems="center" mb={6}>
           <Box>
             <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">Training Schedule</Typography>
-            <Typography variant="body2" color="text.secondary">Configure court times and coach assignments</Typography>
+            <Typography variant="body2" color="text.secondary">Plan academy hours and assign coaching staff</Typography>
           </Box>
           
           <Paper sx={filterPaperStyle}>
-            <FilterListIcon sx={{ color: 'text.secondary', mr: 1 }} />
+            <FilterListIcon sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />
             <TextField
               type="date"
               size="small"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
-              sx={{ width: 140, fontWeight: 700 }}
+              InputProps={{ disableUnderline: true, sx: { fontWeight: 700 } }}
+              sx={{ width: 150 }}
             />
             <Chip label={`${filteredSessions.length} Sessions`} size="small" sx={countChipStyle} />
           </Paper>
         </Stack>
 
-        {/* INPUT SECTION (The "Shelf" Layout) */}
+        {/* INPUT EDITOR */}
         <Fade in timeout={600}>
           <Card sx={glassCardStyle}>
-            <CardContent sx={{ p: { xs: 3, md: 5 } }}>
-              <Typography variant="h6" fontWeight={800} mb={4} display="flex" alignItems="center" color="#1e293b">
+            <CardContent sx={{ p: { xs: 3, md: 6 } }}>
+              <Typography variant="h6" fontWeight={800} mb={5} display="flex" alignItems="center" color="#1e293b">
                 <AddBoxIcon sx={{ mr: 1.5, color: '#3b82f6' }} />
                 {editingId ? "Modify Existing Session" : "Schedule New Session"}
               </Typography>
 
-              <Grid container spacing={4}>
-                {/* SHELF 1: TIME */}
-                <Grid item xs={12} md={4}>
-                  <TextField fullWidth label="Session Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <TimePicker label="Start Time" value={startTime} onChange={setStartTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <TimePicker label="End Time" value={endTime} onChange={setEndTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
-                </Grid>
-
-                {/* SHELF 2: RESOURCES (Now md=6 for maximum space) */}
-                <Grid item xs={12} md={6}>
-                  <TextField select fullWidth label="Assigned Coach" value={coachId} onChange={(e) => setCoachId(e.target.value)} sx={inputStyle}>
-                    {coaches.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField select fullWidth label="Location / Court" value={locationId} onChange={(e) => setLocationId(e.target.value)} sx={inputStyle}>
-                    {locations.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
-                  </TextField>
+              <Stack spacing={5}>
+                {/* ROW 1: THE TIME (3 columns) */}
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={4}>
+                    <TextField fullWidth label="Session Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TimePicker label="Start Time" value={startTime} onChange={setStartTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TimePicker label="End Time" value={endTime} onChange={setEndTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
+                  </Grid>
                 </Grid>
 
-                {/* SHELF 3: PROGRAMS (Full Width to prevent multi-select crowding) */}
-                <Grid item xs={12}>
+                {/* ROW 2: THE STAFF (2 columns - Giving them lots of room) */}
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <TextField select fullWidth label="Assigned Coach" value={coachId} onChange={(e) => setCoachId(e.target.value)} sx={inputStyle}>
+                      {coaches.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField select fullWidth label="Location / Court" value={locationId} onChange={(e) => setLocationId(e.target.value)} sx={inputStyle}>
+                      {locations.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
+                    </TextField>
+                  </Grid>
+                </Grid>
+
+                {/* ROW 3: THE PROGRAMS (Full width to prevent chip cramping) */}
+                <Box>
                   <TextField
                     select fullWidth label="Target Programs" value={programIds}
-                    onChange={(e) => setProgramIds(typeof e.target.value === "string" ? e.target.value.split(",").map(Number) : e.target.value)}
+                    onChange={(e) => setProgramIds(typeof e.target.value === "string" ? e.target.value.split(",").map(Number) : (e.target.value as number[]))}
                     SelectProps={{ multiple: true }} sx={inputStyle}
                   >
                     {programs.map(p => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
                   </TextField>
-                </Grid>
+                </Box>
 
-                <Grid item xs={12}>
-                  <Stack direction="row" spacing={2} pt={1}>
+                <Box pt={1}>
+                  <Stack direction="row" spacing={2}>
                     <Button onClick={saveSession} sx={primaryBtnStyle}>
                       {editingId ? "Update Schedule" : "Confirm Session"}
                     </Button>
-                    {editingId && <Button onClick={resetForm} variant="text" sx={{ fontWeight: 800, color: '#64748b' }}>Cancel</Button>}
+                    {editingId && (
+                      <Button onClick={resetForm} variant="text" sx={{ fontWeight: 800, color: '#64748b' }}>
+                        Cancel
+                      </Button>
+                    )}
                   </Stack>
-                </Grid>
-              </Grid>
+                </Box>
+              </Stack>
             </CardContent>
           </Card>
         </Fade>
 
-        {/* LIST SECTION */}
-        <Box mt={10}> {/* More space between sections */}
+        {/* LIST VIEW */}
+        <Box mt={10}>
           <Typography variant="h5" fontWeight={900} mb={3} letterSpacing="-1px">Daily Agenda</Typography>
           
           {filteredSessions.length === 0 ? (
-            <Paper sx={emptyPaperStyle}>No sessions found for this date.</Paper>
+            <Paper sx={emptyPaperStyle}>No training sessions found for this date.</Paper>
           ) : isMobile ? (
             <Stack spacing={2}>
               {filteredSessions.map(s => (
@@ -224,7 +249,7 @@ export default function AdminSessions() {
                         <Typography variant="caption" fontWeight={700} color="text.secondary">{s.programTitles}</Typography>
                       </TableCell>
                       <TableCell align="right">
-                        <IconButton size="small" onClick={() => editSession(s)} sx={{ mr: 1 }}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" onClick={() => editSession(s)} sx={{ mr: 1, color: '#64748b' }}><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error" onClick={() => deleteSession(s.id)}><DeleteIcon fontSize="small" /></IconButton>
                       </TableCell>
                     </TableRow>
@@ -239,27 +264,33 @@ export default function AdminSessions() {
   );
 }
 
-// --- STYLES (Modernized) ---
+// --- REFINED STYLES ---
+
 const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
 
 const filterPaperStyle = {
   p: "10px 20px", display: 'flex', alignItems: 'center', borderRadius: 4,
-  border: '1px solid #e2e8f0', boxShadow: 'none'
+  border: '1px solid #e2e8f0', boxShadow: 'none', bgcolor: 'white'
 };
 
 const countChipStyle = { ml: 2, bgcolor: '#4f46e5', color: 'white', fontWeight: 900 };
 
 const glassCardStyle = {
   borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 20px 40px -12px rgba(0,0,0,0.05)',
-  bgcolor: 'white'
+  bgcolor: 'white', overflow: 'visible' // Helps with dropdowns
 };
 
 const inputStyle = {
-  "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: '#fcfcfd', "& fieldset": { borderColor: '#e2e8f0' } }
+  "& .MuiOutlinedInput-root": { 
+    borderRadius: 3, 
+    bgcolor: '#fcfcfd', 
+    "& fieldset": { borderColor: '#e2e8f0' },
+    "&:hover fieldset": { borderColor: '#cbd5e1' }
+  }
 };
 
 const primaryBtnStyle = {
-  px: 4, py: 1.5, borderRadius: 3, fontWeight: 900, textTransform: 'none',
+  px: 6, py: 1.5, borderRadius: 3, fontWeight: 900, textTransform: 'none',
   background: 'linear-gradient(135deg, #2563eb, #4f46e5)', color: 'white',
   boxShadow: '0 10px 20px -5px rgba(37, 99, 235, 0.4)',
   "&:hover": { transform: 'translateY(-2px)', boxShadow: '0 20px 30px -10px rgba(37, 99, 235, 0.5)' }
@@ -270,4 +301,4 @@ const thStyle = { fontWeight: 900, color: '#64748b', fontSize: '0.75rem', letter
 const sessionCardMobile = { borderRadius: 5, border: '1px solid #e2e8f0', boxShadow: 'none', mb: 2 };
 const editIconBtn = { bgcolor: '#eff6ff', color: '#2563eb', '&:hover': { bgcolor: '#2563eb', color: 'white' } };
 const deleteIconBtn = { bgcolor: '#fff1f2', color: '#e11d48', '&:hover': { bgcolor: '#e11d48', color: 'white' } };
-const emptyPaperStyle = { p: 6, textAlign: 'center', color: 'text.secondary', borderRadius: 6, border: '1px dashed #cbd5e1', bgcolor: 'transparent', fontWeight: 700 };
+const emptyPaperStyle = { p: 8, textAlign: 'center', color: '#94a3b8', borderRadius: 6, border: '1px dashed #cbd5e1', bgcolor: 'transparent', fontWeight: 700 };
