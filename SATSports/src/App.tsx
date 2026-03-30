@@ -121,47 +121,47 @@ export default function App() {
       <div>
         <Header />
         <main className="container">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/programs" element={<ProgramsPage items={programs} />} />
-            <Route path="/news" element={<NewsPage />} />
-            <Route path="/tournaments" element={<TournamentsPage />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/book-court" element={<PublicCourtBooking />} />
-            <Route path="/register-player" element={<RegisterPlayer />} />
-            <Route path="/book-private-session" element={<PrivateBooking />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/portal" element={<PlayerPortal />} />
-            <Route path="/coach" element={<CoachLayout />}>
-  <Route index element={<CoachDashboard />} />
-  <Route path="sessions" element={<CoachSessions />} />
-  <Route path="leave" element={<CoachLeave />} />
-  <Route path="profile" element={<CoachProfile />} />
-</Route>
-  <Route index element={<CoachDashboard />} />
-  <Route path="sessions" element={<CoachSessions />} />
-  <Route path="leave" element={<CoachLeave />} />
-  <Route path="profile" element={<CoachProfile />} />   {/* 👈 ADD THIS */}
-  <Route path="/coach/sessions/:sessionId/attendance" element={<CoachAttendance />} />
+        <Routes>
+  {/* --- Public Routes --- */}
+  <Route path="/" element={<Home />} />
+  <Route path="/about" element={<About />} />
+  <Route path="/programs" element={<ProgramsPage items={programs} />} />
+  <Route path="/news" element={<NewsPage />} />
+  <Route path="/tournaments" element={<TournamentsPage />} />
+  <Route path="/tournaments/:id" element={<TournamentDetails />} />
+  <Route path="/contact" element={<Contact />} />
+  <Route path="/book-court" element={<PublicCourtBooking />} />
+  <Route path="/register-player" element={<RegisterPlayer />} />
+  <Route path="/book-private-session" element={<PrivateBooking />} />
+  <Route path="/login" element={<Login />} />
+  <Route path="/signup" element={<Signup />} />
+  <Route path="/portal" element={<PlayerPortal />} />
 
-<Route path="/tournaments/:id" element={<TournamentDetails />} />
-            <Route path="/player/*" element={<PlayerLayout />} />
+  {/* --- Coach Routes (Properly Nested) --- */}
+  <Route path="/coach" element={<CoachLayout />}>
+    <Route index element={<CoachDashboard />} />
+    <Route path="sessions" element={<CoachSessions />} />
+    <Route path="sessions/:sessionId/attendance" element={<CoachAttendance />} />
+    <Route path="leave" element={<CoachLeave />} />
+    <Route path="profile" element={<CoachProfile />} />
+  </Route>
 
-            <Route
-  path="/admin/*"
-  element={
-    <ProtectedRoute>
-      <AdminLayout />
-    </ProtectedRoute>
-  }
-/>
-<Route path="/admin/players/:id" element={<PlayerProfile />} />
+  {/* --- Player Routes --- */}
+  <Route path="/player/*" element={<PlayerLayout />} />
 
-
-          </Routes>
-        </main>
+  {/* --- Admin Routes --- */}
+  <Route
+    path="/admin/*"
+    element={
+      <ProtectedRoute>
+        <AdminLayout />
+      </ProtectedRoute>
+    }
+  />
+  {/* If PlayerProfile is part of Admin, it should ideally be inside AdminLayout, 
+      but if you want it separate, keep this: */}
+  <Route path="/admin/players/:id" element={<PlayerProfile />} />
+</Routes>        </main>
         <Footer />
       </div>
     </Router>
