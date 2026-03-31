@@ -3264,7 +3264,10 @@ const generateInvoice = require("./utils/generateInvoice");
 const sendInvoiceEmail = require("./utils/sendInvoiceEmail");
 
 app.post("/api/payment/verify", async (req, res) => {
+  const connection = await db.getConnection(); // Get a connection for transaction
   try {
+    await connection.beginTransaction();
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -3277,40 +3280,27 @@ app.post("/api/payment/verify", async (req, res) => {
     } = req.body;
 
     // 🔐 STEP 1: VERIFY SIGNATURE
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const secret = process.env.RAZORPAY_SECRET;
+    if (!secret) throw new Error("RAZORPAY_SECRET is not defined");
 
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_SECRET)
-      .update(body.toString())
+    const generated_signature = crypto
+      .createHmac("sha256", secret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid payment signature"
-      });
+    if (generated_signature !== razorpay_signature) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: "Invalid signature" });
     }
 
-    // 🔹 STEP 2: FETCH PLAYER + PROGRAM
-    const [[player]] = await db.query(
-      "SELECT id, name, email FROM players WHERE id = ?",
-      [playerId]
-    );
+    // 🔹 STEP 2: FETCH DATA
+    const [[player]] = await connection.query("SELECT id, name, email FROM players WHERE id = ?", [playerId]);
+    const [[program]] = await connection.query("SELECT id, title FROM programs WHERE id = ?", [programId]);
 
-    const [[program]] = await db.query(
-      "SELECT id, title FROM programs WHERE id = ?",
-      [programId]
-    );
-
-    if (!player || !program) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid player or program"
-      });
-    }
+    if (!player) throw new Error("Player not found");
 
     // 🔹 STEP 3: INSERT PAYMENT
-    const [result] = await db.query(
+    const [result] = await connection.query(
       `INSERT INTO payments 
       (player_id, source, source_id, sessions, amount, plan, status, payment_method, payment_id)
       VALUES (?, 'program', ?, ?, ?, ?, 'paid', 'razorpay', ?)`,
@@ -3319,62 +3309,63 @@ app.post("/api/payment/verify", async (req, res) => {
 
     const paymentId = result.insertId;
 
-    // 🔹 STEP 4: GENERATE INVOICE
+    // 🔹 STEP 4 & 5: INVOICE GENERATION
     const invoiceUrl = await generateInvoice({
       paymentId,
       playerName: player.name,
       amount,
       plan,
-      programName: program.title,
+      programName: program?.title || "Training Program",
       sessions
     });
 
-    // 🔹 STEP 5: SAVE INVOICE URL
-    await db.query(
-      "UPDATE payments SET invoice_url = ? WHERE id = ?",
-      [invoiceUrl, paymentId]
-    );
+    await connection.query("UPDATE payments SET invoice_url = ? WHERE id = ?", [invoiceUrl, paymentId]);
 
-    // 🔹 STEP 6: SEND EMAIL (Resend)
-    await sendInvoiceEmail({
-      player: {
-        name: player.name,
-        email: player.email
-      },
-      payment: {
-        id: paymentId,
-        amount,
-        plan,
-        programName: program.title,
-        sessions
-      },
-      invoicePath: invoiceUrl
-    });
+    // Commit DB changes before sending email to ensure data integrity
+    await connection.commit();
 
-    // ✅ FINAL RESPONSE
-    res.json({
-      success: true,
-      message: "Payment verified and recorded successfully",
-      invoice_url: invoiceUrl
-    });
+    // 🔹 STEP 6: SEND EMAIL (Non-blocking or Post-Commit)
+    // We do this after commit so if email fails, the payment record is already safe
+    try {
+      await sendInvoiceEmail({
+        player: { name: player.name, email: player.email },
+        payment: { id: paymentId, amount, plan, programName: program?.title, sessions },
+        invoicePath: invoiceUrl
+      });
+    } catch (emailErr) {
+      console.error("📧 Email sending failed, but payment was recorded:", emailErr);
+    }
+
+    res.json({ success: true, invoice_url: invoiceUrl });
 
   } catch (err) {
+    await connection.rollback();
     console.error("❌ VERIFY ERROR:", err);
-
-    res.status(500).json({
-      success: false,
-      message: "Payment verification failed"
-    });
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    connection.release();
   }
 });
 
 cron.schedule("0 9 * * *", async () => {
-  const [dueUsers] = await db.query(`
-    SELECT * FROM players
-    WHERE next_payment_date <= CURDATE()
-  `);
+  console.log("Running Daily Payment Reminders...");
+  try {
+    // Select players whose date is today/past AND haven't been reminded today
+    const [dueUsers] = await db.query(`
+      SELECT p.* FROM players p
+      LEFT JOIN payments py ON p.id = py.player_id
+      WHERE p.next_payment_date <= CURDATE() 
+      AND (p.last_reminder_date IS NULL OR p.last_reminder_date < CURDATE())
+    `);
 
-  // send email reminder
+    for (const user of dueUsers) {
+      await sendReminderEmail(user); // Implement this helper
+      await db.query("UPDATE players SET last_reminder_date = CURDATE() WHERE id = ?", [user.id]);
+    }
+    console.log(`✅ Reminders sent to ${dueUsers.length} players.`);
+  } catch (err) {
+    console.error("Cron Job Error:", err);
+  }
 });
 app.get("/api/player/fee/:id", async (req, res) => {
   try {
