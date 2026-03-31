@@ -80,7 +80,7 @@ export default function PlayerPayments() {
         setShowSuccess(true); // Trigger Success Modal
       }
     };
-
+    console.log("KEY:", import.meta.env.VITE_RAZORPAY_KEY);
     const rzp = new window.Razorpay(options);
     rzp.open();
   };
