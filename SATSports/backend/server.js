@@ -22,25 +22,29 @@ const allowedOrigins = [
   "https://www.sat-sports.in",
   "https://sat-sports.in"
 ];
-const fs = require('fs');
-[UPLOADS_ROOT, PROFILES_DIR, INVOICES_DIR].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
-const path = require('path');
+
 
 // 1. Define Absolute Paths (The Source of Truth)
+// 1. IMPORTS (Always at the top)
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+
+// 2. DEFINE CONSTANTS (Using path after it's required)
 const UPLOADS_ROOT = path.join(__dirname, 'uploads');
 const PROFILES_DIR = path.join(UPLOADS_ROOT, 'profiles');
-const INVOICES_DIR = path.join(__dirname, 'invoices');
+const INVOICES_DIR = path.join(UPLOADS_ROOT, 'invoices'); // Changed to be inside uploads for consistency
 
-// 2. Create Folders safely
-const dirs = [PROFILES_DIR, INVOICES_DIR];
+// 3. LOGIC (Create folders)
+const dirs = [UPLOADS_ROOT, PROFILES_DIR, INVOICES_DIR];
+
 dirs.forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
-    console.log(`✅ Absolute directory ready: ${dir}`);
+    console.log(`✅ Directory ready: ${dir}`);
   }
 });
+
 
 
 app.use('/uploads', express.static(UPLOADS_ROOT));
