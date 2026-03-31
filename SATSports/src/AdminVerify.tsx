@@ -68,8 +68,10 @@ const handleStatus = async (id: number, status: string) => {
         status: status
       })
     });
-
-    const data = await res.json();
+    const text = await res.text();
+    console.log("RAW:", text);
+    
+    const data = JSON.parse(text);
     console.log("Response:", data);
 
     if (!res.ok) {
