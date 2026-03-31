@@ -24,16 +24,13 @@ const allowedOrigins = [
   "https://sat-sports.onrender.com"
 ];
 
+// ✅ BODY PARSERS (ONLY ONCE)
+app.use(express.urlencoded({ extended: true }));
+
+// ✅ CORS (ONLY ONCE)
 app.use(cors({
   origin: function (origin, callback) {
-    const allowed = [
-      "https://sat-sports.vercel.app",
-      "https://www.sat-sports.in",
-      "https://sat-sports.in",
-      "https://sat-sports.onrender.com" // Add your Render frontend URL here
-    ];
-    // Allow local development and non-browser tools (like Postman)
-    if (!origin || allowed.indexOf(origin) !== -1 || origin.includes("localhost")) {
+    if (!origin || allowedOrigins.includes(origin) || origin.includes("localhost")) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
@@ -44,9 +41,8 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
 
-// 2. Body Parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));// 1. Define Absolute Paths (The Source of Truth)
+
+
 // 1. IMPORTS (Always at the top)
 const fs = require('fs');
 const path = require('path');
@@ -95,16 +91,8 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
-}));
+
+
 
 
 let isAuthenticated = false;
