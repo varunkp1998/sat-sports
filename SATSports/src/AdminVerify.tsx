@@ -1,70 +1,76 @@
 import { useEffect, useState } from "react";
-import { Box, Typography, Grid, Card, CardContent, CardMedia, Button, Chip, Stack, CircularProgress, Container } from "@mui/material";
-import API_BASE from "./api"; // Ensure this file exports "https://sat-sports.onrender.com"
-import dayjs from "dayjs";
+import { Box, Typography, Grid, Card, CardContent, CircularProgress, Container, Alert } from "@mui/material";
+import API_BASE from "./api";
 
 export default function AdminVerify() {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [internalError, setInternalError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log("Fetching from:", `${API_BASE}/api/admin/checkins/all-photos`);
-    fetch(`${API_BASE}/api/admin/checkins/all-photos`)
-      .then(res => res.json())
-      .then(json => {
-        console.log("Received Data:", json);
+    const fetchData = async () => {
+      try {
+        console.log("Attempting fetch from:", `${API_BASE}/api/admin/checkins/all-photos`);
+        const res = await fetch(`${API_BASE}/api/admin/checkins/all-photos`);
+        
+        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+        
+        const json = await res.json();
+        console.log("Data received successfully:", json);
         setData(json);
+      } catch (err: any) {
+        console.error("Frontend Fetch Error:", err);
+        setInternalError(err.message);
+      } finally {
         setLoading(false);
-      })
-      .catch(err => {
-        console.error("Fetch Error:", err);
-        setLoading(false);
-      });
+      }
+    };
+
+    fetchData();
   }, []);
 
-  if (loading) return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', py: 10, bgcolor: '#020617', height: '100vh' }}>
-      <CircularProgress color="error" />
-    </Box>
-  );
+  if (loading) return <Box sx={{ p: 5, textAlign: 'center', color: 'white' }}><CircularProgress color="error" /><Typography>Loading Field Data...</Typography></Box>;
 
   return (
-    <Box sx={{ background: "#020617", minHeight: "100vh", color: "white", py: 4 }}>
+    <Box sx={{ background: "#020617", minHeight: "100vh", color: "white", p: 4 }}>
       <Container maxWidth="xl">
-        <Typography variant="h4" fontWeight={900} gutterBottom>
-          PHOTO <span style={{ color: '#ef4444' }}>VERIFICATIONS</span>
+        <Typography variant="h4" fontWeight={900} sx={{ mb: 4 }}>
+          COMMAND <span style={{ color: '#ef4444' }}>VERIFY</span>
         </Typography>
 
-        {data.length === 0 ? (
-          <Typography sx={{ opacity: 0.5 }}>No records found in database.</Typography>
+        {internalError && (
+          <Alert severity="error" sx={{ mb: 4 }}>
+            CONNECTION ERROR: {internalError} 
+            <br /> Check if your Backend URL is correct: {API_BASE}
+          </Alert>
+        )}
+
+        {data.length === 0 && !internalError ? (
+          <Typography>No records found. The API returned an empty list [ ].</Typography>
         ) : (
           <Grid container spacing={3}>
-            {data.map((item: any) => (
+            {data.map((item) => (
               <Grid item xs={12} md={4} key={item.id}>
-                <Card sx={{ bgcolor: "#1e293b", color: "white", borderRadius: 4 }}>
-                  <CardMedia
-                    component="img"
-                    height="200"
-                    image={`${API_BASE}/uploads/${item.verification_photo}`}
-                    alt="Check-in Photo"
-                    onError={(e: any) => { e.target.src = "https://via.placeholder.com/300?text=Photo+Not+Found"; }}
+                <Card sx={{ bgcolor: "#1e293b", color: "white", p: 2 }}>
+                  <Typography variant="h6">{item.coach_name || "Unknown Coach"}</Typography>
+                  <Typography variant="body2" sx={{ color: '#ef4444' }}>{item.locationName}</Typography>
+                  <Box 
+                    component="img" 
+                    src={`${API_BASE}/uploads/${item.verification_photo}`} 
+                    sx={{ width: '100%', height: 200, objectFit: 'cover', mt: 2, borderRadius: 2 }}
+                    onError={(e: any) => e.target.src = "https://via.placeholder.com/300?text=No+Image+Found"}
                   />
-                  <CardContent>
-                    <Typography variant="h6">{item.coach_name || "Unknown Coach"}</Typography>
-                    <Typography variant="body2" color="error">{item.locationName}</Typography>
-                    <Typography variant="caption" display="block" sx={{ mt: 1, opacity: 0.7 }}>
-                      {dayjs(item.checkin_time).format("DD MMM - hh:mm A")}
-                    </Typography>
-                    <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-                      <Chip label={item.status} color={item.status === 'APPROVED' ? 'success' : 'warning'} size="small" />
-                      {item.is_late === 1 && <Chip label="LATE" color="error" size="small" />}
-                    </Stack>
-                  </CardContent>
                 </Card>
               </Grid>
             ))}
           </Grid>
         )}
+
+        {/* --- DEBUGGER: REMOVE THIS ONCE FIXED --- */}
+        <Box sx={{ mt: 10, p: 2, bgcolor: '#000', border: '1px solid #333', fontSize: '10px' }}>
+          <Typography variant="caption" color="gray">DEBUG LOG:</Typography>
+          <pre>{JSON.stringify(data, null, 2)}</pre>
+        </Box>
       </Container>
     </Box>
   );
