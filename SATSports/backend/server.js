@@ -3728,6 +3728,8 @@ app.post("/api/coach/checkin/photo", upload.single('photo'), async (req, res) =>
 });
 app.get("/api/admin/checkins/all-photos", async (req, res) => {
   try {
+    // Note: I'm using LEFT JOINs here so if a session was deleted, 
+    // the check-in record still shows up instead of throwing a 500 error.
     const [rows] = await db.query(`
       SELECT 
         c.id, 
@@ -3739,18 +3741,22 @@ app.get("/api/admin/checkins/all-photos", async (req, res) => {
         c.checkin_time,
         c.method,
         c.is_late,
-        c.status  -- Added this to show current state in UI
+        c.status
       FROM coach_checkins c
-      JOIN coaches co ON c.coach_id = co.coachId
-      JOIN users u ON co.user_id = u.id
-      JOIN training_sessions s ON c.session_id = s.id
-      JOIN locations l ON c.location_id = l.id
+      LEFT JOIN coaches co ON c.coach_id = co.id
+      LEFT JOIN users u ON co.user_id = u.id
+      LEFT JOIN training_sessions s ON c.session_id = s.id
+      LEFT JOIN locations l ON c.location_id = l.id
       WHERE c.method = 'PHOTO'
       ORDER BY c.checkin_time DESC
     `);
+    
     res.json(rows);
   } catch (err) {
-    console.error("Fetch Error:", err);
-    res.status(500).json({ message: "Error fetching photo history" });
+    console.error("DETAILED ERROR:", err); // This will show the EXACT SQL error in Render logs
+    res.status(500).json({ 
+      message: "Error fetching photo history", 
+      error: err.message 
+    });
   }
 });
