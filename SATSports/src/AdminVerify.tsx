@@ -2,12 +2,12 @@ import React, { useEffect, useState } from "react";
 import {
   Box, Typography, Grid, Card, CardContent, CardMedia, 
   Button, Chip, Stack, CircularProgress, Container, 
-  IconButton, Divider, Paper
+  IconButton, Paper, Alert
 } from "@mui/material";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import BlockIcon from '@mui/icons-material/Block';
 
 // --- CONFIG ---
 const API_BASE = "https://sat-sports.onrender.com";
@@ -16,7 +16,6 @@ interface PhotoRecord {
   id: number;
   coach_name: string | null;
   session_date: string;
-  start_time: string;
   locationName: string;
   verification_photo: string;
   checkin_time: string;
@@ -28,19 +27,27 @@ export default function AdminVerify() {
   const [data, setData] = useState<PhotoRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [btnLoading, setBtnLoading] = useState<number | null>(null);
+  const [actionId, setActionId] = useState<number | null>(null);
 
   const fetchPhotos = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/checkins/all-photos`);
-      if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+      // mode: 'cors' and specific headers prevent CORB blocks
+      const response = await fetch(`${API_BASE}/api/admin/checkins/all-photos`, {
+        method: 'GET',
+        mode: 'cors',
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const json = await response.json();
-      setData(json);
+      
+      // Ensure data is an array before setting state
+      setData(Array.isArray(json) ? json : []);
     } catch (err: any) {
-      console.error("Fetch failed:", err);
-      setError(err.message || "Failed to connect to backend");
+      console.error("API Error:", err);
+      setError("Connection Blocked (CORB) or Backend Offline.");
     } finally {
       setLoading(false);
     }
@@ -50,148 +57,108 @@ export default function AdminVerify() {
     fetchPhotos();
   }, []);
 
-  const updateStatus = async (id: number, newStatus: string) => {
-    setBtnLoading(id);
+  const handleStatus = async (id: number, status: string) => {
+    setActionId(id);
     try {
       const res = await fetch(`${API_BASE}/api/admin/checkin/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus })
+        body: JSON.stringify({ id, status })
       });
       if (res.ok) {
-        setData(prev => prev.map(item => item.id === id ? { ...item, status: newStatus as any } : item));
+        setData(prev => prev.map(item => item.id === id ? { ...item, status: status as any } : item));
       }
     } catch (err) {
-      alert("Update failed. Check console.");
+      alert("Update failed");
     } finally {
-      setBtnLoading(null);
+      setActionId(null);
     }
   };
 
-  // --- RENDER HELPERS ---
   if (loading) return (
     <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: '#020617', color: 'white' }}>
       <CircularProgress color="error" />
-      <Typography sx={{ mt: 2, opacity: 0.6 }}>Syncing SAT Sports Field Data...</Typography>
+      <Typography sx={{ mt: 2, opacity: 0.5 }}>Loading SAT Sports Records...</Typography>
     </Box>
   );
 
   return (
     <Box sx={{ bgcolor: "#020617", minHeight: "100vh", pb: 10 }}>
-      {/* HEADER BAR */}
-      <Paper elevation={0} sx={{ bgcolor: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.1)", py: 3, mb: 5 }}>
+      {/* HEADER */}
+      <Paper elevation={0} sx={{ bgcolor: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)", py: 3, mb: 4 }}>
         <Container maxWidth="xl">
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Box>
-              <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 2 }}>ADMIN PANEL</Typography>
-              <Typography variant="h4" sx={{ color: "white", fontWeight: 900 }}>PHOTO <span style={{ color: "#ef4444" }}>HISTORY</span></Typography>
+              <Typography variant="h4" sx={{ color: "white", fontWeight: 900 }}>
+                PHOTO <span style={{ color: "#ef4444" }}>VERIFICATIONS</span>
+              </Typography>
             </Box>
-            <Button 
-              variant="outlined" 
-              color="inherit" 
-              startIcon={<RefreshIcon />} 
-              onClick={fetchPhotos}
-              sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
-            >
-              Refresh
-            </Button>
+            <IconButton onClick={fetchPhotos} sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.05)' }}>
+              <RefreshIcon />
+            </IconButton>
           </Stack>
         </Container>
       </Paper>
 
       <Container maxWidth="xl">
-        {error && (
-          <Box sx={{ bgcolor: "rgba(239, 68, 68, 0.1)", p: 2, borderRadius: 2, mb: 4, border: "1px solid #ef4444" }}>
-            <Typography color="#ef4444">⚠️ {error}</Typography>
-          </Box>
-        )}
+        {error && <Alert severity="error" sx={{ mb: 4, bgcolor: '#450a0a', color: '#fca5a5' }}>{error}</Alert>}
 
         {data.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 10, border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 4 }}>
-            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '1.2rem' }}>No verification records found in database.</Typography>
+          <Box sx={{ textAlign: 'center', py: 10, color: 'rgba(255,255,255,0.3)', border: '1px dashed #334155', borderRadius: 4 }}>
+            <Typography>No photo records found.</Typography>
           </Box>
         ) : (
           <Grid container spacing={3}>
             {data.map((item) => (
               <Grid item xs={12} md={6} lg={4} key={item.id}>
                 <Card sx={{ 
-                  bgcolor: "#1e293b", 
+                  bgcolor: "#0f172a", 
                   color: "white", 
-                  borderRadius: 4, 
-                  overflow: 'hidden',
-                  border: item.status === 'APPROVED' ? '1px solid #22c55e' : '1px solid rgba(255,255,255,0.1)',
-                  transition: '0.3s',
-                  '&:hover': { transform: 'translateY(-5px)' }
+                  borderRadius: 3, 
+                  border: item.status === 'APPROVED' ? '1px solid #22c55e44' : '1px solid #334155' 
                 }}>
-                  {/* IMAGE SECTION */}
-                  <Box sx={{ position: 'relative', height: 260 }}>
+                  <Box sx={{ position: 'relative' }}>
                     <CardMedia
                       component="img"
-                      height="260"
+                      height="240"
                       image={`${API_BASE}/uploads/${item.verification_photo}`}
-                      alt="Check-in Proof"
-                      sx={{ filter: item.status === 'REJECTED' ? 'grayscale(1)' : 'none' }}
-                      onError={(e: any) => e.target.src = "https://via.placeholder.com/400x300?text=Image+Not+Found"}
+                      alt="Proof"
+                      sx={{ filter: item.status === 'REJECTED' ? 'grayscale(1) opacity(0.5)' : 'none' }}
+                      onError={(e: any) => e.target.src = "https://via.placeholder.com/400x300?text=Image+Missing"}
                     />
-                    <IconButton 
-                      href={`${API_BASE}/uploads/${item.verification_photo}`} 
-                      target="_blank"
-                      sx={{ position: 'absolute', top: 10, right: 10, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', '&:hover': { bgcolor: '#000' } }}
-                    >
-                      <OpenInNewIcon fontSize="small" />
-                    </IconButton>
-                    
-                    <Stack direction="row" spacing={1} sx={{ position: 'absolute', bottom: 10, left: 10 }}>
-                      <Chip 
-                        label={item.status} 
-                        size="small" 
-                        sx={{ fontWeight: 900, bgcolor: item.status === 'APPROVED' ? '#22c55e' : '#f97316', color: 'white' }} 
-                      />
-                      {item.is_late === 1 && <Chip label="LATE" size="small" color="error" sx={{ fontWeight: 900 }} />}
-                    </Stack>
+                    <Chip 
+                      label={item.status} 
+                      size="small" 
+                      sx={{ position: 'absolute', top: 12, left: 12, fontWeight: 900, bgcolor: item.status === 'APPROVED' ? '#22c55e' : '#f59e0b', color: 'white' }} 
+                    />
                   </Box>
 
-                  {/* CONTENT SECTION */}
                   <CardContent sx={{ p: 3 }}>
-                    <Typography variant="h6" fontWeight={900}>{item.coach_name || "Unknown Coach"}</Typography>
-                    <Typography variant="body2" sx={{ color: "#ef4444", mb: 2, fontWeight: 700 }}>📍 {item.locationName || "Unknown Location"}</Typography>
+                    <Typography variant="h6" fontWeight={800}>{item.coach_name || "Unknown Coach"}</Typography>
+                    <Typography variant="body2" color="#ef4444" sx={{ mb: 2, fontWeight: 700 }}>📍 {item.locationName}</Typography>
                     
-                    <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', mb: 2 }} />
-                    
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 3 }}>
-                      <Box>
-                        <Typography variant="caption" sx={{ opacity: 0.5 }}>Check-in Time</Typography>
-                        <Typography variant="body2">{new Date(item.checkin_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Typography>
-                      </Box>
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="caption" sx={{ opacity: 0.5 }}>Session Date</Typography>
-                        <Typography variant="body2">{new Date(item.session_date).toLocaleDateString()}</Typography>
-                      </Box>
-                    </Stack>
-
-                    {/* ACTION BUTTONS */}
                     <Stack direction="row" spacing={2}>
                       <Button
                         fullWidth
                         variant={item.status === 'APPROVED' ? "contained" : "outlined"}
                         color="success"
-                        disabled={btnLoading === item.id}
-                        onClick={() => updateStatus(item.id, 'APPROVED')}
+                        disabled={actionId === item.id}
+                        onClick={() => handleStatus(item.id, 'APPROVED')}
                         startIcon={<CheckCircleIcon />}
-                        sx={{ borderRadius: 2, fontWeight: 800 }}
+                        sx={{ borderRadius: 2, fontWeight: 700 }}
                       >
-                        {item.status === 'APPROVED' ? "APPROVED" : "APPROVE"}
+                        Approve
                       </Button>
                       <Button
                         fullWidth
                         variant={item.status === 'REJECTED' ? "contained" : "outlined"}
                         color="error"
-                        disabled={btnLoading === item.id}
-                        onClick={() => updateStatus(item.id, 'REJECTED')}
-                        startIcon={<ErrorOutlineIcon />}
-                        sx={{ borderRadius: 2, fontWeight: 800 }}
+                        disabled={actionId === item.id}
+                        onClick={() => handleStatus(item.id, 'REJECTED')}
+                        startIcon={<BlockIcon />}
+                        sx={{ borderRadius: 2, fontWeight: 700 }}
                       >
-                        FLAG
+                        Reject
                       </Button>
                     </Stack>
                   </CardContent>
