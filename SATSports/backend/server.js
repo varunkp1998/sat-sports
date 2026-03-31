@@ -26,21 +26,27 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".onrender.com")) {
+    const allowed = [
+      "https://sat-sports.vercel.app",
+      "https://www.sat-sports.in",
+      "https://sat-sports.in",
+      "https://sat-sports.onrender.com" // Add your Render frontend URL here
+    ];
+    // Allow local development and non-browser tools (like Postman)
+    if (!origin || allowed.indexOf(origin) !== -1 || origin.includes("localhost")) {
       callback(null, true);
     } else {
-      console.log("❌ Blocked by CORS:", origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
-// 1. Define Absolute Paths (The Source of Truth)
+
+// 2. Body Parsers
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));// 1. Define Absolute Paths (The Source of Truth)
 // 1. IMPORTS (Always at the top)
 const fs = require('fs');
 const path = require('path');
