@@ -41,7 +41,7 @@ app.use(cors({
 // 1. IMPORTS (Always at the top)
 const fs = require('fs');
 const path = require('path');
-
+const uploadCloud = require('./cloudinaryConfig');
 // 2. DEFINE CONSTANTS (Using path after it's required)
 const UPLOADS_ROOT = path.join(__dirname, 'uploads');
 const PROFILES_DIR = path.join(UPLOADS_ROOT, 'profiles');
@@ -1089,18 +1089,23 @@ app.get("/api/coach/sessions/:coachId", async (req, res) => {
     res.status(500).json({ error: "Failed to load sessions" });
   }
 });
-app.post("/api/coach/checkin", async (req, res) => {
+// --- Updated Check-in API with Cloudinary ---
+app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => {
   try {
+    // 1. Extract non-file fields from req.body (Multer populates this)
     const { coachId, sessionId, locationId, lat, lng } = req.body;
+    
+    // 2. Extract Cloudinary URL from req.file (Multer-Cloudinary populates this)
+    const verificationPhotoUrl = req.file ? req.file.path : null;
 
-    if (!coachId || !sessionId || !locationId || !lat || !lng) {
-      return res.status(400).json({ message: "Missing required fields" });
+    // Validation
+    if (!coachId || !sessionId || !locationId || !lat || !lng || !verificationPhotoUrl) {
+      return res.status(400).json({ 
+        message: "Missing required fields. Ensure you are sending a 'photo' file and coordinates." 
+      });
     }
 
-    ///////////////////////////////////////////////////////
-    // LOCATION CHECK
-    ///////////////////////////////////////////////////////
-
+    // --- A. Fetch Location for Distance Check ---
     const [[location]] = await db.query(
       "SELECT lat, lng FROM locations WHERE id = ?",
       [locationId]
@@ -1110,21 +1115,16 @@ app.post("/api/coach/checkin", async (req, res) => {
       return res.status(404).json({ message: "Location not found" });
     }
 
-    ///////////////////////////////////////////////////////
-    // DISTANCE CHECK
-    ///////////////////////////////////////////////////////
-
+    // --- B. Distance Check (0.2 km limit) ---
     const getDistance = (lat1, lon1, lat2, lon2) => {
       const R = 6371;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
       const a =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos(lat1 * Math.PI / 180) *
-        Math.cos(lat2 * Math.PI / 180) *
+        Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
         Math.sin(dLon / 2) ** 2;
-
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     };
 
@@ -1139,94 +1139,56 @@ app.post("/api/coach/checkin", async (req, res) => {
       return res.status(400).json({ message: "You are not at the location" });
     }
 
-    ///////////////////////////////////////////////////////
-    // PREVENT DUPLICATE (GRACEFUL)
-    ///////////////////////////////////////////////////////
+    // --- C. Duplicate Check ---
+    const [existing] = await db.query(
+      `SELECT id, checkout_time FROM coach_checkins WHERE coach_id=? AND session_id=?`,
+      [coachId, sessionId]
+    );
 
-  
-// BEFORE INSERT
-const [existing] = await db.query(
-  `SELECT id, checkout_time 
-   FROM coach_checkins
-   WHERE coach_id=? AND session_id=?`,
-  [coachId, sessionId]
-);
+    if (existing.length > 0 && existing[0].checkout_time) {
+      return res.status(400).json({ message: "Session already completed" });
+    }
 
-// ✅ If already checked out → DO NOT allow new check-in
-if (existing.length > 0 && existing[0].checkout_time) {
-  return res.status(400).json({
-    message: "Session already completed"
-  });
-}
+    if (existing.length > 0 && !existing[0].checkout_time) {
+      return res.json({ success: true, message: "Already checked in", isLate: 0 });
+    }
 
-// ✅ If already checked in → return success (no duplicate insert)
-if (existing.length > 0 && !existing[0].checkout_time) {
-  return res.json({
-    success: true,
-    message: "Already checked in",
-    isLate: 0
-  });
-}
-
-
-
-    ///////////////////////////////////////////////////////
-    // LATE DETECTION
-    ///////////////////////////////////////////////////////
-
+    // --- D. Late Detection ---
     const [[session]] = await db.query(
       `SELECT session_date, start_time FROM training_sessions WHERE id=?`,
       [sessionId]
     );
 
     const now = new Date();
-    const sessionStart = new Date(
-      `${session.session_date} ${session.start_time}`
-    );
-
+    const sessionStart = new Date(`${session.session_date} ${session.start_time}`);
     const isLate = now > sessionStart ? 1 : 0;
 
-    ///////////////////////////////////////////////////////
-    // INSERT
-    ///////////////////////////////////////////////////////
+    // --- E. Database Insert (Now storing the Cloudinary URL) ---
+    await db.query(
+      `INSERT INTO coach_checkins
+       (coach_id, session_id, location_id, lat, lng, checkin_time, is_late, verification_photo)
+       VALUES (?, ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+05:30'), ?, ?)`,
+      [coachId, sessionId, locationId, lat, lng, isLate, verificationPhotoUrl]
+    );
 
-await db.query(
-  `INSERT INTO coach_checkins
-   (coach_id, session_id, location_id, lat, lng, checkin_time, is_late)
-   VALUES (?, ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+05:30'), ?)`,
-  [coachId, sessionId, locationId, lat, lng, isLate]
-);
-
-
-    ///////////////////////////////////////////////////////
-    // 🔔 NOTIFICATION (OPTIONAL BUT INCLUDED)
-    ///////////////////////////////////////////////////////
-
+    // --- F. Notification ---
     if (isLate) {
       await db.query(
-        `INSERT INTO notifications
-         (type, title, message, coach_id, session_id)
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          "LATE_CHECKIN",
-          "Coach Late",
-          `Coach ${coachId} checked in late`,
-          coachId,
-          sessionId
-        ]
+        `INSERT INTO notifications (type, title, message, coach_id, session_id) VALUES (?, ?, ?, ?, ?)`,
+        ["LATE_CHECKIN", "Coach Late", `Coach ${coachId} checked in late`, coachId, sessionId]
       );
     }
 
-    ///////////////////////////////////////////////////////
-
+    // Success response
     res.json({
       success: true,
-      isLate
+      isLate,
+      photoUrl: verificationPhotoUrl // Returns the https://res.cloudinary.com/... link
     });
 
   } catch (err) {
     console.error("Check-in error:", err);
-    res.status(500).json({ message: "Check-in failed" });
+    res.status(500).json({ message: "Internal server error during check-in" });
   }
 });
 app.get("/api/coach/sessions/:sessionId/players", async (req, res) => {
