@@ -3726,3 +3726,29 @@ app.post("/api/coach/checkin/photo", upload.single('photo'), async (req, res) =>
     res.status(500).json({ message: "Photo check-in failed" });
   }
 });
+app.get("/api/admin/checkins/pending", async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT 
+        c.id, 
+        u.name as coach_name, 
+        s.session_date, 
+        s.start_time,
+        l.locationName,
+        c.verification_photo, 
+        c.checkin_time,
+        c.method,
+        c.is_late
+      FROM coach_checkins c
+      JOIN coaches co ON c.coach_id = co.coachId
+      JOIN users u ON co.user_id = u.id
+      JOIN training_sessions s ON c.session_id = s.id
+      JOIN locations l ON c.location_id = l.id
+      WHERE c.method = 'PHOTO'
+      ORDER BY c.checkin_time DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching verifications" });
+  }
+});
