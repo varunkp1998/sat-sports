@@ -64,8 +64,8 @@ export default function PlayerPayments() {
     const order = await res.json();
 
     const options = {
-      key: "rzp_test_YOUR_KEY", // Replace with your actual key
-      amount: order.amount,
+        key: import.meta.env.VITE_RAZORPAY_KEY,
+              amount: order.amount,
       currency: "INR",
       name: "SAT Sports Academy",
       description: `${sessions} sessions - ${plan}`,
