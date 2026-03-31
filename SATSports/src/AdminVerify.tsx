@@ -127,7 +127,7 @@ export default function AdminVerify() {
       </Box>
     );
   }
-
+  console.log("🔥 NEW BUILD WORKING");
   return (
     <Box sx={{ bgcolor: "#020617", minHeight: "100vh", pb: 10 }}>
       {/* HEADER */}
