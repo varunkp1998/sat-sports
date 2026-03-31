@@ -36,8 +36,7 @@ app.use(cors({
 }));
 
 // ✅ IMPORTANT
-app.options("*", cors());
-
+app.options("/*", cors());
 
 
 // 1. IMPORTS (Always at the top)
