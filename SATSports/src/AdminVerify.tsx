@@ -12,7 +12,7 @@ import dayjs from "dayjs";
 
 const MotionCard = motion(Card);
 
-type PendingCheckIn = {
+type CheckInRecord = {
   id: number;
   coach_name: string;
   session_date: string;
@@ -25,15 +25,16 @@ type PendingCheckIn = {
 };
 
 export default function AdminVerify() {
-  const [data, setData] = useState<PendingCheckIn[]>([]);
+  const [data, setData] = useState<CheckInRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<number | null>(null);
 
-  const fetchPending = async () => {
+  const fetchHistory = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/admin/checkins/pending`);
+      // Updated to fetch ALL photos
+      const res = await fetch(`${API_BASE}/api/admin/checkins/all-photos`);
       const json = await res.json();
       setData(json);
     } catch (err) {
@@ -44,7 +45,7 @@ export default function AdminVerify() {
   };
 
   useEffect(() => {
-    fetchPending();
+    fetchHistory();
   }, []);
 
   const handleStatusUpdate = async (id: number, newStatus: 'APPROVED' | 'REJECTED') => {
@@ -56,8 +57,10 @@ export default function AdminVerify() {
         body: JSON.stringify({ id, status: newStatus })
       });
       if (res.ok) {
-        // Remove from list or update local state
-        setData(prev => prev.filter(item => item.id !== id));
+        // Update local state instead of filtering out, so the card stays visible with new status
+        setData(prev => prev.map(item => 
+          item.id === id ? { ...item, status: newStatus } : item
+        ));
       }
     } catch (err) {
       alert("ACTION FAILED: DATABASE REJECTED UPDATE");
@@ -79,9 +82,9 @@ export default function AdminVerify() {
         <Box sx={{ mb: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <Box>
             <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 3 }}>COMMAND CENTER</Typography>
-            <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5 }}>PHOTO <span style={{ color: "#ef4444" }}>VERIFICATIONS</span></Typography>
+            <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5 }}>PHOTO <span style={{ color: "#ef4444" }}>HISTORY</span></Typography>
           </Box>
-          <IconButton onClick={fetchPending} sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.05)', p: 2 }}>
+          <IconButton onClick={fetchHistory} sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.05)', p: 2 }}>
             <RefreshIcon />
           </IconButton>
         </Box>
@@ -90,7 +93,7 @@ export default function AdminVerify() {
 
         {data.length === 0 ? (
           <Box sx={emptyStateStyle}>
-            <Typography variant="h5" fontWeight={800} sx={{ opacity: 0.3 }}>ALL FIELD AGENTS VERIFIED</Typography>
+            <Typography variant="h5" fontWeight={800} sx={{ opacity: 0.3 }}>NO PHOTO RECORDS FOUND</Typography>
           </Box>
         ) : (
           <Grid container spacing={4}>
@@ -101,8 +104,13 @@ export default function AdminVerify() {
                     layout
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    sx={verifyCardStyle}
+                    sx={{
+                      ...verifyCardStyle,
+                      // Add subtle border colors based on status
+                      border: item.status === 'APPROVED' ? '1px solid rgba(34, 197, 94, 0.3)' : 
+                              item.status === 'REJECTED' ? '1px solid rgba(239, 68, 68, 0.3)' : 
+                              '1px solid rgba(255,255,255,0.08)'
+                    }}
                   >
                     {/* PHOTO PREVIEW */}
                     <Box sx={{ position: 'relative' }}>
@@ -111,8 +119,22 @@ export default function AdminVerify() {
                         height="280"
                         image={`${API_BASE}/uploads/${item.verification_photo}`}
                         alt="Coach Proof"
-                        sx={{ filter: 'brightness(0.8) contrast(1.1)' }}
+                        sx={{ 
+                          filter: item.status === 'REJECTED' ? 'grayscale(1) brightness(0.5)' : 'brightness(0.8) contrast(1.1)',
+                          transition: 'filter 0.3s ease'
+                        }}
                       />
+                      
+                      {/* Floating Status Badges */}
+                      <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 15, left: 15 }}>
+                         <Chip 
+                            label={item.status} 
+                            size="small"
+                            sx={statusChipStyle(item.status)} 
+                          />
+                         {item.is_late === 1 && <Chip label="LATE" size="small" sx={lateChipStyle} />}
+                      </Stack>
+
                       <Tooltip title="View Original">
                         <IconButton 
                           onClick={() => window.open(`${API_BASE}/uploads/${item.verification_photo}`, '_blank')}
@@ -121,7 +143,6 @@ export default function AdminVerify() {
                           <OpenInNewIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      {item.is_late === 1 && <Chip label="LATE ARRIVAL" sx={lateChipStyle} />}
                     </Box>
 
                     <CardContent sx={{ p: 3 }}>
@@ -139,27 +160,27 @@ export default function AdminVerify() {
                         Session Date: {dayjs(item.session_date).format("DD MMM YYYY")}
                       </Typography>
 
-                      {/* ACTION BUTTONS */}
+                      {/* ACTION BUTTONS: Only show if PENDING or to allow re-evaluation */}
                       <Stack direction="row" spacing={2}>
                         <Button
                           fullWidth
-                          variant="contained"
+                          variant={item.status === 'APPROVED' ? "contained" : "outlined"}
                           startIcon={<CheckCircleIcon />}
                           disabled={updating === item.id}
                           onClick={() => handleStatusUpdate(item.id, 'APPROVED')}
-                          sx={approveBtnStyle}
+                          sx={item.status === 'APPROVED' ? approveBtnStyle : { ...approveBtnStyle, bgcolor: 'transparent', border: '1px solid #22c55e' }}
                         >
-                          APPROVE
+                          {item.status === 'APPROVED' ? "APPROVED" : "APPROVE"}
                         </Button>
                         <Button
                           fullWidth
-                          variant="outlined"
+                          variant={item.status === 'REJECTED' ? "contained" : "outlined"}
                           startIcon={<CancelIcon />}
                           disabled={updating === item.id}
                           onClick={() => handleStatusUpdate(item.id, 'REJECTED')}
-                          sx={rejectBtnStyle}
+                          sx={item.status === 'REJECTED' ? { ...rejectBtnStyle, bgcolor: '#ef4444', color: 'white' } : rejectBtnStyle}
                         >
-                          FLAG
+                          {item.status === 'REJECTED' ? "FLAGGED" : "FLAG"}
                         </Button>
                       </Stack>
                     </CardContent>
@@ -179,10 +200,18 @@ const verifyCardStyle = {
   borderRadius: 6,
   background: "rgba(255,255,255,0.03)",
   backdropFilter: "blur(20px)",
-  border: "1px solid rgba(255,255,255,0.08)",
   color: "white",
-  overflow: 'hidden'
+  overflow: 'hidden',
+  transition: 'all 0.3s ease'
 };
+
+const statusChipStyle = (status: string) => ({
+  bgcolor: status === 'APPROVED' ? '#22c55e' : status === 'REJECTED' ? '#ef4444' : '#f97316',
+  color: 'white',
+  fontWeight: 900,
+  fontSize: '0.65rem',
+  borderRadius: 1
+});
 
 const openBtnStyle = {
   position: 'absolute',
@@ -194,9 +223,6 @@ const openBtnStyle = {
 };
 
 const lateChipStyle = {
-  position: 'absolute',
-  bottom: 15,
-  left: 15,
   bgcolor: '#ef4444',
   color: 'white',
   fontWeight: 900,

@@ -3726,7 +3726,7 @@ app.post("/api/coach/checkin/photo", upload.single('photo'), async (req, res) =>
     res.status(500).json({ message: "Photo check-in failed" });
   }
 });
-app.get("/api/admin/checkins/pending", async (req, res) => {
+app.get("/api/admin/checkins/all-photos", async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT 
@@ -3738,7 +3738,8 @@ app.get("/api/admin/checkins/pending", async (req, res) => {
         c.verification_photo, 
         c.checkin_time,
         c.method,
-        c.is_late
+        c.is_late,
+        c.status  -- Added this to show current state in UI
       FROM coach_checkins c
       JOIN coaches co ON c.coach_id = co.coachId
       JOIN users u ON co.user_id = u.id
@@ -3749,6 +3750,7 @@ app.get("/api/admin/checkins/pending", async (req, res) => {
     `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: "Error fetching verifications" });
+    console.error("Fetch Error:", err);
+    res.status(500).json({ message: "Error fetching photo history" });
   }
 });
