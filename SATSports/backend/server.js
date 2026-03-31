@@ -3771,3 +3771,22 @@ app.get("/api/admin/checkins/all-photos", async (req, res) => {
     });
   }
 });
+app.patch("/api/admin/checkin/status", async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    if (!id || !status) {
+      return res.status(400).json({ message: "Missing id or status" });
+    }
+
+    await db.query(
+      "UPDATE coach_checkins SET status = ? WHERE id = ?",
+      [status, id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("VERIFY ERROR:", err);
+    res.status(500).json({ message: "Update failed" });
+  }
+});
