@@ -6,7 +6,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import AdminLocations from "./AdminLocations";
-import AdminVerify from "./AdminVerify.tsx";
+import AdminVerify from "./AdminVerify";
 import AdminNews from "./AdminNews.tsx";
 import AdminTournaments from "./AdminTournaments.tsx";
 import AdminRevenue from "./AdminRevenue.tsx";
@@ -1254,7 +1254,8 @@ const menuGroups = [
   <Route path="applications" element={<AdminApplications />} />
   <Route path="payroll" element={<AdminCoachPayroll />} />
   <Route path="private-bookings" element={<AdminPrivateBookings />} />
-  <Route path="/admin/verify-checkins" element={<AdminVerify />} />            </Routes>
+  <Route path="/admin/verify-checkins" element={<AdminVerify />} />           
+   </Routes>
       </Box>
     </Box>
   );
