@@ -1254,8 +1254,8 @@ const menuGroups = [
   <Route path="applications" element={<AdminApplications />} />
   <Route path="payroll" element={<AdminCoachPayroll />} />
   <Route path="private-bookings" element={<AdminPrivateBookings />} />
-  <Route path="/admin/verify-checkins" element={<AdminVerify />} />
-          </Routes>
+  <Route path="/admin/verify" element={<AdminVerify />} />
+            </Routes>
       </Box>
     </Box>
   );
