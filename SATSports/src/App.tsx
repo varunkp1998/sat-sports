@@ -6,6 +6,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import AdminLocations from "./AdminLocations";
+import AdminVerify from "./AdminVerify.tsx";
 import AdminNews from "./AdminNews.tsx";
 import AdminTournaments from "./AdminTournaments.tsx";
 import AdminRevenue from "./AdminRevenue.tsx";
@@ -1027,6 +1028,8 @@ const menuGroups = [
       { label: "📅 Attendance", path: "/admin/attendance" },
       { label: "📝 Leave Management", path: "/admin/leaves" },
       { label: "🟢 Live Coaches", path: "/admin/live" },
+      // --- NEW ADDITION ---
+      { label: "📸 Photo Verifications", path: "/admin/verify-checkins" },
     ]
   },
   {
@@ -1047,7 +1050,6 @@ const menuGroups = [
     ]
   }
 ];
-
  function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -1252,7 +1254,8 @@ const menuGroups = [
   <Route path="applications" element={<AdminApplications />} />
   <Route path="payroll" element={<AdminCoachPayroll />} />
   <Route path="private-bookings" element={<AdminPrivateBookings />} />
-        </Routes>
+  <Route path="/admin/verify-checkins" element={<AdminVerify />} />
+          </Routes>
       </Box>
     </Box>
   );
