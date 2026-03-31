@@ -20,10 +20,26 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const allowedOrigins = [
   "https://sat-sports.vercel.app",
   "https://www.sat-sports.in",
-  "https://sat-sports.in"
+  "https://sat-sports.in",
+  "https://sat-sports.onrender.com"
 ];
 
-
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".onrender.com")) {
+      callback(null, true);
+    } else {
+      console.log("❌ Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 // 1. Define Absolute Paths (The Source of Truth)
 // 1. IMPORTS (Always at the top)
 const fs = require('fs');
