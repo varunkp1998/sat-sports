@@ -182,15 +182,21 @@ export default function AdminVerify() {
                 <Card sx={{ bgcolor: "#0f172a", color: "white", borderRadius: 3 }}>
                   {/* IMAGE */}
                   <Box sx={{ position: "relative" }}>
-                    <CardMedia
-                      component="img"
-                      height="220"
-                      image={`${API_BASE}/uploads/${item.verification_photo || ""}`}
-                      onError={(e: any) => {
-                        e.target.src =
-                          "https://via.placeholder.com/400x300?text=No+Image";
-                      }}
-                    />
+                  <CardMedia
+  component="img"
+  height="220"
+  // This matches your app.use('/uploads', ...) configuration
+  image={`${API_BASE}/uploads/${item.verification_photo}`}
+  sx={{ 
+    objectFit: "cover", 
+    bgcolor: "#0f172a",
+    filter: "brightness(0.9)" // Optional: matches your dark theme better
+  }}
+  onError={(e: any) => {
+    console.error("Image 404 at:", e.target.src);
+    e.target.src = "https://via.placeholder.com/400x300?text=Image+Missing";
+  }}
+/>
 
                     <Chip
                       label={item.status || "PENDING"}
