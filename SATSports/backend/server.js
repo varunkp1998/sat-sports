@@ -29,17 +29,14 @@ app.use(express.urlencoded({ extended: true }));
 
 // ✅ CORS (ONLY ONCE)
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin) || origin.includes("localhost")) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+  origin: true,
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
+
+// ✅ IMPORTANT
+app.options("*", cors());
 
 
 
@@ -3761,6 +3758,8 @@ app.get("/api/admin/checkins/all-photos", async (req, res) => {
 });
 app.patch("/api/admin/checkin/status", async (req, res) => {
   console.log("BODY:", req.body); // 🔥 ADD THIS
+  console.log("HEADERS:", req.headers);
+  console.log("BODY:", req.body);
 
   const { id, status } = req.body;
 
