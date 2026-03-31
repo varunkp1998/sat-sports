@@ -185,16 +185,12 @@ export default function AdminVerify() {
                   <CardMedia
   component="img"
   height="220"
-  // This matches your app.use('/uploads', ...) configuration
-  image={`${API_BASE}/uploads/${item.verification_photo}`}
-  sx={{ 
-    objectFit: "cover", 
-    bgcolor: "#0f172a",
-    filter: "brightness(0.9)" // Optional: matches your dark theme better
-  }}
+  // Logic: Use the URL as is. It will be the Cloudinary HTTPS link for new check-ins.
+  image={item.verification_photo} 
+  sx={{ objectFit: "cover", borderRadius: "8px 8px 0 0" }}
   onError={(e: any) => {
-    console.error("Image 404 at:", e.target.src);
-    e.target.src = "https://via.placeholder.com/400x300?text=Image+Missing";
+    // Falls back to placeholder if image is missing (like your old 404 local files)
+    e.target.src = "https://via.placeholder.com/400x300?text=Image+Not+Found";
   }}
 />
 

@@ -90,34 +90,66 @@ export default function CoachSessions() {
   }, []);
 
   // --- CHECK-IN LOGIC ---
-  const handleCheckIn = async (sessionId: number, locationId: number) => {
+  const handleCheckIn = async (sessionId: number, locationId: number, photoFile?: File) => {
     setActionLoading(sessionId);
-    if (!navigator.geolocation) return startPhotoFallback(sessionId, locationId);
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const res = await fetch(`${API_BASE}/api/coach/checkin`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ coachId, sessionId, locationId, lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          });
-          const data = await res.json();
-          if (res.ok) {
-            setCheckedInMap(prev => ({ ...prev, [sessionId]: { checkedIn: true, completed: false, isLate: data.isLate || 0 } }));
+  
+    // 1. If we don't have a photo yet and geolocation is available, try geo-checkin first
+    // (Note: If your backend NOW requires a photo for ALL checkins, skip to Step 2)
+    if (!photoFile && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => performApiCall(pos.coords.latitude, pos.coords.longitude),
+        () => startPhotoFallback(sessionId, locationId),
+        { enableHighAccuracy: true, timeout: 6000 }
+      );
+      return;
+    }
+  
+    // 2. This helper function handles the actual multipart/form-data upload
+    async function performApiCall(lat: number, lng: number, file?: File) {
+      try {
+        const formData = new FormData();
+        formData.append("coachId", String(coachId));
+        formData.append("sessionId", String(sessionId));
+        formData.append("locationId", String(locationId));
+        formData.append("lat", String(lat));
+        formData.append("lng", String(lng));
+        
+        if (file) {
+          formData.append("photo", file); // Must match uploadCloud.single("photo") in backend
+        }
+  
+        const res = await fetch(`${API_BASE}/api/coach/checkin`, {
+          method: "POST",
+          // 🚨 IMPORTANT: Do NOT set Content-Type header when sending FormData
+          body: formData, 
+        });
+  
+        const data = await res.json();
+  
+        if (res.ok) {
+          setCheckedInMap(prev => ({ 
+            ...prev, 
+            [sessionId]: { 
+              checkedIn: true, 
+              completed: false, 
+              isLate: data.isLate || 0 
+            } 
+          }));
+        } else {
+          // If backend returns error (like "Not at location"), trigger photo fallback
+          if (!file && window.confirm(`${data.message}. Open camera for photo check-in?`)) {
+            startPhotoFallback(sessionId, locationId);
           } else {
-            if (window.confirm(`${data.message}. Open camera for photo check-in?`)) {
-              startPhotoFallback(sessionId, locationId);
-            }
+            setError(data.message || "CHECK-IN FAILED");
           }
-        } catch { setError("CHECK-IN FAILED"); }
-        finally { setActionLoading(null); }
-      },
-      () => startPhotoFallback(sessionId, locationId),
-      { enableHighAccuracy: true, timeout: 6000 }
-    );
+        }
+      } catch (err) {
+        setError("NETWORK ERROR DURING CHECK-IN");
+      } finally {
+        setActionLoading(null);
+      }
+    }
   };
-
   // --- CHECK-OUT LOGIC ---
   const handleCheckOut = async (sessionId: number) => {
     if (!window.confirm("TERMINATE SESSION? This cannot be undone.")) return;
