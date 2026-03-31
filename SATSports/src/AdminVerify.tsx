@@ -54,32 +54,41 @@ export default function AdminVerify() {
     fetchPhotos();
   }, []);
 
-  const handleStatus = async (id: number, status: string) => {
-    setActionId(id);
+const handleStatus = async (id: number, status: string) => {
+  console.log("Sending:", { id, status }); // 🔍 DEBUG
 
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/checkin/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status })
-      });
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/checkin/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        id: Number(id),     // 🔥 FORCE NUMBER
+        status: status
+      })
+    });
 
-      if (res.ok) {
-        setData((prev) =>
-          prev.map((item) =>
-            item.id === id ? { ...item, status } : item
-          )
-        );
-      } else {
-        alert("Update failed");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Network error");
-    } finally {
-      setActionId(null);
+    const data = await res.json();
+    console.log("Response:", data);
+
+    if (!res.ok) {
+      alert(data.message || "Update failed");
+      return;
     }
-  };
+
+    // ✅ update UI
+    setData(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, status } : item
+      )
+    );
+
+  } catch (err) {
+    console.error("VERIFY ERROR:", err);
+    alert("Network error");
+  }
+};
 
   // 🔥 LOADING SCREEN
   if (loading) {
