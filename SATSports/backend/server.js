@@ -41,7 +41,7 @@ app.use(cors({
 // 1. IMPORTS (Always at the top)
 const fs = require('fs');
 const path = require('path');
-const uploadCloud = require('./cloudinaryConfig');
+const uploadCloud = require('./CloudinaryConfig');
 // 2. DEFINE CONSTANTS (Using path after it's required)
 const UPLOADS_ROOT = path.join(__dirname, 'uploads');
 const PROFILES_DIR = path.join(UPLOADS_ROOT, 'profiles');
