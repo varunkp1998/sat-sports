@@ -3741,7 +3741,7 @@ app.get("/api/admin/checkins/all-photos", async (req, res) => {
         c.is_late,
         c.status
       FROM coach_checkins c
-      LEFT JOIN coaches co ON c.coach_id = co.coachId
+      LEFT JOIN coaches co ON c.coach_id = co.id -- Changed co.coachId to co.id
       LEFT JOIN users u ON co.user_id = u.id
       LEFT JOIN training_sessions s ON c.session_id = s.id
       LEFT JOIN locations l ON c.location_id = l.id
