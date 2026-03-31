@@ -71,7 +71,7 @@ export default function AdminVerify() {
   // 🔥 VERIFY ACTION
   const handleStatus = async (id: number, status: string) => {
     setActionId(id);
-
+  
     try {
       const res = await fetch(`${API_BASE}/api/admin/checkin/status`, {
         method: "PATCH",
@@ -83,23 +83,28 @@ export default function AdminVerify() {
           status
         })
       });
-
+  
+      const text = await res.text();
+      console.log("VERIFY RAW:", text);
+  
       if (!res.ok) {
-        const text = await res.text();
-        console.error("ERROR RESPONSE:", text);
         alert("Update failed");
         return;
       }
-
-      await safeParse(res);
-
-      // ✅ update UI instantly
+  
+      // ✅ DO NOT PARSE STRICTLY
+      try {
+        JSON.parse(text);
+      } catch {
+        console.warn("Non-JSON response, ignoring");
+      }
+  
       setData(prev =>
         prev.map(item =>
           item.id === id ? { ...item, status } : item
         )
       );
-
+  
     } catch (err) {
       console.error("VERIFY ERROR:", err);
       alert("Network error");
@@ -107,7 +112,6 @@ export default function AdminVerify() {
       setActionId(null);
     }
   };
-
   // 🔥 LOADING
   if (loading) {
     return (
