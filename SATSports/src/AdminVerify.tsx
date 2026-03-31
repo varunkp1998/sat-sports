@@ -27,6 +27,19 @@ export default function AdminVerify() {
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<number | null>(null);
 
+  // 🔥 SAFE JSON PARSER
+  const safeParse = async (res: Response) => {
+    const text = await res.text();
+    console.log("RAW:", text);
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error("Invalid JSON response");
+    }
+  };
+
+  // 🔥 FETCH DATA
   const fetchPhotos = async () => {
     setLoading(true);
     setError(null);
@@ -34,16 +47,17 @@ export default function AdminVerify() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/checkins/all-photos`);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
 
-      const json = await res.json();
-
-      console.log("API DATA:", json);
+      const json = await safeParse(res);
 
       setData(Array.isArray(json) ? json : []);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load data. Backend may be down.");
+    } catch (err: any) {
+      console.error("FETCH ERROR:", err);
+      setError("Failed to load data");
       setData([]);
     } finally {
       setLoading(false);
@@ -54,45 +68,47 @@ export default function AdminVerify() {
     fetchPhotos();
   }, []);
 
-const handleStatus = async (id: number, status: string) => {
-  console.log("Sending:", { id, status }); // 🔍 DEBUG
+  // 🔥 VERIFY ACTION
+  const handleStatus = async (id: number, status: string) => {
+    setActionId(id);
 
-  try {
-    const res = await fetch(`${API_BASE}/api/admin/checkin/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        id: Number(id),     // 🔥 FORCE NUMBER
-        status: status
-      })
-    });
-    const text = await res.text();
-    console.log("RAW:", text);
-    
-    const data = JSON.parse(text);
-    console.log("Response:", data);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/checkin/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: Number(id),
+          status
+        })
+      });
 
-    if (!res.ok) {
-      alert(data.message || "Update failed");
-      return;
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("ERROR RESPONSE:", text);
+        alert("Update failed");
+        return;
+      }
+
+      await safeParse(res);
+
+      // ✅ update UI instantly
+      setData(prev =>
+        prev.map(item =>
+          item.id === id ? { ...item, status } : item
+        )
+      );
+
+    } catch (err) {
+      console.error("VERIFY ERROR:", err);
+      alert("Network error");
+    } finally {
+      setActionId(null);
     }
+  };
 
-    // ✅ update UI
-    setData(prev =>
-      prev.map(item =>
-        item.id === id ? { ...item, status } : item
-      )
-    );
-
-  } catch (err) {
-    console.error("VERIFY ERROR:", err);
-    alert("Network error");
-  }
-};
-
-  // 🔥 LOADING SCREEN
+  // 🔥 LOADING
   if (loading) {
     return (
       <Box
@@ -145,33 +161,21 @@ const handleStatus = async (id: number, status: string) => {
           </Alert>
         )}
 
-        {/* EMPTY STATE */}
+        {/* EMPTY */}
         {!loading && data.length === 0 && !error && (
-          <Box
-            sx={{
-              textAlign: "center",
-              color: "#94a3b8",
-              mt: 10
-            }}
-          >
+          <Box sx={{ textAlign: "center", color: "#94a3b8", mt: 10 }}>
             <Typography>No records found</Typography>
           </Box>
         )}
 
         {/* GRID */}
         <Grid container spacing={3}>
-          {data.map((item) => {
-            if (!item) return null;
+          {(data || []).map((item, index) => {
+            if (!item || typeof item !== "object") return null;
 
             return (
-              <Grid item xs={12} sm={6} md={4} key={item.id}>
-                <Card
-                  sx={{
-                    bgcolor: "#0f172a",
-                    color: "white",
-                    borderRadius: 3
-                  }}
-                >
+              <Grid item xs={12} sm={6} md={4} key={item.id || index}>
+                <Card sx={{ bgcolor: "#0f172a", color: "white", borderRadius: 3 }}>
                   {/* IMAGE */}
                   <Box sx={{ position: "relative" }}>
                     <CardMedia
@@ -208,12 +212,14 @@ const handleStatus = async (id: number, status: string) => {
                       {item.coach_name || "Unknown Coach"}
                     </Typography>
 
-                    <Typography fontSize={13} color="#ef4444">
-                      📍 {item.locationName}
+                    <Typography fontSize={13}>
+                      📍 {item.locationName || "Unknown Location"}
                     </Typography>
 
                     <Typography fontSize={12} color="#94a3b8">
-                      {new Date(item.checkin_time).toLocaleString()}
+                      {item.checkin_time
+                        ? new Date(item.checkin_time).toLocaleString()
+                        : "No time"}
                     </Typography>
 
                     <Stack direction="row" spacing={1} mt={2}>
@@ -221,10 +227,8 @@ const handleStatus = async (id: number, status: string) => {
                         fullWidth
                         variant="contained"
                         color="success"
-                        disabled={actionId === item.id}
-                        onClick={() =>
-                          handleStatus(item.id, "APPROVED")
-                        }
+                        disabled={actionId === item.id || item.status === "APPROVED"}
+                        onClick={() => handleStatus(item.id, "APPROVED")}
                         startIcon={<CheckCircleIcon />}
                       >
                         Approve
@@ -234,10 +238,8 @@ const handleStatus = async (id: number, status: string) => {
                         fullWidth
                         variant="contained"
                         color="error"
-                        disabled={actionId === item.id}
-                        onClick={() =>
-                          handleStatus(item.id, "REJECTED")
-                        }
+                        disabled={actionId === item.id || item.status === "REJECTED"}
+                        onClick={() => handleStatus(item.id, "REJECTED")}
                         startIcon={<BlockIcon />}
                       >
                         Reject
