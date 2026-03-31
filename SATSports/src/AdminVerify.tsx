@@ -1,77 +1,65 @@
-import { useEffect, useState } from "react";
-import { Box, Typography, Grid, Card, CardContent, CircularProgress, Container, Alert } from "@mui/material";
-import API_BASE from "./api";
+import React, { useEffect, useState } from "react";
+
+// Minimalist fallback for API_BASE if your import is failing
+const BACKEND_URL = "https://sat-sports.onrender.com";
 
 export default function AdminVerify() {
   const [data, setData] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [internalError, setInternalError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        console.log("Attempting fetch from:", `${API_BASE}/api/admin/checkins/all-photos`);
-        const res = await fetch(`${API_BASE}/api/admin/checkins/all-photos`);
-        
-        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-        
-        const json = await res.json();
-        console.log("Data received successfully:", json);
+    console.log("AdminVerify Mounted. Fetching...");
+    
+    fetch(`${BACKEND_URL}/api/admin/checkins/all-photos`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        return res.json();
+      })
+      .then((json) => {
+        console.log("Data loaded:", json);
         setData(json);
-      } catch (err: any) {
-        console.error("Frontend Fetch Error:", err);
-        setInternalError(err.message);
-      } finally {
         setLoading(false);
-      }
-    };
-
-    fetchData();
+      })
+      .catch((err) => {
+        console.error("Fetch failed:", err);
+        setError(err.message);
+        setLoading(false);
+      });
   }, []);
 
-  if (loading) return <Box sx={{ p: 5, textAlign: 'center', color: 'white' }}><CircularProgress color="error" /><Typography>Loading Field Data...</Typography></Box>;
+  if (loading) return <div style={{ color: 'white', padding: '20px' }}>Loading Field Data...</div>;
+  if (error) return <div style={{ color: 'red', padding: '20px' }}>Error: {error}</div>;
 
   return (
-    <Box sx={{ background: "#020617", minHeight: "100vh", color: "white", p: 4 }}>
-      <Container maxWidth="xl">
-        <Typography variant="h4" fontWeight={900} sx={{ mb: 4 }}>
-          COMMAND <span style={{ color: '#ef4444' }}>VERIFY</span>
-        </Typography>
+    <div style={{ backgroundColor: "#020617", minHeight: "100vh", color: "white", padding: "40px", fontFamily: "sans-serif" }}>
+      <h1 style={{ borderBottom: "2px solid #ef4444", paddingBottom: "10px" }}>
+        PHOTO <span style={{ color: "#ef4444" }}>VERIFICATIONS</span>
+      </h1>
 
-        {internalError && (
-          <Alert severity="error" sx={{ mb: 4 }}>
-            CONNECTION ERROR: {internalError} 
-            <br /> Check if your Backend URL is correct: {API_BASE}
-          </Alert>
-        )}
-
-        {data.length === 0 && !internalError ? (
-          <Typography>No records found. The API returned an empty list [ ].</Typography>
-        ) : (
-          <Grid container spacing={3}>
-            {data.map((item) => (
-              <Grid item xs={12} md={4} key={item.id}>
-                <Card sx={{ bgcolor: "#1e293b", color: "white", p: 2 }}>
-                  <Typography variant="h6">{item.coach_name || "Unknown Coach"}</Typography>
-                  <Typography variant="body2" sx={{ color: '#ef4444' }}>{item.locationName}</Typography>
-                  <Box 
-                    component="img" 
-                    src={`${API_BASE}/uploads/${item.verification_photo}`} 
-                    sx={{ width: '100%', height: 200, objectFit: 'cover', mt: 2, borderRadius: 2 }}
-                    onError={(e: any) => e.target.src = "https://via.placeholder.com/300?text=No+Image+Found"}
-                  />
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-
-        {/* --- DEBUGGER: REMOVE THIS ONCE FIXED --- */}
-        <Box sx={{ mt: 10, p: 2, bgcolor: '#000', border: '1px solid #333', fontSize: '10px' }}>
-          <Typography variant="caption" color="gray">DEBUG LOG:</Typography>
-          <pre>{JSON.stringify(data, null, 2)}</pre>
-        </Box>
-      </Container>
-    </Box>
+      {data.length === 0 ? (
+        <p>No photos found in database.</p>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px", marginTop: "20px" }}>
+          {data.map((item) => (
+            <div key={item.id} style={{ background: "#1e293b", borderRadius: "12px", overflow: "hidden", border: "1px solid #334155" }}>
+              <img 
+                src={`${BACKEND_URL}/uploads/${item.verification_photo}`} 
+                alt="Coach" 
+                style={{ width: "100%", height: "250px", objectFit: "cover" }}
+                onError={(e: any) => { e.target.src = "https://via.placeholder.com/300?text=No+Image+Found"; }}
+              />
+              <div style={{ padding: "15px" }}>
+                <h3 style={{ margin: "0 0 5px 0" }}>{item.coach_name || "Unknown Coach"}</h3>
+                <p style={{ color: "#ef4444", margin: "0", fontSize: "14px", fontWeight: "bold" }}>{item.locationName}</p>
+                <div style={{ marginTop: "10px", fontSize: "12px", opacity: 0.6 }}>
+                  Status: <span style={{ color: item.status === 'APPROVED' ? '#22c55e' : '#f97316' }}>{item.status}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
