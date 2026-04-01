@@ -2948,122 +2948,125 @@ app.get("/api/admin/tournaments/:id/matches", async (req, res) => {
 });
 
 app.post("/api/private-bookings", async (req, res) => {
-  const { name, email, phone, location_id, booking_date, time_slot } = req.body;
+  const { name, email, phone, location_id, booking_date, start_time, end_time } = req.body;
 
   try {
+    // Utility to convert "09:00 AM" to "09:00:00"
+    const formatTime = (t) => {
+      return dayjs(t, "hh:mm A").format("HH:mm:ss");
+    };
+
+    const sTime = formatTime(start_time);
+    const eTime = formatTime(end_time);
+
+    // ROBUSTNESS CHECK: Ensure end is after start
+    if (sTime >= eTime) {
+      return res.status(400).json({ message: "End time must be after start time" });
+    }
+
     await db.query(`
       INSERT INTO private_bookings
-      (name, email, phone, location_id, booking_date, time_slot)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [name, email, phone, location_id, booking_date, time_slot]);
+      (name, email, phone, location_id, booking_date, start_time, end_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [name, email, phone, location_id, booking_date, sTime, eTime]);
 
     res.json({ success: true });
-
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Booking failed" });
+    console.error("BOOKING_ERROR:", err);
+    res.status(500).json({ message: "Server error during booking" });
   }
 });
+// 1. GET ALL BOOKINGS (Updated with location and coach joins)
 app.get("/api/admin/private-bookings", async (req, res) => {
-  const [rows] = await db.query(`
-    SELECT b.*, l.name AS location_name, c.name AS coach_name
-    FROM private_bookings b
-    LEFT JOIN locations l ON b.location_id = l.id
-    LEFT JOIN coaches c ON b.coach_id = c.id
-    ORDER BY b.created_at DESC
-  `);
-
-  res.json(rows);
+  try {
+    const [rows] = await db.query(`
+      SELECT b.*, l.name AS location_name, c.name AS coach_name
+      FROM private_bookings b
+      LEFT JOIN locations l ON b.location_id = l.id
+      LEFT JOIN coaches c ON b.coach_id = c.id
+      ORDER BY b.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Fetch failed" });
+  }
 });
+
+// 2. APPROVE BOOKING (Updated to create full training session)
 app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
   const { id } = req.params;
   const { coach_id, court_id } = req.body;
+  
+  const connection = await db.getConnection();
   try {
-    const [[booking]] = await db.query(
-      "SELECT * FROM private_bookings WHERE id=?",
-      [id]
+    await connection.beginTransaction();
+
+    const [[booking]] = await connection.query(
+      "SELECT * FROM private_bookings WHERE id=?", [id]
     );
 
     if (!booking) {
+      await connection.rollback();
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // 1️⃣ UPDATE BOOKING
-    await db.query(`
-      UPDATE private_bookings
-      SET status='approved', coach_id=?, court_id=?
+    // UPDATE BOOKING STATUS
+    await connection.query(`
+      UPDATE private_bookings 
+      SET status='approved', coach_id=?, location_id=? 
       WHERE id=?
-    `, [coach_id, court_id, id]);
+    `, [coach_id, court_id || booking.location_id, id]);
 
-    // 2️⃣ CREATE SESSION
-    await db.query(`
+    // CREATE OFFICIAL TRAINING SESSION (Robust logic)
+    // Note: booking.start_time and booking.end_time should be in 'HH:mm:ss' format
+    await connection.query(`
       INSERT INTO training_sessions 
-(coach_id, session_date, start_time, end_time, location_id)
-VALUES (?, ?, ?, ?, ?)
+      (coach_id, session_date, start_time, end_time, location_id, category)
+      VALUES (?, ?, ?, ?, ?, 'Private')
     `, [
       coach_id,
       booking.booking_date,
-      booking.time_slot,
-      null,
-      booking.location_id
+      booking.start_time,
+      booking.end_time,
+      court_id || booking.location_id
     ]);
 
-    // 3️⃣ SEND EMAIL (RESEND)
-    try {
-      await resend.emails.send({
-        from: "SAT Sports <no-reply@sat-sports.in>",
-        to: booking.email,
-        subject: "🎾 Your Session is Confirmed!",
-        html: `
+    await connection.commit();
+
+    // SEND EMAIL (Non-blocking)
+    resend.emails.send({
+      from: "SAT Sports <no-reply@sat-sports.in>",
+      to: booking.email,
+      subject: "🎾 Your Session is Confirmed!",
+      html: `
         <div style="font-family:Arial,sans-serif;background:#f5f7fb;padding:20px;">
-          
-          <div style="max-width:500px;margin:auto;background:white;border-radius:12px;overflow:hidden;">
-            
-            <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:20px;text-align:center;color:white;">
-              <h2 style="margin:0;">SAT Sports 🎾</h2>
+          <div style="max-width:500px;margin:auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:25px;text-align:center;color:white;">
+              <h2 style="margin:0;letter-spacing:1px;">SAT Sports 🎾</h2>
               <p style="opacity:0.8;margin-top:5px;">Private Session Confirmed</p>
             </div>
-      
-            <div style="padding:20px;">
+            <div style="padding:30px;color:#334155;">
               <h3 style="margin-top:0;">Hi ${booking.name},</h3>
-      
-              <p>Your private session has been <b style="color:#16a34a;">approved</b> 🎉</p>
-      
-              <div style="background:#f1f5f9;padding:15px;border-radius:10px;margin:15px 0;">
-                <p><b>Date:</b> ${booking.booking_date}</p>
-                <p><b>Time:</b> ${booking.time_slot}</p>
+              <p>Great news! Your private session request has been <b style="color:#16a34a;">Approved</b>.</p>
+              <div style="background:#f1f5f9;padding:20px;border-radius:10px;margin:20px 0;border-left:4px solid #3b82f6;">
+                <p style="margin:5px 0;">📅 <b>Date:</b> ${dayjs(booking.booking_date).format("MMM DD, YYYY")}</p>
+                <p style="margin:5px 0;">⏰ <b>Time:</b> ${booking.start_time.substring(0,5)} - ${booking.end_time.substring(0,5)}</p>
               </div>
-      
-              <p>We look forward to seeing you on court! 🏆</p>
-      
-              <div style="text-align:center;margin-top:20px;">
-                <a href="https://www.sat-sports.in"
-                   style="background:#f97316;color:white;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">
-                  View Details
-                </a>
+              <p>Prepare your gear and we'll see you at the court! 🏆</p>
+              <div style="text-align:center;margin-top:30px;">
+                <a href="https://www.sat-sports.in" style="background:#f97316;color:white;padding:14px 25px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">View Academy Portal</a>
               </div>
             </div>
-      
-            <div style="text-align:center;padding:10px;font-size:12px;color:#64748b;">
-              © SAT Sports
-            </div>
-      
           </div>
-        </div>
-        `
-      });
-
-      console.log("✅ Email sent to:", booking.email);
-
-    } catch (emailErr) {
-      console.error("❌ Email failed:", emailErr);
-    }
+        </div>`
+    }).catch(e => console.error("Email failed:", e));
 
     res.json({ success: true });
-
   } catch (err) {
-    console.error("APPROVE ERROR:", err);
+    await connection.rollback();
     res.status(500).json({ message: "Approval failed" });
+  } finally {
+    connection.release();
   }
 });
 app.put("/api/admin/private-bookings/:id/reject", async (req, res) => {
