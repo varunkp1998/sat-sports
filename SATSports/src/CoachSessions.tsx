@@ -228,34 +228,6 @@ const capturePhotoCheckIn = async () => {
     }
   };
 
-  const capturePhotoCheckIn = async () => {
-    if (!videoRef.current || !showCamera) return;
-    setActionLoading(showCamera.sessionId);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext("2d")?.drawImage(videoRef.current, 0, 0);
-
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      const formData = new FormData();
-      formData.append("photo", blob, "verification.jpg");
-      formData.append("coachId", coachId!);
-      formData.append("sessionId", showCamera.sessionId.toString());
-      formData.append("locationId", showCamera.locationId.toString());
-
-      try {
-        const res = await fetch(`${API_BASE}/api/coach/checkin/photo`, { method: "POST", body: formData });
-        if (res.ok) {
-          const stream = videoRef.current?.srcObject as MediaStream;
-          stream?.getTracks().forEach(t => t.stop());
-          setCheckedInMap(prev => ({ ...prev, [showCamera.sessionId]: { checkedIn: true, completed: false, isLate: 0 } }));
-          setShowCamera(null);
-        }
-      } finally { setActionLoading(null); }
-    }, "image/jpeg", 0.7);
-  };
 
   const filteredSessions = useMemo(() => {
     return sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate);
