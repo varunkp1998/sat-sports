@@ -20,12 +20,10 @@ export default function PrivateBooking() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // State for Pickers
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().set('hour', 7).set('minute', 0));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().set('hour', 8).set('minute', 0));
+  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().set('hour', 7).set('minute', 0).set('second', 0));
+  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().set('hour', 8).set('minute', 0).set('second', 0));
   const [bookingDate, setBookingDate] = useState<Dayjs | null>(dayjs());
   
-  // State for Form Fields
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -36,31 +34,26 @@ export default function PrivateBooking() {
   useEffect(() => {
     fetch(`${API_BASE}/api/admin/locations`)
       .then(res => res.json())
-      .then(setLocations)
-      .catch(err => console.error("Error fetching locations:", err));
+      .then(setLocations);
   }, []);
 
   const submit = async () => {
-    // 1. Basic Validation
     if (!form.name || !form.email || !form.phone || !form.location_id || !bookingDate || !startTime || !endTime) {
       alert("Please fill in all fields.");
-      return;
-    }
-
-    // 2. Logic Validation (Frontend side)
-    if (endTime.isBefore(startTime) || endTime.isSame(startTime)) {
-      alert("End time must be after start time");
       return;
     }
 
     setLoading(true);
     try {
       const payload = {
-        ...form,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        location_id: form.location_id,
         booking_date: bookingDate.format("YYYY-MM-DD"),
-        // Using 24-hour format (HH:mm:ss) to prevent Backend 400 errors
-        start_time: startTime.format("HH:mm:ss"), 
-        end_time: endTime.format("HH:mm:ss")
+        // Sending clean 24h time without seconds to avoid backend logic errors
+        start_time: startTime.format("HH:mm"), 
+        end_time: endTime.format("HH:mm")
       };
 
       const res = await fetch(`${API_BASE}/api/private-bookings`, {
@@ -70,15 +63,14 @@ export default function PrivateBooking() {
       });
       
       const result = await res.json();
-
       if (res.ok) {
         alert("Booking Requested! 🎾");
       } else {
-        // Log the specific backend error if the request fails
-        alert(`Error: ${result.message || "Something went wrong"}`);
+        // This will show the exact error from the server
+        alert(result.message || "End time must be after start time");
       }
     } catch (err) {
-      alert("Network error. Please check your connection.");
+      alert("Network error.");
     } finally {
       setLoading(false);
     }
@@ -94,79 +86,55 @@ export default function PrivateBooking() {
 
           <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Box textAlign="center" mb={4}>
-              <Typography variant="h3" fontWeight={900} color="white">
+              <Typography variant="h4" fontWeight={900} color="white">
                 BOOK A <span style={{ color: "#3b82f6" }}>SESSION</span>
-              </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-                Pick an exact date and time for your training
               </Typography>
             </Box>
 
             <Card sx={glassCardStyle}>
               <CardContent sx={{ p: 4 }}>
-                <Stack spacing={3}>
-                  {/* Name */}
+                <Stack spacing={2.5}>
                   <TextField 
                     label="Full Name" fullWidth sx={inputStyle}
                     value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon/></InputAdornment> }}
                   />
 
-                  {/* Email */}
                   <TextField 
                     label="Email Address" fullWidth sx={inputStyle}
                     value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon/></InputAdornment> }}
                   />
 
-                  {/* Phone */}
                   <TextField 
                     label="Phone Number" fullWidth sx={inputStyle}
                     value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon/></InputAdornment> }}
                   />
 
-                  {/* Location */}
                   <TextField
                     select fullWidth label="Location" sx={inputStyle} value={form.location_id}
                     onChange={(e) => setForm({ ...form, location_id: e.target.value })}
-                    SelectProps={{ MenuProps: { PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } } }}
                   >
                     {locations.map((loc) => (
-                      <MenuItem key={loc.id} value={loc.id} sx={{ color: "white" }}>{loc.name}</MenuItem>
+                      <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
                     ))}
                   </TextField>
 
-                  {/* Booking Date */}
                   <DatePicker
                     label="Booking Date"
                     value={bookingDate}
                     onChange={(newValue) => setBookingDate(newValue)}
-                    slotProps={{
-                      textField: { 
-                        fullWidth: true, 
-                        sx: inputStyle,
-                        InputProps: {
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <CalendarMonthIcon sx={{ color: "#3b82f6" }} />
-                            </InputAdornment>
-                          ),
-                        }
-                      }
-                    }}
+                    slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
                   />
 
-                  {/* Time Range */}
                   <Grid container spacing={2}>
                     <Grid item xs={6}>
                       <TimePicker
                         label="From"
                         value={startTime}
                         onChange={(newValue) => setStartTime(newValue)}
-                        slotProps={{
-                          textField: { fullWidth: true, sx: timePickerStyle }
-                        }}
+                        slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
                       />
                     </Grid>
                     <Grid item xs={6}>
@@ -174,9 +142,7 @@ export default function PrivateBooking() {
                         label="To"
                         value={endTime}
                         onChange={(newValue) => setEndTime(newValue)}
-                        slotProps={{
-                          textField: { fullWidth: true, sx: timePickerStyle }
-                        }}
+                        slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
                       />
                     </Grid>
                   </Grid>
@@ -194,39 +160,27 @@ export default function PrivateBooking() {
   );
 }
 
-// --- STYLES ---
+// --- REVISED STYLES TO FIX THE WHITE BOX ISSUE ---
 const pageWrapperStyle = { minHeight: "100vh", bgcolor: "#020617", py: 6 };
-const glassCardStyle = { bgcolor: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", backgroundImage: "none" };
+const glassCardStyle = { bgcolor: "#0f172a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", boxShadow: 'none' };
 
 const inputStyle = {
   "& .MuiOutlinedInput-root": {
+    bgcolor: "transparent", // Fixes the white background from the screenshot
+    color: "white",
     "& fieldset": { borderColor: "rgba(255,255,255,0.2)", borderRadius: "12px" },
     "&:hover fieldset": { borderColor: "rgba(255,255,255,0.4)" },
     "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
   },
-  // CRITICAL: Fixes black text in Date/Time inputs
   "& .MuiInputBase-input": { 
     color: "#ffffff !important", 
     "-webkit-text-fill-color": "#ffffff !important" 
   },
   "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.7) !important" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6 !important" },
   "& .MuiSvgIcon-root": { color: "#3b82f6" }
-};
-
-const timePickerStyle = {
-  ...inputStyle,
-  "& .MuiOutlinedInput-root": {
-    "& .MuiIconButton-root": { color: "#3b82f6" }
-  },
-  "& .MuiInputBase-input": { 
-    color: "#ffffff !important", 
-    "-webkit-text-fill-color": "#ffffff !important" 
-  }
 };
 
 const submitBtnStyle = {
   py: 1.5, background: "linear-gradient(135deg, #3b82f6, #2563eb)", 
-  fontWeight: 900, borderRadius: "12px", mt: 2,
-  "&:disabled": { background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" }
+  fontWeight: 900, borderRadius: "12px", mt: 2 
 };
