@@ -2951,15 +2951,23 @@ app.post("/api/private-bookings", async (req, res) => {
   const { name, email, phone, location_id, booking_date, start_time, end_time } = req.body;
 
   try {
-    // Utility to convert "09:00 AM" to "09:00:00"
+    // UPDATED UTILITY: Handles "07:00" OR "07:00 AM"
     const formatTime = (t) => {
-      return dayjs(t, "hh:mm A").format("HH:mm:ss");
+      // Try parsing as 24h first, then 12h AM/PM
+      const parsed = dayjs(t, ["HH:mm", "hh:mm A", "HH:mm:ss"]);
+      if (!parsed.isValid()) return null;
+      return parsed.format("HH:mm:ss");
     };
 
     const sTime = formatTime(start_time);
     const eTime = formatTime(end_time);
 
-    // ROBUSTNESS CHECK: Ensure end is after start
+    // Check if parsing failed
+    if (!sTime || !eTime) {
+       return res.status(400).json({ message: "Invalid time format received" });
+    }
+
+    // This comparison will now work correctly
     if (sTime >= eTime) {
       return res.status(400).json({ message: "End time must be after start time" });
     }
