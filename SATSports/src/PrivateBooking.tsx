@@ -5,13 +5,14 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import PersonIcon from "@mui/icons-material/Person";
+import EmailIcon from "@mui/icons-material/Email";
+import PhoneIcon from "@mui/icons-material/Phone";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import API_BASE from "./api";
 import dayjs from "dayjs";
-import customParseFormat from "dayjs/plugin/customParseFormat";
-
-// Required to parse the "07:00 AM" format in the browser
-dayjs.extend(customParseFormat);
 
 const MotionBox = motion(Box);
 
@@ -33,65 +34,54 @@ export default function PrivateBooking() {
     fetch(`${API_BASE}/api/admin/locations`)
       .then(res => res.json())
       .then(setLocations)
-      .catch(err => console.error("Location fetch error:", err));
+      .catch(err => console.error("Failed to load locations", err));
   }, []);
 
-  // Generates 30-minute intervals for the clock type selection
   const timeOptions = useMemo(() => {
     const slots = [];
     for (let hour = 6; hour <= 21; hour++) {
       for (let min of ["00", "30"]) {
-        const h = hour > 12 ? hour - 12 : hour;
+        const displayHour = hour > 12 ? hour - 12 : hour;
         const ampm = hour >= 12 ? "PM" : "AM";
-        slots.push(`${h}:${min} ${ampm}`);
+        slots.push(`${displayHour}:${min} ${ampm}`);
       }
     }
     return slots;
   }, []);
 
+  const convertTo24Hour = (timeStr: string) => {
+    const [time, modifier] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":");
+    if (modifier === "PM" && hours !== "12") hours = String(parseInt(hours) + 12);
+    if (modifier === "AM" && hours === "12") hours = "00";
+    return `${hours.padStart(2, "0")}:${minutes}:00`;
+  };
+
   const submit = async () => {
-    // Frontend validation to prevent unnecessary API calls
     if (!form.name || !form.location_id || !form.booking_date) {
       alert("Please fill in all required fields.");
       return;
     }
 
-    const start = dayjs(form.start_time, "hh:mm A");
-    const end = dayjs(form.end_time, "hh:mm A");
-
-    if (!end.isAfter(start)) {
-      alert("Error: End time must be after start time");
-      return;
-    }
+    const payload = {
+      ...form,
+      // Sending Start Time to your current 'time_slot' column
+      time_slot: convertTo24Hour(form.start_time) 
+    };
 
     setLoading(true);
     try {
-      // MATCHES BACKEND: We send the raw AM/PM strings because your 
-      // backend handles the formatTime conversion.
       const res = await fetch(`${API_BASE}/api/private-bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          email: form.email.trim(),
-          phone: form.phone.trim(),
-          location_id: form.location_id,
-          booking_date: form.booking_date,
-          start_time: form.start_time, 
-          end_time: form.end_time
-        })
+        body: JSON.stringify(payload)
       });
-      
-      const result = await res.json();
-
       if (res.ok) {
         alert("Booking Requested Successfully! 🎾");
         setForm({ ...form, name: "", email: "", phone: "" });
-      } else {
-        alert(`Error: ${result.message || "Failed to book"}`);
       }
     } catch (err) {
-      alert("Network error. Please check your connection.");
+      alert("Booking failed. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -105,60 +95,95 @@ export default function PrivateBooking() {
         </IconButton>
 
         <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <Box textAlign="center" mb={4}>
+            <Typography variant="h3" fontWeight={900} sx={{ color: "white", letterSpacing: -1 }}>
+              BOOK A <span style={{ color: "#3b82f6" }}>SESSION</span>
+            </Typography>
+            <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
+              Reserve your personalized coaching or court time
+            </Typography>
+          </Box>
+
           <Card sx={glassCardStyle}>
             <CardContent sx={{ p: 4 }}>
               <Stack spacing={3}>
-                <Typography variant="h5" fontWeight={800} color="white" textAlign="center">
-                  PRIVATE SESSION
+                <Typography variant="caption" fontWeight={800} sx={{ color: "#3b82f6", letterSpacing: 1 }}>
+                  STEP 1: CONTACT DETAILS
                 </Typography>
                 
-                <TextField label="Full Name" fullWidth sx={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <TextField 
+                  label="Full Name" fullWidth sx={inputStyle}
+                  value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon sx={{color: '#3b82f6'}}/></InputAdornment> }}
+                />
 
                 <Grid container spacing={2}>
-                  <Grid item xs={6}><TextField label="Email" fullWidth sx={inputStyle} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Grid>
-                  <Grid item xs={6}><TextField label="Phone" fullWidth sx={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField label="Email" fullWidth sx={inputStyle} value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon sx={{color: '#3b82f6'}}/></InputAdornment> }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField label="Phone" fullWidth sx={inputStyle} value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon sx={{color: '#3b82f6'}}/></InputAdornment> }}
+                    />
+                  </Grid>
                 </Grid>
 
-                <TextField
-                  select fullWidth label="Location" sx={inputStyle} value={form.location_id}
+                <Box sx={{ height: '1px', bgcolor: 'rgba(255,255,255,0.1)', my: 1 }} />
+
+                <Typography variant="caption" fontWeight={800} sx={{ color: "#3b82f6", letterSpacing: 1 }}>
+                  STEP 2: SESSION LOGISTICS
+                </Typography>
+
+                <Select
+                  fullWidth sx={selectStyle} value={form.location_id} displayEmpty
                   onChange={(e) => setForm({ ...form, location_id: e.target.value })}
-                  SelectProps={{ MenuProps: { PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } } }}
+                  startAdornment={<InputAdornment position="start"><LocationOnIcon sx={{color: '#3b82f6', ml: 1}}/></InputAdornment>}
+                  MenuProps={{ PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } }}
                 >
-                  <MenuItem value="" disabled>Select Location</MenuItem>
-                  {locations.map((loc) => <MenuItem key={loc.id} value={loc.id} sx={{color: 'white'}}>{loc.name}</MenuItem>)}
-                </TextField>
+                  <MenuItem value="" disabled sx={{ color: "rgba(255,255,255,0.5)" }}>Select Preferred Court/Location</MenuItem>
+                  {locations.map((loc) => (
+                    <MenuItem key={loc.id} value={loc.id} sx={{ color: "white" }}>{loc.name}</MenuItem>
+                  ))}
+                </Select>
 
                 <TextField
-                  type="date" label="Booking Date" fullWidth sx={inputStyle}
-                  InputLabelProps={{ shrink: true }}
-                  value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })}
+                  type="date" fullWidth sx={inputStyle} value={form.booking_date}
+                  onChange={(e) => setForm({ ...form, booking_date: e.target.value })}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon sx={{color: '#3b82f6'}}/></InputAdornment> }}
                 />
 
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
-                    <TextField 
-                      select fullWidth label="Start" sx={timeFieldStyle} 
-                      value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{ startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{ color: "#3b82f6", fontSize: 18 }} /></InputAdornment> }}
+                    <TextField
+                      select fullWidth label="From" sx={inputStyle} value={form.start_time}
+                      onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                      InputProps={{ startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{color: '#3b82f6'}}/></InputAdornment> }}
+                      SelectProps={{ MenuProps: { PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } } }}
                     >
-                      {timeOptions.map(t => <MenuItem key={t} value={t} sx={{color: 'white'}}>{t}</MenuItem>)}
+                      {timeOptions.map(t => <MenuItem key={t} value={t} sx={{ color: "white" }}>{t}</MenuItem>)}
                     </TextField>
                   </Grid>
                   <Grid item xs={6}>
-                    <TextField 
-                      select fullWidth label="End" sx={timeFieldStyle} 
-                      value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{ startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{color: "#3b82f6", fontSize: 18 }} /></InputAdornment> }}
+                    <TextField
+                      select fullWidth label="To" sx={inputStyle} value={form.end_time}
+                      onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                      InputProps={{ startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{color: '#3b82f6'}}/></InputAdornment> }}
+                      SelectProps={{ MenuProps: { PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } } }}
                     >
-                      {timeOptions.map(t => <MenuItem key={t} value={t} sx={{color: 'white'}}>{t}</MenuItem>)}
+                      {timeOptions.map(t => <MenuItem key={t} value={t} sx={{ color: "white" }}>{t}</MenuItem>)}
                     </TextField>
                   </Grid>
                 </Grid>
 
-                <Button fullWidth variant="contained" onClick={submit} disabled={loading} sx={submitBtnStyle}>
-                  {loading ? "BOOKING..." : "BOOK SESSION 🚀"}
+                <Button
+                  fullWidth variant="contained" onClick={submit} disabled={loading}
+                  sx={submitBtnStyle}
+                >
+                  {loading ? "SENDING..." : "REQUEST BOOKING 🚀"}
                 </Button>
               </Stack>
             </CardContent>
@@ -169,32 +194,41 @@ export default function PrivateBooking() {
   );
 }
 
-// --- CSS FIXES FOR VISIBILITY ---
-const pageWrapperStyle = { minHeight: "100vh", bgcolor: "#020617", py: 6 };
-const glassCardStyle = { bgcolor: "rgba(255,255,255,0.03)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)" };
+const pageWrapperStyle = { 
+  minHeight: "100vh", bgcolor: "#020617", py: 6,
+  background: "radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent), #020617" 
+};
+
+const glassCardStyle = { 
+  borderRadius: 6, bgcolor: "rgba(255,255,255,0.02)", 
+  backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)",
+  boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)" 
+};
 
 const inputStyle = {
   "& .MuiOutlinedInput-root": {
     color: "white",
-    "& fieldset": { borderColor: "rgba(255,255,255,0.2)", borderRadius: "12px" },
+    "& fieldset": { borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px" },
+    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.3)" },
     "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
+    bgcolor: "rgba(255,255,255,0.02)"
   },
-  "& .MuiInputLabel-root": { color: "#ffffff !important" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6 !important" }
+  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6" },
+  "& .MuiSvgIcon-root": { color: "white" },
+  // FIX FOR DATE/SELECT ICONS
+  "& input::-webkit-calendar-picker-indicator": { filter: "invert(1)" }
 };
 
-const timeFieldStyle = {
-  ...inputStyle,
-  "& .MuiInputLabel-root": {
-    transform: "translate(14px, -9px) scale(0.75)",
-    background: "#020617",
-    padding: "0 4px",
-    color: "#ffffff !important"
-  },
-  "& .MuiSelect-select": { paddingLeft: "4px !important" }
+const selectStyle = { 
+  ...inputStyle, 
+  "& .MuiSelect-select": { color: "white !important" } 
 };
 
-const submitBtnStyle = { 
-  py: 1.5, background: "linear-gradient(135deg, #3b82f6, #2563eb)", 
-  fontWeight: 900, borderRadius: "12px", mt: 2 
+const submitBtnStyle = {
+  py: 2, borderRadius: 4, fontWeight: 900,
+  background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+  boxShadow: "0 15px 30px rgba(37, 99, 235, 0.4)",
+  "&:hover": { transform: "translateY(-2px)", boxShadow: "0 20px 40px rgba(37, 99, 235, 0.5)" },
+  transition: "all 0.3s"
 };
