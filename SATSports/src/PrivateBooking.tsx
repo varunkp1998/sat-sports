@@ -20,10 +20,12 @@ export default function PrivateBooking() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
+  // State for Pickers
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().set('hour', 7).set('minute', 0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().set('hour', 8).set('minute', 0));
   const [bookingDate, setBookingDate] = useState<Dayjs | null>(dayjs());
   
+  // State for Form Fields
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -39,8 +41,15 @@ export default function PrivateBooking() {
   }, []);
 
   const submit = async () => {
+    // 1. Basic Validation
     if (!form.name || !form.email || !form.phone || !form.location_id || !bookingDate || !startTime || !endTime) {
       alert("Please fill in all fields.");
+      return;
+    }
+
+    // 2. Logic Validation (Frontend side)
+    if (endTime.isBefore(startTime) || endTime.isSame(startTime)) {
+      alert("End time must be after start time");
       return;
     }
 
@@ -49,8 +58,9 @@ export default function PrivateBooking() {
       const payload = {
         ...form,
         booking_date: bookingDate.format("YYYY-MM-DD"),
-        start_time: startTime.format("hh:mm A"),
-        end_time: endTime.format("hh:mm A")
+        // Using 24-hour format (HH:mm:ss) to prevent Backend 400 errors
+        start_time: startTime.format("HH:mm:ss"), 
+        end_time: endTime.format("HH:mm:ss")
       };
 
       const res = await fetch(`${API_BASE}/api/private-bookings`, {
@@ -59,9 +69,16 @@ export default function PrivateBooking() {
         body: JSON.stringify(payload)
       });
       
-      if (res.ok) alert("Booking Requested! 🎾");
+      const result = await res.json();
+
+      if (res.ok) {
+        alert("Booking Requested! 🎾");
+      } else {
+        // Log the specific backend error if the request fails
+        alert(`Error: ${result.message || "Something went wrong"}`);
+      }
     } catch (err) {
-      alert("Network error.");
+      alert("Network error. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -81,41 +98,46 @@ export default function PrivateBooking() {
                 BOOK A <span style={{ color: "#3b82f6" }}>SESSION</span>
               </Typography>
               <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-                Pick an exact time for your training
+                Pick an exact date and time for your training
               </Typography>
             </Box>
 
             <Card sx={glassCardStyle}>
               <CardContent sx={{ p: 4 }}>
                 <Stack spacing={3}>
+                  {/* Name */}
                   <TextField 
                     label="Full Name" fullWidth sx={inputStyle}
                     value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon/></InputAdornment> }}
                   />
 
+                  {/* Email */}
                   <TextField 
                     label="Email Address" fullWidth sx={inputStyle}
                     value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon/></InputAdornment> }}
                   />
 
+                  {/* Phone */}
                   <TextField 
                     label="Phone Number" fullWidth sx={inputStyle}
                     value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon/></InputAdornment> }}
                   />
 
+                  {/* Location */}
                   <TextField
                     select fullWidth label="Location" sx={inputStyle} value={form.location_id}
                     onChange={(e) => setForm({ ...form, location_id: e.target.value })}
+                    SelectProps={{ MenuProps: { PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } } }}
                   >
                     {locations.map((loc) => (
-                      <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
+                      <MenuItem key={loc.id} value={loc.id} sx={{ color: "white" }}>{loc.name}</MenuItem>
                     ))}
                   </TextField>
 
-                  {/* Added Date Picker Field */}
+                  {/* Booking Date */}
                   <DatePicker
                     label="Booking Date"
                     value={bookingDate}
@@ -135,6 +157,7 @@ export default function PrivateBooking() {
                     }}
                   />
 
+                  {/* Time Range */}
                   <Grid container spacing={2}>
                     <Grid item xs={6}>
                       <TimePicker
@@ -177,27 +200,33 @@ const glassCardStyle = { bgcolor: "rgba(255,255,255,0.02)", borderRadius: 6, bor
 
 const inputStyle = {
   "& .MuiOutlinedInput-root": {
-    color: "white", // This ensures text inside is white
     "& fieldset": { borderColor: "rgba(255,255,255,0.2)", borderRadius: "12px" },
+    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.4)" },
     "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
   },
+  // CRITICAL: Fixes black text in Date/Time inputs
+  "& .MuiInputBase-input": { 
+    color: "#ffffff !important", 
+    "-webkit-text-fill-color": "#ffffff !important" 
+  },
   "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.7) !important" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6 !important" },
   "& .MuiSvgIcon-root": { color: "#3b82f6" }
 };
 
 const timePickerStyle = {
   ...inputStyle,
-  // Specifically targeting the input element for TimePicker
-  "& .MuiInputBase-input": { 
-    color: "white !important", 
-    "-webkit-text-fill-color": "white !important" // Fix for some browser defaults
-  },
   "& .MuiOutlinedInput-root": {
     "& .MuiIconButton-root": { color: "#3b82f6" }
+  },
+  "& .MuiInputBase-input": { 
+    color: "#ffffff !important", 
+    "-webkit-text-fill-color": "#ffffff !important" 
   }
 };
 
 const submitBtnStyle = {
   py: 1.5, background: "linear-gradient(135deg, #3b82f6, #2563eb)", 
-  fontWeight: 900, borderRadius: "12px", mt: 2 
+  fontWeight: 900, borderRadius: "12px", mt: 2,
+  "&:disabled": { background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" }
 };
