@@ -1095,16 +1095,14 @@ app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => 
     const { coachId, sessionId, locationId, lat, lng } = req.body;
     const verificationPhotoUrl = req.file ? req.file.path : null;
 
-    // 1. Basic Validation (Photo is now OPTIONAL here)
     if (!coachId || !sessionId || !locationId || !lat || !lng) {
       return res.status(400).json({ message: "Missing coordinates or IDs" });
     }
 
-    // 2. Fetch Location
     const [locations] = await db.query("SELECT lat, lng FROM locations WHERE id = ?", [locationId]);
+    if (locations.length === 0) return res.status(404).json({ message: "Location not found" });
     const location = locations[0];
 
-    // 3. Distance Check
     const getDistance = (lat1, lon1, lat2, lon2) => {
       const R = 6371;
       const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -1113,10 +1111,9 @@ app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => 
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     };
 
-    const distance = getDistance(lat, lng, location.lat, location.lng);
+    // Use parseFloat to ensure numbers
+    const distance = getDistance(parseFloat(lat), parseFloat(lng), parseFloat(location.lat), parseFloat(location.lng));
 
-    // --- THE LOGIC GATE ---
-    // If they are far away AND they haven't provided a photo yet, reject so frontend opens camera.
     if (distance > 0.2 && !verificationPhotoUrl) {
       return res.status(403).json({ 
         requiresPhoto: true, 
@@ -1124,10 +1121,13 @@ app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => 
       });
     }
 
-    // 4. If distance is fine OR photo is provided, proceed to check-in
     const [sessions] = await db.query(`SELECT session_date, start_time FROM training_sessions WHERE id=?`, [sessionId]);
+    if (sessions.length === 0) return res.status(404).json({ message: "Session details not found" });
+
     const now = new Date();
-    const isLate = now > new Date(`${dayjs(sessions[0].session_date).format("YYYY-MM-DD")} ${sessions[0].start_time}`) ? 1 : 0;
+    // Using native Date if dayjs isn't available, or ensure dayjs is required at top
+    const sessionStart = new Date(`${dayjs(sessions[0].session_date).format("YYYY-MM-DD")} ${sessions[0].start_time}`);
+    const isLate = now > sessionStart ? 1 : 0;
 
     await db.query(
       `INSERT INTO coach_checkins (coach_id, session_id, location_id, lat, lng, checkin_time, is_late, verification_photo)
@@ -1137,7 +1137,8 @@ app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => 
 
     res.json({ success: true, isLate });
   } catch (err) {
-    res.status(500).json({ message: "Server Error" });
+    console.error("CRASH LOG:", err);
+    res.status(500).json({ message: "Internal Server Error", details: err.message });
   }
 });
 app.get("/api/coach/sessions/:sessionId/players", async (req, res) => {
