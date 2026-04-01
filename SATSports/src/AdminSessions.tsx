@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Stack, TextField, Button, 
   MenuItem, Table, TableHead, TableRow, TableCell, TableBody, 
   IconButton, useMediaQuery, useTheme, Fade, Paper, 
-  Snackbar, Alert, Chip, ToggleButton, ToggleButtonGroup, Switch, FormControlLabel
+  Snackbar, Alert, Chip, ToggleButton, ToggleButtonGroup, Switch, FormControlLabel, CircularProgress
 } from "@mui/material";
 import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -20,6 +20,7 @@ const DAYS = [
 ];
 
 export default function AdminSessions() {
+  // Data States
   const [sessions, setSessions] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [coaches, setCoaches] = useState<any[]>([]);
@@ -40,20 +41,26 @@ export default function AdminSessions() {
   const [programIds, setProgramIds] = useState<number[]>([]);
   const [filterDate, setFilterDate] = useState(dayjs().format("YYYY-MM-DD"));
 
+  // UI States
   const [toast, setToast] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
   const [isSaving, setIsSaving] = useState(false);
+  const theme = useTheme();
 
   const loadData = async () => {
-    const [sRes, lRes, cRes, pRes] = await Promise.all([
-      fetch(`${API_BASE}/api/admin/sessions`),
-      fetch(`${API_BASE}/api/admin/locations`),
-      fetch(`${API_BASE}/api/admin/coaches`),
-      fetch(`${API_BASE}/api/admin/programs`)
-    ]);
-    setSessions(await sRes.json());
-    setLocations(await lRes.json());
-    setCoaches(await cRes.json());
-    setPrograms(await pRes.json());
+    try {
+      const [sRes, lRes, cRes, pRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/sessions`),
+        fetch(`${API_BASE}/api/admin/locations`),
+        fetch(`${API_BASE}/api/admin/coaches`),
+        fetch(`${API_BASE}/api/admin/programs`)
+      ]);
+      setSessions(await sRes.json());
+      setLocations(await lRes.json());
+      setCoaches(await cRes.json());
+      setPrograms(await pRes.json());
+    } catch (err) {
+      setToast({ open: true, message: "Server connection failed", severity: "error" });
+    }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -65,11 +72,13 @@ export default function AdminSessions() {
     setCoachId("");
     setSelectedDays([]);
     setIsMultiDay(false);
+    setDate(dayjs().format("YYYY-MM-DD"));
   };
 
   const saveSession = async () => {
     if (!locationId || !coachId || programIds.length === 0) {
-      return setToast({ open: true, message: "Missing fields", severity: "error" });
+      setToast({ open: true, message: "Please fill all fields", severity: "error" });
+      return;
     }
 
     setIsSaving(true);
@@ -85,13 +94,15 @@ export default function AdminSessions() {
       if (!isMultiDay || editingId) {
         // Standard single save or Update
         const url = editingId ? `${API_BASE}/api/admin/sessions/${editingId}` : `${API_BASE}/api/admin/sessions`;
-        await fetch(url, {
+        const res = await fetch(url, {
           method: editingId ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...basePayload, session_date: date })
         });
+        if (!res.ok) throw new Error();
       } else {
         // Multi-day Bulk Insert
+        if (selectedDays.length === 0) throw new Error("Select at least one day");
         let current = dayjs(date);
         const last = dayjs(endDate);
         const promises = [];
@@ -111,7 +122,7 @@ export default function AdminSessions() {
         await Promise.all(promises);
       }
 
-      setToast({ open: true, message: "Schedule Sync Complete", severity: "success" });
+      setToast({ open: true, message: "Sessions Synced Successfully", severity: "success" });
       loadData();
       resetForm();
     } catch (err) {
@@ -121,47 +132,88 @@ export default function AdminSessions() {
     }
   };
 
+  const deleteSession = async (id: number) => {
+    if (!window.confirm("Delete this session?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setToast({ open: true, message: "Session Deleted", severity: "success" });
+        loadData();
+      }
+    } catch (err) {
+      setToast({ open: true, message: "Delete failed", severity: "error" });
+    }
+  };
+
+  const editSession = (s: any) => {
+    setEditingId(s.id);
+    setIsMultiDay(false);
+    setDate(dayjs(s.session_date).format("YYYY-MM-DD"));
+    setStartTime(dayjs(s.start_time, "HH:mm:ss"));
+    setEndTime(dayjs(s.end_time, "HH:mm:ss"));
+    setLocationId(s.location_id);
+    setCoachId(s.coach_id);
+    setProgramIds(s.program_ids || []);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const filteredSessions = sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box sx={containerStyle}>
         
-        <Stack direction="row" justifyContent="space-between" mb={4}>
-          <Typography variant="h4" fontWeight={900}>Schedule Manager</Typography>
+        {/* HEADER */}
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems="center" mb={6}>
+          <Box>
+            <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">Training Schedule</Typography>
+            <Typography variant="body2" color="text.secondary">Configure court times and staff assignments</Typography>
+          </Box>
+          
           <Paper sx={filterPaperStyle}>
-            <TextField type="date" size="small" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} variant="standard" InputProps={{ disableUnderline: true }} />
+            <FilterListIcon sx={{ color: 'text.secondary', mr: 1 }} />
+            <TextField
+              type="date" size="small" value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              variant="standard" InputProps={{ disableUnderline: true, sx: { fontWeight: 700 } }}
+              sx={{ width: 140 }}
+            />
+            <Chip label={`${filteredSessions.length} Sessions`} size="small" sx={countChipStyle} />
           </Paper>
         </Stack>
 
-        <Fade in>
+        {/* INPUT FORM */}
+        <Fade in timeout={600}>
           <Card sx={glassCardStyle}>
-            <CardContent sx={{ p: 4 }}>
+            <CardContent sx={{ p: { xs: 3, md: 6 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
-                <Typography variant="h6" fontWeight={800}>{editingId ? "Edit Session" : "New Assignment"}</Typography>
+                <Typography variant="h6" fontWeight={800} display="flex" alignItems="center" color="#1e293b">
+                  <AddBoxIcon sx={{ mr: 1.5, color: '#3b82f6' }} />
+                  {editingId ? "Edit Training Details" : "Schedule New Session"}
+                </Typography>
                 {!editingId && (
                   <FormControlLabel
                     control={<Switch checked={isMultiDay} onChange={(e) => setIsMultiDay(e.target.checked)} color="primary" />}
-                    label={<Typography fontWeight={700}>Repeat Schedule</Typography>}
+                    label={<Typography fontWeight={700} variant="body2">Repeat Schedule</Typography>}
                   />
                 )}
               </Stack>
 
               <Stack spacing={4} sx={{ maxWidth: '800px' }}>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                  <TextField fullWidth label={isMultiDay ? "Start Date" : "Date"} type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
-                  {isMultiDay && (
-                    <TextField fullWidth label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
-                  )}
+                   <TextField fullWidth label={isMultiDay ? "Start Date" : "Session Date"} type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
+                   {isMultiDay && (
+                     <TextField fullWidth label="Repeat Until" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
+                   )}
                 </Stack>
 
                 {isMultiDay && (
                   <Box>
-                    <Typography variant="caption" fontWeight={700} color="text.secondary" gutterBottom>REPEAT ON DAYS</Typography>
+                    <Typography variant="caption" fontWeight={900} color="text.secondary" sx={{ letterSpacing: 1, mb: 1, display: 'block' }}>SELECT DAYS TO ASSIGN</Typography>
                     <ToggleButtonGroup 
                       fullWidth value={selectedDays} 
                       onChange={(_, val) => setSelectedDays(val)}
-                      sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}
+                      sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}
                     >
                       {DAYS.map(d => (
                         <ToggleButton key={d.value} value={d.value} sx={dayToggleStyle}>
@@ -171,61 +223,114 @@ export default function AdminSessions() {
                     </ToggleButtonGroup>
                   </Box>
                 )}
-
+                
                 <Stack direction="row" spacing={2}>
-                  <TimePicker label="Start" value={startTime} onChange={setStartTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
-                  <TimePicker label="End" value={endTime} onChange={setEndTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
+                  <TimePicker label="Start Time" value={startTime} onChange={setStartTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
+                  <TimePicker label="End Time" value={endTime} onChange={setEndTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
                 </Stack>
 
-                <Stack direction="row" spacing={2}>
-                  <TextField select fullWidth label="Coach" value={coachId} onChange={(e) => setCoachId(e.target.value)} sx={inputStyle}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <TextField select fullWidth label="Assigned Coach" value={coachId} onChange={(e) => setCoachId(e.target.value)} sx={inputStyle}>
                     {coaches.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
                   </TextField>
-                  <TextField select fullWidth label="Location" value={locationId} onChange={(e) => setLocationId(e.target.value)} sx={inputStyle}>
+                  <TextField select fullWidth label="Location / Court" value={locationId} onChange={(e) => setLocationId(e.target.value)} sx={inputStyle}>
                     {locations.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
                   </TextField>
                 </Stack>
 
                 <TextField
-                  select fullWidth label="Programs" value={programIds}
+                  select fullWidth label="Target Programs" value={programIds}
                   onChange={(e) => setProgramIds(typeof e.target.value === "string" ? e.target.value.split(",").map(Number) : (e.target.value as number[]))}
                   SelectProps={{ multiple: true }} sx={inputStyle}
                 >
                   {programs.map(p => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
                 </TextField>
 
-                <Button onClick={saveSession} disabled={isSaving} sx={primaryBtnStyle}>
-                  {isSaving ? "Processing..." : editingId ? "Update Session" : isMultiDay ? "Generate Multiple Sessions" : "Confirm Session"}
-                </Button>
+                <Box pt={2}>
+                  <Stack direction="row" spacing={2}>
+                    <Button onClick={saveSession} disabled={isSaving} sx={primaryBtnStyle}>
+                      {isSaving ? <CircularProgress size={24} color="inherit" /> : editingId ? "Update Schedule" : isMultiDay ? "Generate Multi-Day Sessions" : "Confirm Session"}
+                    </Button>
+                    {editingId && (
+                      <Button onClick={resetForm} variant="outlined" sx={{ borderRadius: 3, fontWeight: 700, px: 4 }}>Cancel</Button>
+                    )}
+                  </Stack>
+                </Box>
               </Stack>
             </CardContent>
           </Card>
         </Fade>
 
-        {/* AGENDA LIST REMAINS UNCHANGED */}
-        <Box mt={6}>
-            {/* ... List Mapping ... */}
+        {/* AGENDA GRID */}
+        <Box mt={10}>
+          <Typography variant="h5" fontWeight={900} mb={3} letterSpacing="-1px">Daily Agenda</Typography>
+          
+          {filteredSessions.length === 0 ? (
+            <Paper sx={emptyPaperStyle}>No training sessions scheduled for this date.</Paper>
+          ) : (
+            <Paper sx={tableWrapperStyle}>
+              <Table>
+                <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                  <TableRow>
+                    <TableCell sx={thStyle}>TIME SLOT</TableCell>
+                    <TableCell sx={thStyle}>COACH</TableCell>
+                    <TableCell sx={thStyle}>LOCATION</TableCell>
+                    <TableCell sx={thStyle}>PROGRAMS</TableCell>
+                    <TableCell sx={thStyle} align="right">ACTIONS</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredSessions.map(s => (
+                    <TableRow key={s.id} sx={{ '&:hover': { bgcolor: '#fcfcfd' } }}>
+                      <TableCell sx={{ py: 3 }}>
+                        <Typography variant="body2" fontWeight={800} color="#1e293b">
+                          {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")} – {dayjs(s.end_time, "HH:mm:ss").format("hh:mm A")}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={700} color="#3b82f6">{s.coachName}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600} color="text.secondary">{s.locationName}</Typography>
+                      </TableCell>
+                      <TableCell>
+                         <Typography variant="caption" fontWeight={700} color="text.secondary">{s.programTitles}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton size="small" onClick={() => editSession(s)} sx={{ mr: 1 }}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error" onClick={() => deleteSession(s.id)}><DeleteIcon fontSize="small" /></IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Paper>
+          )}
         </Box>
 
-        <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({ ...toast, open: false })}>
-          <Alert severity={toast.severity}>{toast.message}</Alert>
+        <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })}>
+          <Alert severity={toast.severity} variant="filled">{toast.message}</Alert>
         </Snackbar>
       </Box>
     </LocalizationProvider>
   );
 }
 
-// Additional Styles
-const dayToggleStyle = { 
-  flex: 1, 
-  borderRadius: "12px !important", 
-  border: "1px solid #e2e8f0 !important",
-  fontWeight: 900,
-  "&.Mui-selected": { bgcolor: "#3b82f6 !important", color: "white" }
-};
-
+// --- STYLES ---
 const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
-const filterPaperStyle = { p: "10px 20px", display: 'flex', alignItems: 'center', borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none' };
-const glassCardStyle = { borderRadius: 6, border: '1px solid #e2e8f0', boxShadow: '0 10px 30px rgba(0,0,0,0.04)', bgcolor: 'white' };
-const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 3 } };
-const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 900, background: '#1e293b', color: 'white', "&:hover": { background: '#0f172a' } };
+const filterPaperStyle = { p: "10px 20px", display: 'flex', alignItems: 'center', borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none', bgcolor: 'white' };
+const countChipStyle = { ml: 2, bgcolor: '#4f46e5', color: 'white', fontWeight: 900 };
+const glassCardStyle = { borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 20px 40px -12px rgba(0,0,0,0.05)', bgcolor: 'white' };
+const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: '#fcfcfd' } };
+const primaryBtnStyle = {
+  px: 6, py: 1.5, borderRadius: 3, fontWeight: 900, textTransform: 'none',
+  background: 'linear-gradient(135deg, #2563eb, #4f46e5)', color: 'white',
+  "&:hover": { transform: 'translateY(-2px)' }
+};
+const tableWrapperStyle = { borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: 'none' };
+const thStyle = { fontWeight: 900, color: '#64748b', fontSize: '0.75rem', letterSpacing: 1.5, py: 2 };
+const emptyPaperStyle = { p: 8, textAlign: 'center', color: '#94a3b8', borderRadius: 6, border: '1px dashed #cbd5e1', bgcolor: 'transparent', fontWeight: 700 };
+const dayToggleStyle = { 
+  flex: 1, borderRadius: "12px !important", border: "1px solid #e2e8f0 !important", fontWeight: 900,
+  "&.Mui-selected": { bgcolor: "#2563eb !important", color: "white" }
+};
