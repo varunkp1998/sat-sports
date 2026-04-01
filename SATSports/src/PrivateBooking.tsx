@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
   Box, Typography, Button, TextField, Card, CardContent,
-  Stack, Container, IconButton, InputAdornment, Grid, MenuItem
+  Stack, Container, IconButton, InputAdornment, Grid, MenuItem,
+  CircularProgress
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import {
@@ -14,52 +15,20 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PersonIcon from "@mui/icons-material/Person";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
+import CurrencyRupeeIcon from "@mui/icons-material/CurrencyRupee";
 import dayjs from "dayjs";
-
 import API_BASE from "./api";
 
-/* ---------------- DARK THEME FIX ---------------- */
+/* ---------------- THEME ---------------- */
 const darkTheme = createTheme({
-  palette: { mode: "dark" },
-  components: {
-    MuiInputBase: {
-      styleOverrides: {
-        input: {
-          color: "#fff",
-          WebkitTextFillColor: "#fff",
-        },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          "& fieldset": {
-            borderColor: "rgba(255,255,255,0.2)",
-          },
-        },
-      },
-    },
-    MuiTypography: {
-      styleOverrides: {
-        root: { color: "#fff" },
-      },
-    },
-    MuiPickersDay: {
-      styleOverrides: {
-        root: { color: "#fff" },
-      },
-    },
-    MuiClockNumber: {
-      styleOverrides: {
-        root: { color: "#fff" },
-      },
-    },
-  },
+  palette: { mode: "dark" }
 });
 
 export default function PrivateBooking() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [price, setPrice] = useState<number | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
 
   const [startTime, setStartTime] = useState(dayjs().hour(7).minute(0));
   const [endTime, setEndTime] = useState(dayjs().hour(8).minute(0));
@@ -72,43 +41,94 @@ export default function PrivateBooking() {
     location_id: ""
   });
 
+  /* ---------------- LOAD LOCATIONS ---------------- */
   useEffect(() => {
     fetch(`${API_BASE}/api/admin/locations`)
       .then(res => res.json())
       .then(setLocations);
   }, []);
 
-  const submit = async () => {
+  /* ---------------- FETCH PRICE ---------------- */
+  useEffect(() => {
+    if (!form.location_id) return;
+
+    setPriceLoading(true);
+
+    fetch(`${API_BASE}/api/private-booking-price/${form.location_id}`)
+      .then(res => res.json())
+      .then(data => setPrice(data.price))
+      .catch(() => setPrice(null))
+      .finally(() => setPriceLoading(false));
+
+  }, [form.location_id]);
+
+  /* ---------------- PAYMENT FLOW ---------------- */
+  const handlePayment = async () => {
     if (!form.name || !form.email || !form.phone || !form.location_id) {
-      alert("Please fill all fields");
+      alert("Fill all fields");
       return;
     }
 
     setLoading(true);
 
     try {
-      const payload = {
-        ...form,
-        booking_date: bookingDate.format("YYYY-MM-DD"),
-        start_time: startTime.format("HH:mm"),
-        end_time: endTime.format("HH:mm")
-      };
-
-      const res = await fetch(`${API_BASE}/api/private-bookings`, {
+      // 1️⃣ CREATE ORDER
+      const res = await fetch(`${API_BASE}/api/payment/create-order-private`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ location_id: form.location_id })
       });
 
-      const data = await res.json();
+      const { order, price } = await res.json();
 
-      if (res.ok) {
-        alert("Booking successful 🎾");
-      } else {
-        alert(data.message);
-      }
-    } catch {
-      alert("Network error");
+      // 2️⃣ OPEN RAZORPAY
+      const options = {
+        key: "YOUR_RAZORPAY_KEY", // 🔥 replace
+        amount: order.amount,
+        currency: "INR",
+        name: "SAT Sports",
+        description: "Private Session",
+        order_id: order.id,
+
+        handler: async function (response: any) {
+
+          // 3️⃣ VERIFY PAYMENT + CREATE BOOKING
+          const verifyRes = await fetch(`${API_BASE}/api/payment/verify-private`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...response,
+              ...form,
+              booking_date: bookingDate.format("YYYY-MM-DD"),
+              start_time: startTime.format("HH:mm"),
+              end_time: endTime.format("HH:mm")
+            })
+          });
+
+          const result = await verifyRes.json();
+
+          if (result.success) {
+            alert("✅ Booking Confirmed!");
+          } else {
+            alert("Verification failed");
+          }
+        },
+
+        prefill: {
+          name: form.name,
+          email: form.email,
+          contact: form.phone
+        },
+
+        theme: { color: "#3b82f6" }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+
+    } catch (err) {
+      console.error(err);
+      alert("Payment failed");
     }
 
     setLoading(false);
@@ -117,47 +137,30 @@ export default function PrivateBooking() {
   return (
     <ThemeProvider theme={darkTheme}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <Box sx={pageStyle}>
+        <Box sx={{ minHeight: "100vh", bgcolor: "#020617", py: 4 }}>
           <Container maxWidth="sm">
 
-            {/* BACK BUTTON */}
-            <IconButton
-              onClick={() => window.history.back()}
-              sx={{ color: "#fff", mb: 2 }}
-            >
+            <IconButton sx={{ color: "#fff" }}>
               <ArrowBackIcon />
             </IconButton>
 
-            {/* TITLE */}
-            <Typography
-              variant="h4"
-              textAlign="center"
-              fontWeight={800}
-              mb={3}
-            >
-              BOOK SESSION
+            <Typography variant="h4" textAlign="center" fontWeight={800} mb={3}>
+              BOOK PRIVATE SESSION
             </Typography>
 
-            {/* CARD */}
-            <Card sx={cardStyle}>
+            <Card sx={{ bgcolor: "#0f172a", borderRadius: 4 }}>
               <CardContent>
                 <Stack spacing={2.5}>
 
                   {/* NAME */}
                   <TextField
-                    label="Full Name"
+                    label="Name"
                     fullWidth
                     sx={inputStyle}
                     value={form.name}
-                    onChange={(e) =>
-                      setForm({ ...form, name: e.target.value })
-                    }
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PersonIcon />
-                        </InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position="start"><PersonIcon /></InputAdornment>
                     }}
                   />
 
@@ -167,15 +170,9 @@ export default function PrivateBooking() {
                     fullWidth
                     sx={inputStyle}
                     value={form.email}
-                    onChange={(e) =>
-                      setForm({ ...form, email: e.target.value })
-                    }
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <EmailIcon />
-                        </InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position="start"><EmailIcon /></InputAdornment>
                     }}
                   />
 
@@ -185,15 +182,9 @@ export default function PrivateBooking() {
                     fullWidth
                     sx={inputStyle}
                     value={form.phone}
-                    onChange={(e) =>
-                      setForm({ ...form, phone: e.target.value })
-                    }
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PhoneIcon />
-                        </InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position="start"><PhoneIcon /></InputAdornment>
                     }}
                   />
 
@@ -204,48 +195,49 @@ export default function PrivateBooking() {
                     fullWidth
                     sx={inputStyle}
                     value={form.location_id}
-                    onChange={(e) =>
-                      setForm({ ...form, location_id: e.target.value })
-                    }
+                    onChange={(e) => setForm({ ...form, location_id: e.target.value })}
                   >
                     {locations.map((loc) => (
-                      <MenuItem key={loc.id} value={loc.id}>
-                        {loc.name}
-                      </MenuItem>
+                      <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
                     ))}
                   </TextField>
 
+                  {/* PRICE DISPLAY */}
+                  {priceLoading ? (
+                    <CircularProgress />
+                  ) : price ? (
+                    <Box sx={{ display: "flex", alignItems: "center", color: "#22c55e" }}>
+                      <CurrencyRupeeIcon />
+                      <Typography fontWeight={800}>
+                        {price} / session
+                      </Typography>
+                    </Box>
+                  ) : null}
+
                   {/* DATE */}
                   <DatePicker
-                    label="Booking Date"
+                    label="Date"
                     value={bookingDate}
                     onChange={setBookingDate}
-                    slotProps={{
-                      textField: { fullWidth: true, sx: inputStyle }
-                    }}
+                    slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
                   />
 
-                  {/* TIME (RESPONSIVE) */}
+                  {/* TIME */}
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
                       <TimePicker
-                        label="Start Time"
+                        label="Start"
                         value={startTime}
                         onChange={setStartTime}
-                        slotProps={{
-                          textField: { fullWidth: true, sx: inputStyle }
-                        }}
+                        slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
                       />
                     </Grid>
-
                     <Grid item xs={12} sm={6}>
                       <TimePicker
-                        label="End Time"
+                        label="End"
                         value={endTime}
                         onChange={setEndTime}
-                        slotProps={{
-                          textField: { fullWidth: true, sx: inputStyle }
-                        }}
+                        slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
                       />
                     </Grid>
                   </Grid>
@@ -254,11 +246,11 @@ export default function PrivateBooking() {
                   <Button
                     fullWidth
                     variant="contained"
-                    onClick={submit}
-                    disabled={loading}
+                    disabled={loading || !price}
+                    onClick={handlePayment}
                     sx={btnStyle}
                   >
-                    {loading ? "Submitting..." : "BOOK NOW 🚀"}
+                    {loading ? "Processing..." : `Pay ₹${price || ""} & Book`}
                   </Button>
 
                 </Stack>
@@ -273,46 +265,19 @@ export default function PrivateBooking() {
 
 /* ---------------- STYLES ---------------- */
 
-const pageStyle = {
-  minHeight: "100vh",
-  bgcolor: "#020617",
-  py: { xs: 3, sm: 6 }, // mobile padding fix
-};
-
-const cardStyle = {
-  bgcolor: "#0f172a",
-  borderRadius: { xs: 3, sm: 5 },
-  border: "1px solid rgba(255,255,255,0.1)",
-  px: { xs: 1, sm: 2 }
-};
-
 const inputStyle = {
   "& .MuiOutlinedInput-root": {
     backgroundColor: "transparent",
-    "& fieldset": {
-      borderColor: "rgba(255,255,255,0.2)"
-    },
-    "&:hover fieldset": {
-      borderColor: "#3b82f6"
-    },
-    "&.Mui-focused fieldset": {
-      borderColor: "#3b82f6"
-    }
+    "& fieldset": { borderColor: "rgba(255,255,255,0.2)" },
+    "&.Mui-focused fieldset": { borderColor: "#3b82f6" }
   },
-
   "& .MuiInputBase-input": {
     color: "#fff !important",
     WebkitTextFillColor: "#fff !important"
   },
-
   "& .MuiInputLabel-root": {
     color: "rgba(255,255,255,0.7)"
   },
-
-  "& .MuiSvgIcon-root": {
-    color: "#3b82f6"
-  },
-
   "& input:-webkit-autofill": {
     WebkitBoxShadow: "0 0 0 1000px #0f172a inset !important",
     WebkitTextFillColor: "#fff !important"
@@ -323,6 +288,5 @@ const btnStyle = {
   py: 1.5,
   fontWeight: 800,
   borderRadius: "12px",
-  background: "linear-gradient(135deg,#3b82f6,#2563eb)",
-  fontSize: { xs: "14px", sm: "16px" }
+  background: "linear-gradient(135deg,#3b82f6,#2563eb)"
 };

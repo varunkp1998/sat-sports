@@ -17,6 +17,7 @@ import CoachAttendance from "./CoachAttendance.tsx";
 import AdminPlayers from "./AdminPlayers.tsx";
 import { Grid } from "@mui/material";
 import AdminCourtBookings from "./AdminCourtBookings.tsx";
+import AdminPrivateBookingPrice from "./AdminPrivateBookingPrice.tsx";
 import AdminReports from "./AdminReports.tsx";
 import PublicCourtBooking from "./PublicCourtBooking.tsx";
 import RegisterPlayer from "./RegisterPlayer.tsx";
@@ -1045,6 +1046,8 @@ const menuGroups = [
     items: [
       { label: "🏆 Tournaments", path: "/admin/tournaments" },
       { label: "🎾 Private Sessions", path: "/admin/private-bookings" },
+      { label: "💰 Private Pricing", path: "/admin/private-booking-price" },
+
       { label: "🏟️ Court Bookings", path: "/admin/court-bookings" },
       { label: "📰 News", path: "/admin/news" },
     ]
@@ -1255,6 +1258,7 @@ const menuGroups = [
   <Route path="payroll" element={<AdminCoachPayroll />} />
   <Route path="private-bookings" element={<AdminPrivateBookings />} />
   <Route path="verify-checkins" element={<AdminVerify />} />           
+  <Route path="private-booking-price" element={<AdminPrivateBookingPrice />} />
    </Routes>
       </Box>
     </Box>
