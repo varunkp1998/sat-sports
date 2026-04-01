@@ -33,7 +33,7 @@ export default function PrivateBooking() {
       .catch(err => console.error("Failed to load locations", err));
   }, []);
 
-  // NEW: Generates 30-minute increments (7:00, 7:30, 8:00...)
+  // Generates 30-minute increments for the clock type selection
   const timeOptions = useMemo(() => {
     const slots = [];
     for (let hour = 6; hour <= 21; hour++) {
@@ -71,11 +71,8 @@ export default function PrivateBooking() {
         alert("Booking Requested! 🎾 Check your email.");
         setForm({ ...form, name: "", email: "", phone: "" });
       }
-    } catch (err) {
-      alert("Booking failed.");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert("Booking failed."); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -87,11 +84,8 @@ export default function PrivateBooking() {
 
         <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <Box textAlign="center" mb={4}>
-            <Typography variant="h3" fontWeight={900} sx={{ letterSpacing: -1 }}>
+            <Typography variant="h3" fontWeight={900} sx={{ letterSpacing: -1, color: "white" }}>
               BOOK A <span style={{ color: "#3b82f6" }}>SESSION</span>
-            </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.6)" }}>
-              Precision scheduling for your tennis growth
             </Typography>
           </Box>
 
@@ -129,7 +123,6 @@ export default function PrivateBooking() {
                   STEP 2: LOGISTICS
                 </Typography>
 
-                {/* FIXED: Select Location Color */}
                 <Select
                   fullWidth sx={selectStyle} value={form.location_id} displayEmpty
                   onChange={(e) => setForm({ ...form, location_id: e.target.value })}
@@ -147,7 +140,6 @@ export default function PrivateBooking() {
                   onChange={(e) => setForm({ ...form, booking_date: e.target.value })}
                   InputProps={{ 
                     startAdornment: <InputAdornment position="start"><CalendarMonthIcon sx={{color: '#3b82f6'}}/></InputAdornment>,
-                    inputProps: { min: dayjs().format("YYYY-MM-DD") }
                   }}
                 />
 
@@ -184,7 +176,7 @@ export default function PrivateBooking() {
                   fullWidth size="large" variant="contained" onClick={submit} disabled={loading}
                   sx={submitBtnStyle}
                 >
-                  {loading ? "SENDING REQUEST..." : "REQUEST BOOKING 🚀"}
+                  {loading ? "SENDING..." : "REQUEST BOOKING 🚀"}
                 </Button>
               </Stack>
             </CardContent>
@@ -197,33 +189,29 @@ export default function PrivateBooking() {
 
 // --- STYLES ---
 const pageWrapperStyle = { 
-  minHeight: "100vh", bgcolor: "#020617", color: "white", py: 6,
+  minHeight: "100vh", bgcolor: "#020617", py: 6,
   background: "radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent), #020617"
 };
 
 const glassCardStyle = { 
   borderRadius: 6, bgcolor: "rgba(255,255,255,0.03)", 
   backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)",
-  boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)"
 };
 
 const inputStyle = {
   "& .MuiOutlinedInput-root": {
     color: "white",
     "& fieldset": { borderColor: "rgba(255,255,255,0.2)", borderRadius: "12px" },
-    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.4)" },
     "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
-    bgcolor: "rgba(255,255,255,0.02)"
   },
-  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.6)" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6" },
-  "& .MuiSvgIcon-root": { color: "#3b82f6" }
+  // FIX: Force Label to be visible white
+  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.7) !important" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6 !important" }
 };
 
 const selectStyle = {
   ...inputStyle,
   "& .MuiSelect-select": { color: "white !important", fontWeight: 600, paddingLeft: '8px' },
-  "& .MuiSvgIcon-root": { color: "#3b82f6" }
 };
 
 const timeSelectStyle = {
@@ -235,9 +223,11 @@ const timeSelectStyle = {
     alignItems: "center"
   },
   "& .MuiInputLabel-root": {
-    transform: "translate(45px, 16px) scale(1)",
+    // FIX: Shifts the label "Start Time" to the right so it doesn't collide with the icon
+    transform: "translate(42px, 16px) scale(1)",
     "&.Mui-focused, &.MuiFormLabel-filled": {
-      transform: "translate(14px, -9px) scale(0.75)"
+      transform: "translate(14px, -9px) scale(0.75)",
+      color: "#3b82f6 !important"
     }
   }
 };
@@ -246,6 +236,5 @@ const submitBtnStyle = {
   py: 2, borderRadius: 4, fontWeight: 900,
   background: "linear-gradient(135deg, #3b82f6, #2563eb)",
   boxShadow: "0 15px 30px rgba(37, 99, 235, 0.4)",
-  "&:hover": { transform: "translateY(-2px)", boxShadow: "0 20px 40px rgba(37, 99, 235, 0.6)" },
-  transition: "all 0.3s ease"
+  "&:hover": { transform: "translateY(-2px)" }
 };
