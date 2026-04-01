@@ -2947,14 +2947,16 @@ app.get("/api/admin/tournaments/:id/matches", async (req, res) => {
   res.json(rows);
 });
 
+const customParseFormat = require("dayjs/plugin/customParseFormat");
+
+dayjs.extend(customParseFormat);
+
 app.post("/api/private-bookings", async (req, res) => {
   const { name, email, phone, location_id, booking_date, start_time, end_time } = req.body;
 
   try {
-    // UPDATED UTILITY: Handles "07:00" OR "07:00 AM"
     const formatTime = (t) => {
-      // Try parsing as 24h first, then 12h AM/PM
-      const parsed = dayjs(t, ["HH:mm", "hh:mm A", "HH:mm:ss"]);
+      const parsed = dayjs(t, ["HH:mm", "hh:mm A", "HH:mm:ss"], true);
       if (!parsed.isValid()) return null;
       return parsed.format("HH:mm:ss");
     };
@@ -2962,21 +2964,20 @@ app.post("/api/private-bookings", async (req, res) => {
     const sTime = formatTime(start_time);
     const eTime = formatTime(end_time);
 
-    // Check if parsing failed
     if (!sTime || !eTime) {
-       return res.status(400).json({ message: "Invalid time format received" });
+      return res.status(400).json({ message: "Invalid time format received" });
     }
 
-    // This comparison will now work correctly
     if (sTime >= eTime) {
       return res.status(400).json({ message: "End time must be after start time" });
     }
 
-    await db.query(`
-      INSERT INTO private_bookings
-      (name, email, phone, location_id, booking_date, start_time, end_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [name, email, phone, location_id, booking_date, sTime, eTime]);
+    await db.query(
+      `INSERT INTO private_bookings
+       (name, email, phone, location_id, booking_date, start_time, end_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name, email, phone, location_id, booking_date, sTime, eTime]
+    );
 
     res.json({ success: true });
   } catch (err) {

@@ -1,49 +1,53 @@
 import React, { useEffect, useState } from "react";
 import {
-  Box, Typography, Button, TextField, Card, CardContent, 
+  Box, Typography, Button, TextField, Card, CardContent,
   Stack, Container, IconButton, InputAdornment, Grid, MenuItem
 } from "@mui/material";
 import { LocalizationProvider, TimePicker, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { motion } from "framer-motion";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PersonIcon from "@mui/icons-material/Person";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import API_BASE from "./api";
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 
-const MotionBox = motion(Box);
+const API_BASE = "";
 
 export default function PrivateBooking() {
-  const [locations, setLocations] = useState<any[]>([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
-  
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().set('hour', 7).set('minute', 0));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().set('hour', 8).set('minute', 0));
-  const [bookingDate, setBookingDate] = useState<Dayjs | null>(dayjs());
-  
-  const [form, setForm] = useState({ name: "", email: "", phone: "", location_id: "" });
+
+  const [startTime, setStartTime] = useState(dayjs().hour(7).minute(0));
+  const [endTime, setEndTime] = useState(dayjs().hour(8).minute(0));
+  const [bookingDate, setBookingDate] = useState(dayjs());
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    location_id: ""
+  });
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/locations`).then(res => res.json()).then(setLocations);
+    fetch(`${API_BASE}/api/admin/locations`)
+      .then(res => res.json())
+      .then(setLocations);
   }, []);
 
   const submit = async () => {
-    if (!form.name || !form.email || !form.phone || !form.location_id || !bookingDate || !startTime || !endTime) {
-      alert("Please fill in all fields.");
+    if (!form.name || !form.email || !form.phone || !form.location_id) {
+      alert("Fill all fields");
       return;
     }
 
     setLoading(true);
+
     try {
       const payload = {
         ...form,
         booking_date: bookingDate.format("YYYY-MM-DD"),
-        // MATCHING YOUR BACKEND UTILITY: "hh:mm A" -> "07:00 AM"
-        start_time: startTime.format("hh:mm A"), 
-        end_time: endTime.format("hh:mm A")
+        start_time: startTime.format("HH:mm"), // ✅ FIXED
+        end_time: endTime.format("HH:mm")      // ✅ FIXED
       };
 
       const res = await fetch(`${API_BASE}/api/private-bookings`, {
@@ -51,123 +55,168 @@ export default function PrivateBooking() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      
-      const result = await res.json();
+
+      const data = await res.json();
+
       if (res.ok) {
-        alert("Booking Requested! 🎾");
+        alert("Booking successful 🎾");
       } else {
-        alert(result.message || "Error submitting booking");
+        alert(data.message);
       }
-    } catch (err) {
-      alert("Network error.");
-    } finally {
-      setLoading(false);
+    } catch {
+      alert("Network error");
     }
+
+    setLoading(false);
   };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Box sx={pageWrapperStyle}>
+      <Box sx={{ minHeight: "100vh", bgcolor: "#020617", py: 6 }}>
         <Container maxWidth="sm">
-          <IconButton onClick={() => window.history.back()} sx={{ color: "white", mb: 2 }}>
+
+          <IconButton sx={{ color: "white" }}>
             <ArrowBackIcon />
           </IconButton>
 
-          <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Box textAlign="center" mb={4}>
-              <Typography variant="h4" fontWeight={900} color="white">
-                BOOK A <span style={{ color: "#3b82f6" }}>SESSION</span>
-              </Typography>
-            </Box>
+          <Typography variant="h4" color="white" textAlign="center" mb={3}>
+            BOOK SESSION
+          </Typography>
 
-            <Card sx={glassCardStyle}>
-              <CardContent sx={{ p: 4 }}>
-                <Stack spacing={2.5}>
-                  <TextField 
-                    label="Full Name" fullWidth sx={inputStyle} value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon/></InputAdornment> }}
-                  />
+          <Card sx={cardStyle}>
+            <CardContent>
+              <Stack spacing={2.5}>
 
-                  <TextField 
-                    label="Email Address" fullWidth sx={inputStyle} value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon/></InputAdornment> }}
-                  />
+                <TextField
+                  label="Name"
+                  fullWidth
+                  sx={inputStyle}
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><PersonIcon /></InputAdornment>
+                  }}
+                />
 
-                  <TextField 
-                    label="Phone Number" fullWidth sx={inputStyle} value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon/></InputAdornment> }}
-                  />
+                <TextField
+                  label="Email"
+                  fullWidth
+                  sx={inputStyle}
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><EmailIcon /></InputAdornment>
+                  }}
+                />
 
-                  <TextField
-                    select fullWidth label="Location" sx={inputStyle} value={form.location_id}
-                    onChange={(e) => setForm({ ...form, location_id: e.target.value })}
-                  >
-                    {locations.map((loc) => (
-                      <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
-                    ))}
-                  </TextField>
+                <TextField
+                  label="Phone"
+                  fullWidth
+                  sx={inputStyle}
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><PhoneIcon /></InputAdornment>
+                  }}
+                />
 
-                  <DatePicker
-                    label="Booking Date"
-                    value={bookingDate}
-                    onChange={(newValue) => setBookingDate(newValue)}
-                    slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
-                  />
+                <TextField
+                  select
+                  label="Location"
+                  fullWidth
+                  sx={inputStyle}
+                  value={form.location_id}
+                  onChange={(e) => setForm({ ...form, location_id: e.target.value })}
+                >
+                  {locations.map((loc) => (
+                    <MenuItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <TimePicker
-                        label="From"
-                        value={startTime}
-                        onChange={(newValue) => setStartTime(newValue)}
-                        slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
-                      />
-                    </Grid>
-                    <Grid item xs={6}>
-                      <TimePicker
-                        label="To"
-                        value={endTime}
-                        onChange={(newValue) => setEndTime(newValue)}
-                        slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
-                      />
-                    </Grid>
+                <DatePicker
+                  label="Date"
+                  value={bookingDate}
+                  onChange={setBookingDate}
+                  slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
+                />
+
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <TimePicker
+                      label="Start"
+                      value={startTime}
+                      onChange={setStartTime}
+                      slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
+                    />
                   </Grid>
+                  <Grid item xs={6}>
+                    <TimePicker
+                      label="End"
+                      value={endTime}
+                      onChange={setEndTime}
+                      slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
+                    />
+                  </Grid>
+                </Grid>
 
-                  <Button fullWidth variant="contained" onClick={submit} disabled={loading} sx={submitBtnStyle}>
-                    {loading ? "SENDING..." : "REQUEST BOOKING 🚀"}
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          </MotionBox>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={submit}
+                  disabled={loading}
+                  sx={btnStyle}
+                >
+                  {loading ? "Sending..." : "Book Now 🚀"}
+                </Button>
+
+              </Stack>
+            </CardContent>
+          </Card>
         </Container>
       </Box>
     </LocalizationProvider>
   );
 }
 
-// --- CSS FIXES FOR BLACK FONTS & WHITE BOXES ---
-const pageWrapperStyle = { minHeight: "100vh", bgcolor: "#020617", py: 6 };
-const glassCardStyle = { bgcolor: "#0f172a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", backgroundImage: "none" };
-
-const inputStyle = {
-  // 1. Fix the white background boxes
-  "& .MuiOutlinedInput-root": {
-    backgroundColor: "transparent !important",
-    "& fieldset": { borderColor: "rgba(255,255,255,0.2)", borderRadius: "12px" },
-    "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
-  },
-  // 2. Fix the BLACK FONT issue (Force white)
-  "& .MuiInputBase-input": { 
-    color: "#ffffff !important", 
-    fill: "#ffffff !important",
-    "-webkit-text-fill-color": "#ffffff !important", 
-  },
-  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.7) !important" },
-  "& .MuiSvgIcon-root": { color: "#3b82f6" }
+const cardStyle = {
+  bgcolor: "#0f172a",
+  borderRadius: 4,
+  border: "1px solid rgba(255,255,255,0.1)"
 };
 
-const submitBtnStyle = { py: 1.5, background: "linear-gradient(135deg, #3b82f6, #2563eb)", fontWeight: 900, borderRadius: "12px" };
+const inputStyle = {
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "transparent",
+    color: "#fff",
+    "& fieldset": { borderColor: "rgba(255,255,255,0.2)" },
+    "&:hover fieldset": { borderColor: "#3b82f6" },
+    "&.Mui-focused fieldset": { borderColor: "#3b82f6" }
+  },
+
+  "& .MuiInputBase-input": {
+    color: "#fff !important",
+    WebkitTextFillColor: "#fff !important"
+  },
+
+  "& .MuiInputLabel-root": {
+    color: "rgba(255,255,255,0.7)"
+  },
+
+  "& .MuiSvgIcon-root": {
+    color: "#3b82f6"
+  },
+
+  // 🔥 FIX CHROME AUTOFILL BLACK TEXT
+  "& input:-webkit-autofill": {
+    WebkitBoxShadow: "0 0 0 1000px #0f172a inset !important",
+    WebkitTextFillColor: "#fff !important"
+  }
+};
+
+const btnStyle = {
+  py: 1.5,
+  background: "linear-gradient(135deg,#3b82f6,#2563eb)",
+  fontWeight: 700
+};
