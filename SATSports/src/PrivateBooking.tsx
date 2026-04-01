@@ -10,6 +10,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PersonIcon from "@mui/icons-material/Person";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import API_BASE from "./api";
 import dayjs from "dayjs";
 
@@ -42,18 +43,14 @@ export default function PrivateBooking() {
     return slots;
   }, []);
 
-  const convertTo24Hour = (timeStr: string) => {
-    return dayjs(timeStr, "hh:mm A").format("HH:mm:ss");
-  };
-
   const submit = async () => {
     if (!form.name || !form.location_id || !form.booking_date) {
       alert("Please fill in all required fields.");
       return;
     }
 
-    const sTime = convertTo24Hour(form.start_time);
-    const eTime = convertTo24Hour(form.end_time);
+    const sTime = dayjs(form.start_time, "hh:mm A").format("HH:mm:ss");
+    const eTime = dayjs(form.end_time, "hh:mm A").format("HH:mm:ss");
 
     if (sTime >= eTime) {
       alert("End time must be after start time!");
@@ -68,7 +65,7 @@ export default function PrivateBooking() {
         body: JSON.stringify({ ...form, start_time: sTime, end_time: eTime })
       });
       if (res.ok) {
-        alert("Booking Requested Successfully! ✅ Check your email for updates.");
+        alert("Booking Requested! 🚀 Check your email for confirmation.");
         setForm({ 
           name: "", email: "", phone: "", location_id: "", 
           booking_date: dayjs().format("YYYY-MM-DD"), 
@@ -76,7 +73,7 @@ export default function PrivateBooking() {
         });
       }
     } catch (err) {
-      alert("Booking failed. Please try again.");
+      alert("Booking failed.");
     } finally {
       setLoading(false);
     }
@@ -145,22 +142,33 @@ export default function PrivateBooking() {
                 <TextField
                   type="date" fullWidth sx={inputStyle} value={form.booking_date}
                   onChange={(e) => setForm({ ...form, booking_date: e.target.value })}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon sx={{color: '#3b82f6'}}/></InputAdornment> }}
+                  InputProps={{ 
+                    startAdornment: <InputAdornment position="start"><CalendarMonthIcon sx={{color: '#3b82f6'}}/></InputAdornment>,
+                    inputProps: { min: dayjs().format("YYYY-MM-DD") }
+                  }}
                 />
 
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
                     <TextField
-                      select fullWidth label="Start Time" sx={inputStyle} value={form.start_time}
+                      select fullWidth label="Start Time" sx={timeSelectStyle}
+                      value={form.start_time}
                       onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{color: '#3b82f6'}}/></InputAdornment>
+                      }}
                     >
                       {timeOptions.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
                     </TextField>
                   </Grid>
                   <Grid item xs={6}>
                     <TextField
-                      select fullWidth label="End Time" sx={inputStyle} value={form.end_time}
+                      select fullWidth label="End Time" sx={timeSelectStyle}
+                      value={form.end_time}
                       onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{color: '#3b82f6'}}/></InputAdornment>
+                      }}
                     >
                       {timeOptions.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
                     </TextField>
@@ -182,7 +190,7 @@ export default function PrivateBooking() {
   );
 }
 
-// --- STYLES ---
+// --- REFINED STYLES ---
 const pageWrapperStyle = { 
   minHeight: "100vh", bgcolor: "#020617", color: "white", py: 6,
   background: "radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent), #020617"
@@ -203,6 +211,24 @@ const inputStyle = {
   },
   "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" },
   "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6" }
+};
+
+// FIX: This style prevents the time slots from shrinking or overlapping with icons
+const timeSelectStyle = {
+  ...inputStyle,
+  "& .MuiSelect-select": { 
+    color: "white !important", 
+    paddingLeft: "8px !important", // Space after icon
+    display: "flex", 
+    alignItems: "center"
+  },
+  "& .MuiInputLabel-root": {
+    // Moves label so it doesn't hit the icon
+    transform: "translate(45px, 16px) scale(1)",
+    "&.Mui-focused, &.MuiFormLabel-filled": {
+      transform: "translate(14px, -9px) scale(0.75)"
+    }
+  }
 };
 
 const selectStyle = {
