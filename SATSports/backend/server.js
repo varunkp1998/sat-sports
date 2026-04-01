@@ -3043,7 +3043,7 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
     await connection.commit();
 
     // SEND EMAIL (Non-blocking)
-    resend.emails.send({
+    await resend.emails.send({
       from: "SAT Sports <no-reply@sat-sports.in>",
       to: booking.email,
       subject: "🎾 Your Session is Confirmed!",
@@ -3711,4 +3711,107 @@ app.patch("/api/admin/checkin/status", async (req, res) => {
   );
 
   res.json({ success: true });
+});
+app.post("/api/admin/private-booking-price", async (req, res) => {
+  const { location_id, price } = req.body;
+
+  await db.query(`
+    INSERT INTO private_booking_prices (location_id, price)
+    VALUES (?, ?)
+    ON DUPLICATE KEY UPDATE price=VALUES(price)
+  `, [location_id, price]);
+
+  res.json({ success: true });
+});
+app.get("/api/private-booking-price/:location_id", async (req, res) => {
+  const { location_id } = req.params;
+
+  const [[row]] = await db.query(
+    "SELECT price FROM private_booking_prices WHERE location_id=?",
+    [location_id]
+  );
+
+  if (!row) return res.status(404).json({ message: "Price not set" });
+
+  res.json(row);
+});
+app.post("/api/payment/create-order-private", async (req, res) => {
+  const { location_id } = req.body;
+
+  const [[row]] = await db.query(
+    "SELECT price FROM private_booking_prices WHERE location_id=?",
+    [location_id]
+  );
+
+  if (!row) return res.status(400).json({ message: "Price not set" });
+
+  const order = await razorpay.orders.create({
+    amount: Math.round(row.price * 100),
+    currency: "INR",
+    receipt: `private_${Date.now()}`
+  });
+
+  res.json({
+    order,
+    price: row.price
+  });
+});
+app.post("/api/payment/verify-private", async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      name,
+      email,
+      phone,
+      location_id,
+      booking_date,
+      start_time,
+      end_time
+    } = req.body;
+
+    // ✅ VERIFY SIGNATURE
+    const generated = crypto
+      .createHmac("sha256", process.env.RAZORPAY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (generated !== razorpay_signature) {
+      await connection.rollback();
+      return res.status(400).json({ message: "Invalid signature" });
+    }
+
+    // ✅ CREATE BOOKING ONLY AFTER PAYMENT
+    await connection.query(`
+      INSERT INTO private_bookings
+      (name, email, phone, location_id, booking_date, start_time, end_time, payment_status, razorpay_order_id, razorpay_payment_id, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, 'pending')
+    `, [
+      name,
+      email,
+      phone,
+      location_id,
+      booking_date,
+      start_time,
+      end_time,
+      razorpay_order_id,
+      razorpay_payment_id
+    ]);
+
+    await connection.commit();
+
+    res.json({ success: true });
+
+  } catch (err) {
+    await connection.rollback();
+    console.error(err);
+    res.status(500).json({ message: "Payment verification failed" });
+  } finally {
+    connection.release();
+  }
 });
