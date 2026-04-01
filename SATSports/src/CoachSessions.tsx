@@ -90,66 +90,108 @@ export default function CoachSessions() {
   }, []);
 
   // --- CHECK-IN LOGIC ---
-  const handleCheckIn = async (sessionId: number, locationId: number, photoFile?: File) => {
-    setActionLoading(sessionId);
-  
-    // 1. If we don't have a photo yet and geolocation is available, try geo-checkin first
-    // (Note: If your backend NOW requires a photo for ALL checkins, skip to Step 2)
-    if (!photoFile && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => performApiCall(pos.coords.latitude, pos.coords.longitude),
-        () => startPhotoFallback(sessionId, locationId),
-        { enableHighAccuracy: true, timeout: 6000 }
-      );
-      return;
-    }
-  
-    // 2. This helper function handles the actual multipart/form-data upload
-    async function performApiCall(lat: number, lng: number, file?: File) {
+// Inside your CoachSessions component...
+
+const handleCheckIn = async (sessionId: number, locationId: number) => {
+  setActionLoading(sessionId);
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+
+      // STEP 1: Attempt "Silent" Check-in (No Photo)
+      const formData = new FormData();
+      formData.append("coachId", coachId!);
+      formData.append("sessionId", sessionId.toString());
+      formData.append("locationId", locationId.toString());
+      formData.append("lat", latitude.toString());
+      formData.append("lng", longitude.toString());
+
       try {
-        const formData = new FormData();
-        formData.append("coachId", String(coachId));
-        formData.append("sessionId", String(sessionId));
-        formData.append("locationId", String(locationId));
-        formData.append("lat", String(lat));
-        formData.append("lng", String(lng));
-        
-        if (file) {
-          formData.append("photo", file); // Must match uploadCloud.single("photo") in backend
-        }
-  
-        const res = await fetch(`${API_BASE}/api/coach/checkin`, {
-          method: "POST",
-          // 🚨 IMPORTANT: Do NOT set Content-Type header when sending FormData
-          body: formData, 
+        const res = await fetch(`${API_BASE}/api/coach/checkin`, { 
+          method: "POST", 
+          body: formData // Note: No photo attached here yet
         });
-  
+        
         const data = await res.json();
-  
+
         if (res.ok) {
-          setCheckedInMap(prev => ({ 
-            ...prev, 
-            [sessionId]: { 
-              checkedIn: true, 
-              completed: false, 
-              isLate: data.isLate || 0 
-            } 
-          }));
+          // Success! Checked in via GPS silently.
+          setCheckedInMap(prev => ({ ...prev, [sessionId]: { checkedIn: true } }));
+        } else if (res.status === 403 && data.requiresPhoto) {
+          // STEP 2: GPS Check failed, trigger photo fallback
+          setShowCamera({ sessionId, locationId });
+          startCameraStream();
         } else {
-          // If backend returns error (like "Not at location"), trigger photo fallback
-          if (!file && window.confirm(`${data.message}. Open camera for photo check-in?`)) {
-            startPhotoFallback(sessionId, locationId);
-          } else {
-            setError(data.message || "CHECK-IN FAILED");
-          }
+          alert(data.message || "Check-in failed");
         }
       } catch (err) {
-        setError("NETWORK ERROR DURING CHECK-IN");
+        alert("Network error");
       } finally {
         setActionLoading(null);
       }
+    },
+    (err) => {
+      // If GPS is blocked, also go to photo fallback
+      setShowCamera({ sessionId, locationId });
+      startCameraStream();
+      setActionLoading(null);
+    },
+    { enableHighAccuracy: true }
+  );
+};
+
+const startCameraStream = async () => {
+  // Give the UI a millisecond to render the video element
+  setTimeout(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch {
+      alert("Camera access required for fallback.");
     }
-  };
+  }, 100);
+};
+
+// This is called when the user clicks the "Capture" button in the overlay
+const capturePhotoCheckIn = async () => {
+  if (!videoRef.current || !showCamera) return;
+  
+  const canvas = document.createElement("canvas");
+  canvas.width = videoRef.current.videoWidth;
+  canvas.height = videoRef.current.videoHeight;
+  canvas.getContext("2d")?.drawImage(videoRef.current, 0, 0);
+
+  canvas.toBlob(async (blob) => {
+    if (!blob) return;
+
+    // Get location one more time to attach to the photo record
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const formData = new FormData();
+      formData.append("photo", blob, "manual_verify.jpg");
+      formData.append("coachId", coachId!);
+      formData.append("sessionId", showCamera.sessionId.toString());
+      formData.append("locationId", showCamera.locationId.toString());
+      formData.append("lat", pos.coords.latitude.toString());
+      formData.append("lng", pos.coords.longitude.toString());
+
+      const res = await fetch(`${API_BASE}/api/coach/checkin`, { method: "POST", body: formData });
+      if (res.ok) {
+        // Stop stream and close UI
+        const stream = videoRef.current?.srcObject as MediaStream;
+        stream?.getTracks().forEach(t => t.stop());
+        setCheckedInMap(prev => ({ ...prev, [showCamera.sessionId]: { checkedIn: true } }));
+        setShowCamera(null);
+      } else {
+        const data = await res.json();
+        alert(data.message);
+      }
+    });
+  }, "image/jpeg", 0.7);
+};
   // --- CHECK-OUT LOGIC ---
   const handleCheckOut = async (sessionId: number) => {
     if (!window.confirm("TERMINATE SESSION? This cannot be undone.")) return;
