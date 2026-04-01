@@ -20,23 +20,14 @@ export default function PrivateBooking() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Set defaults to clean 0 seconds to avoid backend math errors
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().set('hour', 7).set('minute', 0).set('second', 0));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().set('hour', 8).set('minute', 0).set('second', 0));
+  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().set('hour', 7).set('minute', 0));
+  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().set('hour', 8).set('minute', 0));
   const [bookingDate, setBookingDate] = useState<Dayjs | null>(dayjs());
   
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    location_id: "",
-  });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", location_id: "" });
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/locations`)
-      .then(res => res.json())
-      .then(setLocations)
-      .catch(err => console.error("Location fetch failed", err));
+    fetch(`${API_BASE}/api/admin/locations`).then(res => res.json()).then(setLocations);
   }, []);
 
   const submit = async () => {
@@ -50,10 +41,9 @@ export default function PrivateBooking() {
       const payload = {
         ...form,
         booking_date: bookingDate.format("YYYY-MM-DD"),
-        // Sending 24h format HH:mm (e.g. 07:00) 
-        // Ensure your backend dayjs(t, "HH:mm") handles this!
-        start_time: startTime.format("HH:mm"), 
-        end_time: endTime.format("HH:mm")
+        // MATCHING YOUR BACKEND UTILITY: "hh:mm A" -> "07:00 AM"
+        start_time: startTime.format("hh:mm A"), 
+        end_time: endTime.format("hh:mm A")
       };
 
       const res = await fetch(`${API_BASE}/api/private-bookings`, {
@@ -63,15 +53,13 @@ export default function PrivateBooking() {
       });
       
       const result = await res.json();
-
       if (res.ok) {
         alert("Booking Requested! 🎾");
       } else {
-        // This displays the "End time must be after start time" or other server errors
-        alert(`Server Error: ${result.message || "Request failed"}`);
+        alert(result.message || "Error submitting booking");
       }
     } catch (err) {
-      alert("Network error. Is the server running?");
+      alert("Network error.");
     } finally {
       setLoading(false);
     }
@@ -87,42 +75,38 @@ export default function PrivateBooking() {
 
           <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Box textAlign="center" mb={4}>
-              <Typography variant="h4" fontWeight={900} color="white" gutterBottom>
+              <Typography variant="h4" fontWeight={900} color="white">
                 BOOK A <span style={{ color: "#3b82f6" }}>SESSION</span>
-              </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-                Fill in the details for your private training
               </Typography>
             </Box>
 
             <Card sx={glassCardStyle}>
               <CardContent sx={{ p: 4 }}>
-                <Stack spacing={3}>
+                <Stack spacing={2.5}>
                   <TextField 
-                    label="Full Name" fullWidth sx={inputStyle}
-                    value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    label="Full Name" fullWidth sx={inputStyle} value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon/></InputAdornment> }}
                   />
 
                   <TextField 
-                    label="Email Address" fullWidth sx={inputStyle}
-                    value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    label="Email Address" fullWidth sx={inputStyle} value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon/></InputAdornment> }}
                   />
 
                   <TextField 
-                    label="Phone Number" fullWidth sx={inputStyle}
-                    value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    label="Phone Number" fullWidth sx={inputStyle} value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon/></InputAdornment> }}
                   />
 
                   <TextField
                     select fullWidth label="Location" sx={inputStyle} value={form.location_id}
                     onChange={(e) => setForm({ ...form, location_id: e.target.value })}
-                    SelectProps={{ MenuProps: { PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } } }}
                   >
                     {locations.map((loc) => (
-                      <MenuItem key={loc.id} value={loc.id} sx={{ color: "white" }}>{loc.name}</MenuItem>
+                      <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
                     ))}
                   </TextField>
 
@@ -130,15 +114,7 @@ export default function PrivateBooking() {
                     label="Booking Date"
                     value={bookingDate}
                     onChange={(newValue) => setBookingDate(newValue)}
-                    slotProps={{
-                      textField: { 
-                        fullWidth: true, 
-                        sx: inputStyle,
-                        InputProps: {
-                          startAdornment: <InputAdornment position="start"><CalendarMonthIcon sx={{color:'#3b82f6'}}/></InputAdornment>
-                        }
-                      }
-                    }}
+                    slotProps={{ textField: { fullWidth: true, sx: inputStyle } }}
                   />
 
                   <Grid container spacing={2}>
@@ -173,42 +149,25 @@ export default function PrivateBooking() {
   );
 }
 
-// --- REFINED DARK STYLES ---
+// --- CSS FIXES FOR BLACK FONTS & WHITE BOXES ---
 const pageWrapperStyle = { minHeight: "100vh", bgcolor: "#020617", py: 6 };
-
-const glassCardStyle = { 
-  bgcolor: "#0f172a", 
-  borderRadius: 6, 
-  border: "1px solid rgba(255,255,255,0.1)",
-  backgroundImage: "none",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.5)"
-};
+const glassCardStyle = { bgcolor: "#0f172a", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", backgroundImage: "none" };
 
 const inputStyle = {
-  // Removes that white box from your screenshot
+  // 1. Fix the white background boxes
   "& .MuiOutlinedInput-root": {
     backgroundColor: "transparent !important",
-    color: "white",
     "& fieldset": { borderColor: "rgba(255,255,255,0.2)", borderRadius: "12px" },
-    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.4)" },
     "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
   },
+  // 2. Fix the BLACK FONT issue (Force white)
   "& .MuiInputBase-input": { 
     color: "#ffffff !important", 
-    "-webkit-text-fill-color": "#ffffff !important",
-    backgroundColor: "transparent !important",
+    fill: "#ffffff !important",
+    "-webkit-text-fill-color": "#ffffff !important", 
   },
   "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.7) !important" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6 !important" },
   "& .MuiSvgIcon-root": { color: "#3b82f6" }
 };
 
-const submitBtnStyle = {
-  py: 1.8, 
-  background: "linear-gradient(135deg, #3b82f6, #2563eb)", 
-  fontWeight: 900, 
-  borderRadius: "12px", 
-  mt: 2,
-  "&:hover": { background: "linear-gradient(135deg, #2563eb, #1d4ed8)" },
-  "&:disabled": { background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" }
-};
+const submitBtnStyle = { py: 1.5, background: "linear-gradient(135deg, #3b82f6, #2563eb)", fontWeight: 900, borderRadius: "12px" };
