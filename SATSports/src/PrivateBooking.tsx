@@ -22,8 +22,8 @@ export default function PrivateBooking() {
   const [form, setForm] = useState({
     name: "", email: "", phone: "", location_id: "",
     booking_date: dayjs().format("YYYY-MM-DD"),
-    start_time: "09:00 AM",
-    end_time: "10:00 AM"
+    start_time: "07:00 AM",
+    end_time: "08:00 AM"
   });
 
   useEffect(() => {
@@ -33,12 +33,15 @@ export default function PrivateBooking() {
       .catch(err => console.error("Failed to load locations", err));
   }, []);
 
+  // NEW: Generates 30-minute increments (7:00, 7:30, 8:00...)
   const timeOptions = useMemo(() => {
     const slots = [];
-    for (let i = 6; i <= 21; i++) {
-      const hour = i > 12 ? i - 12 : i;
-      const suffix = i >= 12 ? "PM" : "AM";
-      slots.push(`${hour}:00 ${suffix}`);
+    for (let hour = 6; hour <= 21; hour++) {
+      for (let min of ["00", "30"]) {
+        const displayHour = hour > 12 ? hour - 12 : hour;
+        const ampm = hour >= 12 ? "PM" : "AM";
+        slots.push(`${displayHour}:${min} ${ampm}`);
+      }
     }
     return slots;
   }, []);
@@ -49,8 +52,8 @@ export default function PrivateBooking() {
       return;
     }
 
-    const sTime = dayjs(form.start_time, "hh:mm A").format("HH:mm:ss");
-    const eTime = dayjs(form.end_time, "hh:mm A").format("HH:mm:ss");
+    const sTime = dayjs(`2026-01-01 ${form.start_time}`, "YYYY-MM-DD hh:mm A").format("HH:mm:ss");
+    const eTime = dayjs(`2026-01-01 ${form.end_time}`, "YYYY-MM-DD hh:mm A").format("HH:mm:ss");
 
     if (sTime >= eTime) {
       alert("End time must be after start time!");
@@ -65,12 +68,8 @@ export default function PrivateBooking() {
         body: JSON.stringify({ ...form, start_time: sTime, end_time: eTime })
       });
       if (res.ok) {
-        alert("Booking Requested! 🚀 Check your email for confirmation.");
-        setForm({ 
-          name: "", email: "", phone: "", location_id: "", 
-          booking_date: dayjs().format("YYYY-MM-DD"), 
-          start_time: "09:00 AM", end_time: "10:00 AM" 
-        });
+        alert("Booking Requested! 🎾 Check your email.");
+        setForm({ ...form, name: "", email: "", phone: "" });
       }
     } catch (err) {
       alert("Booking failed.");
@@ -91,8 +90,8 @@ export default function PrivateBooking() {
             <Typography variant="h3" fontWeight={900} sx={{ letterSpacing: -1 }}>
               BOOK A <span style={{ color: "#3b82f6" }}>SESSION</span>
             </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-              Reserve personalized coaching at SAT Sports
+            <Typography sx={{ color: "rgba(255,255,255,0.6)" }}>
+              Precision scheduling for your tennis growth
             </Typography>
           </Box>
 
@@ -130,13 +129,17 @@ export default function PrivateBooking() {
                   STEP 2: LOGISTICS
                 </Typography>
 
+                {/* FIXED: Select Location Color */}
                 <Select
                   fullWidth sx={selectStyle} value={form.location_id} displayEmpty
                   onChange={(e) => setForm({ ...form, location_id: e.target.value })}
                   startAdornment={<InputAdornment position="start"><LocationOnIcon sx={{color: '#3b82f6', ml: 1}}/></InputAdornment>}
+                  MenuProps={{ PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } }}
                 >
-                  <MenuItem value="" disabled>Select Preferred Court/Location</MenuItem>
-                  {locations.map((loc) => <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>)}
+                  <MenuItem value="" disabled sx={{ color: "rgba(255,255,255,0.5)" }}>Select Preferred Court/Location</MenuItem>
+                  {locations.map((loc) => (
+                    <MenuItem key={loc.id} value={loc.id} sx={{ color: "white" }}>{loc.name}</MenuItem>
+                  ))}
                 </Select>
 
                 <TextField
@@ -157,8 +160,9 @@ export default function PrivateBooking() {
                       InputProps={{
                         startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{color: '#3b82f6'}}/></InputAdornment>
                       }}
+                      SelectProps={{ MenuProps: { PaperProps: { sx: { bgcolor: "#0f172a", color: "white", maxHeight: 300 } } } }}
                     >
-                      {timeOptions.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                      {timeOptions.map(t => <MenuItem key={t} value={t} sx={{ color: "white" }}>{t}</MenuItem>)}
                     </TextField>
                   </Grid>
                   <Grid item xs={6}>
@@ -169,8 +173,9 @@ export default function PrivateBooking() {
                       InputProps={{
                         startAdornment: <InputAdornment position="start"><AccessTimeIcon sx={{color: '#3b82f6'}}/></InputAdornment>
                       }}
+                      SelectProps={{ MenuProps: { PaperProps: { sx: { bgcolor: "#0f172a", color: "white", maxHeight: 300 } } } }}
                     >
-                      {timeOptions.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                      {timeOptions.map(t => <MenuItem key={t} value={t} sx={{ color: "white" }}>{t}</MenuItem>)}
                     </TextField>
                   </Grid>
                 </Grid>
@@ -179,7 +184,7 @@ export default function PrivateBooking() {
                   fullWidth size="large" variant="contained" onClick={submit} disabled={loading}
                   sx={submitBtnStyle}
                 >
-                  {loading ? "PROCESSING..." : "REQUEST BOOKING 🚀"}
+                  {loading ? "SENDING REQUEST..." : "REQUEST BOOKING 🚀"}
                 </Button>
               </Stack>
             </CardContent>
@@ -190,14 +195,14 @@ export default function PrivateBooking() {
   );
 }
 
-// --- REFINED STYLES ---
+// --- STYLES ---
 const pageWrapperStyle = { 
   minHeight: "100vh", bgcolor: "#020617", color: "white", py: 6,
-  background: "radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent), #020617"
+  background: "radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent), #020617"
 };
 
 const glassCardStyle = { 
-  borderRadius: 6, bgcolor: "rgba(255,255,255,0.02)", 
+  borderRadius: 6, bgcolor: "rgba(255,255,255,0.03)", 
   backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)",
   boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)"
 };
@@ -205,25 +210,31 @@ const glassCardStyle = {
 const inputStyle = {
   "& .MuiOutlinedInput-root": {
     color: "white",
-    "& fieldset": { borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px" },
+    "& fieldset": { borderColor: "rgba(255,255,255,0.2)", borderRadius: "12px" },
+    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.4)" },
     "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
     bgcolor: "rgba(255,255,255,0.02)"
   },
-  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6" }
+  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.6)" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6" },
+  "& .MuiSvgIcon-root": { color: "#3b82f6" }
 };
 
-// FIX: This style prevents the time slots from shrinking or overlapping with icons
+const selectStyle = {
+  ...inputStyle,
+  "& .MuiSelect-select": { color: "white !important", fontWeight: 600, paddingLeft: '8px' },
+  "& .MuiSvgIcon-root": { color: "#3b82f6" }
+};
+
 const timeSelectStyle = {
   ...inputStyle,
   "& .MuiSelect-select": { 
     color: "white !important", 
-    paddingLeft: "8px !important", // Space after icon
+    paddingLeft: "8px !important",
     display: "flex", 
     alignItems: "center"
   },
   "& .MuiInputLabel-root": {
-    // Moves label so it doesn't hit the icon
     transform: "translate(45px, 16px) scale(1)",
     "&.Mui-focused, &.MuiFormLabel-filled": {
       transform: "translate(14px, -9px) scale(0.75)"
@@ -231,15 +242,10 @@ const timeSelectStyle = {
   }
 };
 
-const selectStyle = {
-  ...inputStyle,
-  "& .MuiSelect-select": { color: "white !important", fontWeight: 600 },
-  "& .MuiSvgIcon-root": { color: "#3b82f6" }
-};
-
 const submitBtnStyle = {
   py: 2, borderRadius: 4, fontWeight: 900,
   background: "linear-gradient(135deg, #3b82f6, #2563eb)",
   boxShadow: "0 15px 30px rgba(37, 99, 235, 0.4)",
-  "&:hover": { transform: "translateY(-2px)", boxShadow: "0 20px 40px rgba(37, 99, 235, 0.5)" }
+  "&:hover": { transform: "translateY(-2px)", boxShadow: "0 20px 40px rgba(37, 99, 235, 0.6)" },
+  transition: "all 0.3s ease"
 };
