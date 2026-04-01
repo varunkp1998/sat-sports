@@ -16,7 +16,7 @@ import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import dayjs from "dayjs";
 
-const API_BASE = "";
+import API_BASE from "./api";
 
 /* ---------------- DARK THEME FIX ---------------- */
 const darkTheme = createTheme({
