@@ -83,8 +83,8 @@ export default function PrivateBooking() {
 
       // 2️⃣ OPEN RAZORPAY
       const options = {
-        key: "YOUR_RAZORPAY_KEY", // 🔥 replace
-        amount: order.amount,
+        key: import.meta.env.VITE_RAZORPAY_KEY,
+                amount: order.amount,
         currency: "INR",
         name: "SAT Sports",
         description: "Private Session",
