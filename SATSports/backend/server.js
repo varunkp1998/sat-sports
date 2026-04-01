@@ -3815,3 +3815,58 @@ app.post("/api/payment/verify-private", async (req, res) => {
     connection.release();
   }
 });
+app.post("/api/payment/create-order-court", async (req, res) => {
+  const { court_name, start_time, end_time } = req.body;
+
+  // Example pricing logic
+  const pricePerHour = 500;
+  const hours = 1; // you can calculate dynamically
+
+  const amount = pricePerHour * hours;
+
+  const order = await razorpay.orders.create({
+    amount: amount * 100,
+    currency: "INR",
+    receipt: `court_${Date.now()}`
+  });
+
+  res.json({ order, amount });
+});
+app.post("/api/payment/verify-court", async (req, res) => {
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    name,
+    phone,
+    court_name,
+    booking_date,
+    start_time,
+    end_time
+  } = req.body;
+
+  const generated = crypto
+    .createHmac("sha256", process.env.RAZORPAY_SECRET)
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+    .digest("hex");
+
+  if (generated !== razorpay_signature) {
+    return res.status(400).json({ message: "Invalid payment" });
+  }
+
+  await db.query(`
+    INSERT INTO court_bookings
+    (name, phone, court_name, booking_date, start_time, end_time, payment_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `, [
+    name,
+    phone,
+    court_name,
+    booking_date,
+    start_time,
+    end_time,
+    razorpay_payment_id
+  ]);
+
+  res.json({ success: true });
+});
