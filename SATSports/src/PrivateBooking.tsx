@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
-  Box, Typography, TextField, Button,
-  Select, MenuItem, Card, CardContent, Stack, Container, IconButton, InputAdornment, Grid
+  Box, Typography, TextField, Button, Select, MenuItem, Card, 
+  CardContent, Stack, Container, IconButton, InputAdornment, Grid
 } from "@mui/material";
 import { motion } from "framer-motion";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -11,14 +11,18 @@ import PersonIcon from "@mui/icons-material/Person";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import API_BASE from "./api";
+import dayjs from "dayjs";
 
 const MotionBox = motion(Box);
 
 export default function PrivateBooking() {
-  const [locations, setLocations] = useState([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: "", email: "", phone: "", location_id: "",
-    booking_date: "", time_slot: ""
+    booking_date: dayjs().format("YYYY-MM-DD"),
+    start_time: "09:00 AM",
+    end_time: "10:00 AM"
   });
 
   useEffect(() => {
@@ -28,50 +32,58 @@ export default function PrivateBooking() {
       .catch(err => console.error("Failed to load locations", err));
   }, []);
 
-  const generateSlots = () => {
+  const timeOptions = useMemo(() => {
     const slots = [];
-    for (let i = 6; i <= 21; i++) { // Adjusted to 9 PM max
+    for (let i = 6; i <= 21; i++) {
       const hour = i > 12 ? i - 12 : i;
       const suffix = i >= 12 ? "PM" : "AM";
       slots.push(`${hour}:00 ${suffix}`);
     }
     return slots;
-  };
+  }, []);
 
-  const timeSlots = generateSlots();
-
-  const convertTo24Hour = (timeStr) => {
-    const [time, modifier] = timeStr.split(" ");
-    let [hours] = time.split(":");
-    if (modifier === "PM" && hours !== "12") hours = String(parseInt(hours) + 12);
-    if (modifier === "AM" && hours === "12") hours = "00";
-    return `${hours.padStart(2, "0")}:00:00`;
+  const convertTo24Hour = (timeStr: string) => {
+    return dayjs(timeStr, "hh:mm A").format("HH:mm:ss");
   };
 
   const submit = async () => {
-    if (!form.name || !form.time_slot || !form.location_id) {
+    if (!form.name || !form.location_id || !form.booking_date) {
       alert("Please fill in all required fields.");
       return;
     }
-    const payload = { ...form, time_slot: convertTo24Hour(form.time_slot) };
+
+    const sTime = convertTo24Hour(form.start_time);
+    const eTime = convertTo24Hour(form.end_time);
+
+    if (sTime >= eTime) {
+      alert("End time must be after start time!");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/private-bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ ...form, start_time: sTime, end_time: eTime })
       });
       if (res.ok) {
-        alert("Booking requested ✅");
-        setForm({ name: "", email: "", phone: "", location_id: "", booking_date: "", time_slot: "" });
+        alert("Booking Requested Successfully! ✅ Check your email for updates.");
+        setForm({ 
+          name: "", email: "", phone: "", location_id: "", 
+          booking_date: dayjs().format("YYYY-MM-DD"), 
+          start_time: "09:00 AM", end_time: "10:00 AM" 
+        });
       }
-    } catch (err) { alert("Booking failed"); }
+    } catch (err) {
+      alert("Booking failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Box sx={{ 
-      minHeight: "100vh", bgcolor: "#020617", color: "white", py: 6,
-      background: "radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent), #020617"
-    }}>
+    <Box sx={pageWrapperStyle}>
       <Container maxWidth="sm">
         <IconButton onClick={() => window.history.back()} sx={{ color: "white", mb: 2 }}>
           <ArrowBackIcon />
@@ -83,19 +95,13 @@ export default function PrivateBooking() {
               BOOK A <span style={{ color: "#3b82f6" }}>SESSION</span>
             </Typography>
             <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-              Reserve your personalized coaching or court time
+              Reserve personalized coaching at SAT Sports
             </Typography>
           </Box>
 
-          <Card sx={{ 
-            borderRadius: 6, bgcolor: "rgba(255,255,255,0.02)", 
-            backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)"
-          }}>
+          <Card sx={glassCardStyle}>
             <CardContent sx={{ p: 4 }}>
               <Stack spacing={3}>
-                
-                {/* PERSONAL INFO SECTION */}
                 <Typography variant="caption" fontWeight={800} sx={{ color: "#3b82f6", letterSpacing: 1 }}>
                   STEP 1: CONTACT DETAILS
                 </Typography>
@@ -121,19 +127,18 @@ export default function PrivateBooking() {
                   </Grid>
                 </Grid>
 
-                <Divider sx={{ borderColor: "rgba(255,255,255,0.1)" }} />
+                <Box sx={{ height: '1px', bgcolor: 'rgba(255,255,255,0.1)', my: 1 }} />
 
-                {/* LOGISTICS SECTION */}
                 <Typography variant="caption" fontWeight={800} sx={{ color: "#3b82f6", letterSpacing: 1 }}>
-                  STEP 2: SESSION LOGISTICS
+                  STEP 2: LOGISTICS
                 </Typography>
 
                 <Select
-                  fullWidth sx={inputStyle} value={form.location_id} displayEmpty
+                  fullWidth sx={selectStyle} value={form.location_id} displayEmpty
                   onChange={(e) => setForm({ ...form, location_id: e.target.value })}
                   startAdornment={<InputAdornment position="start"><LocationOnIcon sx={{color: '#3b82f6', ml: 1}}/></InputAdornment>}
                 >
-                  <MenuItem value="">Select Location</MenuItem>
+                  <MenuItem value="" disabled>Select Preferred Court/Location</MenuItem>
                   {locations.map((loc) => <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>)}
                 </Select>
 
@@ -143,39 +148,30 @@ export default function PrivateBooking() {
                   InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon sx={{color: '#3b82f6'}}/></InputAdornment> }}
                 />
 
-                <Box>
-                  <Typography variant="body2" sx={{ mb: 1.5, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>
-                    CHOOSE A TIME SLOT
-                  </Typography>
-                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
-                    {timeSlots.map((time) => (
-                      <Button
-                        key={time}
-                        onClick={() => setForm({ ...form, time_slot: time })}
-                        sx={{
-                          borderRadius: 2, py: 1, fontSize: "0.75rem",
-                          bgcolor: form.time_slot === time ? "#3b82f6" : "rgba(255,255,255,0.05)",
-                          color: "white", border: "1px solid rgba(255,255,255,0.1)",
-                          "&:hover": { bgcolor: "#2563eb" }
-                        }}
-                      >
-                        {time}
-                      </Button>
-                    ))}
-                  </Box>
-                </Box>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <TextField
+                      select fullWidth label="Start Time" sx={inputStyle} value={form.start_time}
+                      onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                    >
+                      {timeOptions.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      select fullWidth label="End Time" sx={inputStyle} value={form.end_time}
+                      onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                    >
+                      {timeOptions.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                    </TextField>
+                  </Grid>
+                </Grid>
 
                 <Button
-                  fullWidth size="large" variant="contained" onClick={submit}
-                  sx={{
-                    py: 2, borderRadius: 4, fontWeight: 900,
-                    background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-                    boxShadow: "0 15px 30px rgba(37, 99, 235, 0.4)",
-                    "&:hover": { transform: "translateY(-2px)", boxShadow: "0 20px 40px rgba(37, 99, 235, 0.5)" },
-                    transition: "all 0.3s"
-                  }}
+                  fullWidth size="large" variant="contained" onClick={submit} disabled={loading}
+                  sx={submitBtnStyle}
                 >
-                  REQUEST BOOKING 🚀
+                  {loading ? "PROCESSING..." : "REQUEST BOOKING 🚀"}
                 </Button>
               </Stack>
             </CardContent>
@@ -186,17 +182,38 @@ export default function PrivateBooking() {
   );
 }
 
-const Divider = ({sx}) => <Box sx={{ height: '1px', bgcolor: 'rgba(255,255,255,0.1)', my: 2, ...sx }} />;
+// --- STYLES ---
+const pageWrapperStyle = { 
+  minHeight: "100vh", bgcolor: "#020617", color: "white", py: 6,
+  background: "radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent), #020617"
+};
+
+const glassCardStyle = { 
+  borderRadius: 6, bgcolor: "rgba(255,255,255,0.02)", 
+  backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)",
+  boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)"
+};
 
 const inputStyle = {
   "& .MuiOutlinedInput-root": {
     color: "white",
     "& fieldset": { borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px" },
-    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.3)" },
     "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
     bgcolor: "rgba(255,255,255,0.02)"
   },
   "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6" },
-  "& .MuiSvgIcon-root": { color: "white" }
+  "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6" }
+};
+
+const selectStyle = {
+  ...inputStyle,
+  "& .MuiSelect-select": { color: "white !important", fontWeight: 600 },
+  "& .MuiSvgIcon-root": { color: "#3b82f6" }
+};
+
+const submitBtnStyle = {
+  py: 2, borderRadius: 4, fontWeight: 900,
+  background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+  boxShadow: "0 15px 30px rgba(37, 99, 235, 0.4)",
+  "&:hover": { transform: "translateY(-2px)", boxShadow: "0 20px 40px rgba(37, 99, 235, 0.5)" }
 };
