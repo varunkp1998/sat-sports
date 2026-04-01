@@ -1092,54 +1092,60 @@ app.get("/api/coach/sessions/:coachId", async (req, res) => {
 });
 // --- Updated Check-in API with Cloudinary ---
 app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => {
+  const connection = await db.getConnection(); // Use a connection for Transaction
   try {
     const { coachId, sessionId, locationId, lat, lng } = req.body;
     const verificationPhotoUrl = req.file ? req.file.path : null;
 
+    // 1. Validation Logic
     if (!coachId || !sessionId || !locationId || !lat || !lng) {
       return res.status(400).json({ message: "Missing coordinates or IDs" });
     }
 
-    const [locations] = await db.query("SELECT lat, lng FROM locations WHERE id = ?", [locationId]);
-    if (locations.length === 0) return res.status(404).json({ message: "Location not found" });
+    // Determine Method (Explicitly)
+    const checkinMethod = verificationPhotoUrl ? 'photo' : 'gps';
+
+    await connection.beginTransaction();
+
+    // 2. Location Verification
+    const [locations] = await connection.query("SELECT lat, lng FROM locations WHERE id = ?", [locationId]);
+    if (locations.length === 0) throw new Error("LOCATION_NOT_FOUND");
+    
     const location = locations[0];
-
-    const getDistance = (lat1, lon1, lat2, lon2) => {
-      const R = 6371;
-      const dLat = (lat2 - lat1) * (Math.PI / 180);
-      const dLon = (lon2 - lon1) * (Math.PI / 180);
-      const a = Math.sin(dLat / 2)**2 + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    };
-
-    // Use parseFloat to ensure numbers
     const distance = getDistance(parseFloat(lat), parseFloat(lng), parseFloat(location.lat), parseFloat(location.lng));
 
+    // Fallback trigger: If too far and no photo was provided
     if (distance > 0.2 && !verificationPhotoUrl) {
+      await connection.rollback();
       return res.status(403).json({ 
         requiresPhoto: true, 
-        message: "Location mismatch. Please provide a photo for manual verification." 
+        message: "Outside range. Photo required for manual verification." 
       });
     }
 
-    const [sessions] = await db.query(`SELECT session_date, start_time FROM training_sessions WHERE id=?`, [sessionId]);
-    if (sessions.length === 0) return res.status(404).json({ message: "Session details not found" });
+    // 3. Late Check
+    const [sessions] = await connection.query(`SELECT session_date, start_time FROM training_sessions WHERE id=?`, [sessionId]);
+    const now = dayjs(); // Using dayjs for cleaner date math
+    const sessionStart = dayjs(`${dayjs(sessions[0].session_date).format("YYYY-MM-DD")} ${sessions[0].start_time}`);
+    const isLate = now.isAfter(sessionStart) ? 1 : 0;
 
-    const now = new Date();
-    // Using native Date if dayjs isn't available, or ensure dayjs is required at top
-    const sessionStart = new Date(`${dayjs(sessions[0].session_date).format("YYYY-MM-DD")} ${sessions[0].start_time}`);
-    const isLate = now > sessionStart ? 1 : 0;
-
-    await db.query(
-      `INSERT INTO coach_checkins (coach_id, session_id, location_id, lat, lng, checkin_time, is_late, verification_photo)
-       VALUES (?, ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+05:30'), ?, ?)`,
-      [coachId, sessionId, locationId, lat, lng, isLate, verificationPhotoUrl]
+    // 4. The Final INSERT (With Method)
+    await connection.query(
+      `INSERT INTO coach_checkins 
+       (coach_id, session_id, location_id, lat, lng, checkin_time, is_late, verification_photo, checkin_method)
+       VALUES (?, ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+05:30'), ?, ?, ?)`,
+      [coachId, sessionId, locationId, lat, lng, isLate, verificationPhotoUrl, checkinMethod]
     );
 
-    res.json({ success: true, isLate });
+    await connection.commit();
+    res.json({ success: true, isLate, method: checkinMethod });
+
   } catch (err) {
-    console.error("CRASH LOG:", err);
-    res.status(500).json({ message: "Internal Server Error", details: err.message });
+    await connection.rollback();
+    console.error("ROBUSTNESS ERROR:", err);
+    res.status(500).json({ message: "Check-in Failed", error: err.message });
+  } finally {
+    connection.release();
   }
 });
 app.get("/api/coach/sessions/:sessionId/players", async (req, res) => {
