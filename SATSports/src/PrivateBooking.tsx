@@ -20,8 +20,11 @@ export default function PrivateBooking() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    name: "", email: "", phone: "", location_id: "",
-    booking_date: dayjs().format("YYYY-MM-DD"),
+    name: "",
+    email: "",
+    phone: "",
+    location_id: "",
+    booking_date: dayjs().format("YYYY-MM-DD"), // Default to today
     start_time: "07:00 AM",
     end_time: "08:00 AM"
   });
@@ -33,7 +36,6 @@ export default function PrivateBooking() {
       .catch(err => console.error("Failed to load locations", err));
   }, []);
 
-  // Generates 30-minute increments for the clock type selection
   const timeOptions = useMemo(() => {
     const slots = [];
     for (let hour = 6; hour <= 21; hour++) {
@@ -47,8 +49,9 @@ export default function PrivateBooking() {
   }, []);
 
   const submit = async () => {
-    if (!form.name || !form.location_id || !form.booking_date) {
-      alert("Please fill in all required fields.");
+    // CRITICAL VALIDATION: Ensure date isn't empty before sending
+    if (!form.name || !form.location_id || !form.booking_date || form.booking_date === "") {
+      alert("Please select a valid date and fill all required fields.");
       return;
     }
 
@@ -65,14 +68,30 @@ export default function PrivateBooking() {
       const res = await fetch(`${API_BASE}/api/private-bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, start_time: sTime, end_time: eTime })
+        body: JSON.stringify({ 
+          ...form, 
+          start_time: sTime, 
+          end_time: eTime,
+          time_slot: sTime // Syncing with your backend column name 'time_slot'
+        })
       });
+      
       if (res.ok) {
-        alert("Booking Requested! 🎾 Check your email.");
-        setForm({ ...form, name: "", email: "", phone: "" });
+        alert("Booking Requested Successfully! 🎾");
+        setForm({ 
+            ...form, 
+            name: "", email: "", phone: "", 
+            booking_date: dayjs().format("YYYY-MM-DD") 
+        });
+      } else {
+        const errData = await res.json();
+        alert(`Error: ${errData.message || "Failed to book"}`);
       }
-    } catch (err) { alert("Booking failed."); }
-    finally { setLoading(false); }
+    } catch (err) {
+      alert("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -135,9 +154,15 @@ export default function PrivateBooking() {
                   ))}
                 </Select>
 
+                {/* DATE FIELD - THE FIX IS HERE */}
                 <TextField
-                  type="date" fullWidth sx={inputStyle} value={form.booking_date}
+                  type="date"
+                  fullWidth
+                  label="Booking Date"
+                  sx={inputStyle}
+                  value={form.booking_date}
                   onChange={(e) => setForm({ ...form, booking_date: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
                   InputProps={{ 
                     startAdornment: <InputAdornment position="start"><CalendarMonthIcon sx={{color: '#3b82f6'}}/></InputAdornment>,
                   }}
@@ -187,7 +212,7 @@ export default function PrivateBooking() {
   );
 }
 
-// --- STYLES ---
+// --- STYLES (NO CHANGES NEEDED HERE) ---
 const pageWrapperStyle = { 
   minHeight: "100vh", bgcolor: "#020617", py: 6,
   background: "radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent), #020617"
@@ -203,9 +228,9 @@ const inputStyle = {
     color: "white",
     "& fieldset": { borderColor: "rgba(255,255,255,0.2)", borderRadius: "12px" },
     "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
+    "& input::-webkit-calendar-picker-indicator": { filter: "invert(1)" } // Makes date icon white
   },
-  // FIX: Force Label to be visible white
-  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.7) !important" },
+  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.8) !important" },
   "& .MuiInputLabel-root.Mui-focused": { color: "#3b82f6 !important" }
 };
 
@@ -216,14 +241,8 @@ const selectStyle = {
 
 const timeSelectStyle = {
   ...inputStyle,
-  "& .MuiSelect-select": { 
-    color: "white !important", 
-    paddingLeft: "8px !important",
-    display: "flex", 
-    alignItems: "center"
-  },
+  "& .MuiSelect-select": { color: "white !important", paddingLeft: "8px !important", display: "flex", alignItems: "center" },
   "& .MuiInputLabel-root": {
-    // FIX: Shifts the label "Start Time" to the right so it doesn't collide with the icon
     transform: "translate(42px, 16px) scale(1)",
     "&.Mui-focused, &.MuiFormLabel-filled": {
       transform: "translate(14px, -9px) scale(0.75)",
