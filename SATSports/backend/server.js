@@ -3525,36 +3525,30 @@ if (!fs.existsSync(uploadDir)) {
 // THE UPLOAD ENDPOINT
 // ✅ Use the 'upload' instance you already defined with multer.diskStorage
 // ✅ Correcting the upload flow for Cloudinary Sync
-app.post("/api/coach/upload-photo", upload.single("photo"), async (req, res) => {
+// 1. 'uploadCloud.single("photo")' handles the upload to Cloudinary automatically
+app.post("/api/coach/upload-photo", uploadCloud.single("photo"), async (req, res) => {
   try {
-    const { userId } = req.body; 
-    const file = req.file;
-
-    if (!userId || !file) {
-      return res.status(400).json({ success: false, message: "Missing userId or photo file" });
+    const { userId } = req.body;
+    
+    // 2. Multer-Storage-Cloudinary puts the Cloudinary URL here:
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({ success: false, message: "No file uploaded to Cloud" });
     }
 
-    // 1. Upload to Cloudinary
-    // We use file.path which Multer generated locally
-    const result = await uploadCloud.uploader.upload(file.path, {
-      folder: "coach_profiles",
-      public_id: `coach_${userId}`,
-      overwrite: true,
-      transformation: [{ width: 500, height: 500, crop: "limit" }] // Optimization
-    });
+    const imageUrl = req.file.path; // This is the 'secure_url' from Cloudinary
 
-    const imageUrl = result.secure_url;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "Missing User ID" });
+    }
 
-    // 2. Update Database with the SECURE URL (Cloudinary)
+    // 3. Update Database with the URL
     await db.query(
       "UPDATE coaches SET photo = ? WHERE user_id = ?",
       [imageUrl, userId]
     );
 
-    // 3. CLEANUP: IMPORTANT for Render's limited disk space
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
+    // 4. No 'fs.unlink' needed! 
+    // Since the file went straight to Cloudinary, there is no local temp file.
 
     res.json({ 
       success: true, 
@@ -3563,11 +3557,8 @@ app.post("/api/coach/upload-photo", upload.single("photo"), async (req, res) => 
     });
 
   } catch (err) {
-    console.error("UPLOAD CRASH:", err);
-    // Even if it crashes, try to clean up the temp file if it exists
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    
-    res.status(500).json({ success: false, message: "Cloud upload failed", error: err.message });
+    console.error("UPLOAD ERROR:", err);
+    res.status(500).json({ success: false, message: "Database sync failed", error: err.message });
   }
 });
 // Get subcategories for a program
