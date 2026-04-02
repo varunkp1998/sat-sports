@@ -1140,7 +1140,7 @@ app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => 
 
     // 4. The Final INSERT (With Method)
     await connection.query(
-      `INSERT INTO coach_checkins 
+      `INSERT IGNORE INTO coach_checkins 
        (coach_id, session_id, location_id, lat, lng, checkin_time, is_late, verification_photo, method)
        VALUES (?, ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+05:30'), ?, ?, ?)`,
       [coachId, sessionId, locationId, lat, lng, isLate, verificationPhotoUrl, checkinMethod]
