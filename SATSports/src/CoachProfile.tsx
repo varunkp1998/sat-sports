@@ -153,14 +153,20 @@ function CoachProfile() {
 const avatarSrc = useMemo(() => {
   if (!profile?.photo) return "";
   
-  const base = profile.photo.startsWith("http") 
-    ? profile.photo 
-    : `${API_BASE}${profile.photo}`;
+  // 🛡️ THE FIX: Check if photo is an object before using it
+  const photoPath = typeof profile.photo === 'object' 
+    ? profile.photo.url  // Extract the string if it's an object
+    : profile.photo;     // Otherwise use as-is
 
-  // Adds a timestamp to the URL so the browser loads the fresh upload immediately
+  // Guard against non-string values to prevent #310
+  if (typeof photoPath !== 'string') return "";
+
+  const base = photoPath.startsWith("http") 
+    ? photoPath 
+    : `${API_BASE}${photoPath}`;
+
   return `${base}?t=${Date.now()}`;
 }, [profile?.photo]);
-
   return (
     <Box sx={{ background: "#020617", minHeight: "100vh", py: 6, color: "white" }}>
       <Container maxWidth="md">
