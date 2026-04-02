@@ -441,21 +441,24 @@ import EmailIcon from "@mui/icons-material/Email";
 
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const [authorized, setAuthorized] = React.useState<boolean | null>(null);
+  const [status, setStatus] = useState<'loading' | 'auth' | 'no-auth'>('loading');
 
-  React.useEffect(() => {
-    fetch(`${API_BASE}/api/admin/programs`)
-      .then(res => {
-        if (res.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        setAuthorized(true);
-      })
-      .catch(() => window.location.href = "/login");
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setStatus('no-auth');
+      return;
+    }
+    
+    fetch(`${API_BASE}/api/auth/verify`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.ok ? setStatus('auth') : setStatus('no-auth'))
+    .catch(() => setStatus('no-auth'));
   }, []);
 
-  if (!authorized) return <p>Checking authentication...</p>;
+  if (status === 'loading') return <LinearProgress />;
+  if (status === 'no-auth') return <Navigate to="/login" replace />;
   return children;
 }
 
