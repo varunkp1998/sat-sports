@@ -150,24 +150,29 @@ function CoachProfile() {
 
   // Enhancement: Smart Avatar Source
 // Enhancement: Smart Avatar Source with Cache Busting
+// 🛡️ Hardened Avatar Source to eliminate Error #310
 const avatarSrc = useMemo(() => {
-  // 1. Safety first: Check if the photo exists
-  if (!profile?.photo) return "";
+  // 1. Initial Load Guard: If profile is null, return empty string immediately
+  if (!profile || !profile.photo) {
+    return "";
+  }
 
-  // 2. THE FIX: Extract the string if it's an object { url: "..." }
-  const photoPath = typeof profile.photo === 'object' 
-    ? profile.photo.url 
-    : profile.photo;
+  // 2. Type Guard: Ensure we aren't trying to process an object
+  const photoPath = typeof profile.photo === 'object' ? profile.photo.url : profile.photo;
 
-  // 3. Final Guard: If it's still not a string, return empty to prevent crash #310
-  if (typeof photoPath !== 'string') return "";
+  // 3. Final String Check
+  if (typeof photoPath !== 'string') {
+    return "";
+  }
 
+  // 4. Construct URL
   const base = photoPath.startsWith("http") 
     ? photoPath 
     : `${API_BASE}${photoPath}`;
 
-  return `${base}?t=${Date.now()}`;
-}, [profile?.photo]);
+  // 5. Cache Buster (Cleaned)
+  return `${base.split('?')[0]}?t=${Date.now()}`;
+}, [profile]); // Changed dependency to 'profile' to catch the full update
   return (
     <Box sx={{ background: "#020617", minHeight: "100vh", py: 6, color: "white" }}>
       <Container maxWidth="md">
@@ -198,9 +203,10 @@ const avatarSrc = useMemo(() => {
                   <Stack direction={{ xs: "column", md: "row" }} spacing={5} alignItems="center">
                     
                     <Box sx={{ position: "relative" }}>
-                      <Avatar src={avatarSrc} sx={avatarStyle}>
-                        {name?.[0] || "C"}
-                      </Avatar>
+                    <Avatar src={avatarSrc} sx={avatarStyle}>
+  {/* This ensures that if avatarSrc is empty, it renders the first letter of the name string */}
+  {typeof name === 'string' ? name[0] : "C"}
+</Avatar>
                       <input accept="image/*" style={{ display: "none" }} id="photo-upload" type="file" onChange={handlePhotoChange} />
                       <label htmlFor="photo-upload">
                         <IconButton component="span" disabled={uploading} sx={cameraBtnStyle}>
