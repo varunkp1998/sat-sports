@@ -3505,34 +3505,51 @@ if (!fs.existsSync(uploadDir)) {
 // Storage Configuration
 
 // THE UPLOAD ENDPOINT
-app.post("/api/coach/upload-photo", async (req, res) => {
+// ✅ Use the 'upload' instance you already defined with multer.diskStorage
+app.post("/api/coach/upload-photo", upload.single("photo"), async (req, res) => {
   try {
-    const { userId } = req.body;
-    const file = req.files.photo; // Assuming you use express-fileupload or similar
+    // 1. Multer has now populated req.body and req.file
+    const { userId } = req.body; 
+    const file = req.file;
 
-    // 1. Upload to Cloudinary
-    // We use a folder called 'coach_profiles' to keep things organized
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
+    if (!userId) {
+      return res.status(400).json({ message: "Missing userId in request body" });
+    }
+
+    if (!file) {
+      return res.status(400).json({ message: "No file received by server" });
+    }
+
+    // 2. Upload the local file to Cloudinary (Using your uploadCloud config)
+    // Multer saved it to 'uploads/profiles/filename.jpg'
+    const result = await uploadCloud.uploader.upload(file.path, {
       folder: "coach_profiles",
-      public_id: `coach_${userId}`, // Overwrites existing photo for this user
-      transformation: [{ width: 500, height: 500, crop: "limit" }] // Optimization
+      public_id: `coach_${userId}`,
+      overwrite: true,
     });
 
     const imageUrl = result.secure_url;
 
-    // 2. Update Database with the Cloudinary URL
+    // 3. Update Database
     await db.query(
       "UPDATE coaches SET photo = ? WHERE user_id = ?",
       [imageUrl, userId]
     );
 
-    res.json({ url: imageUrl });
+    // 4. CLEANUP: Delete the local temp file after uploading to Cloudinary
+    fs.unlinkSync(file.path);
+
+    res.json({ 
+      success: true, 
+      url: imageUrl, 
+      message: "Cloudinary Sync Complete" 
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Cloudinary Sync Failed" });
+    console.error("UPLOAD CRASH:", err);
+    res.status(500).json({ message: "Server error during upload", error: err.message });
   }
 });
-2.
 // Get subcategories for a program
 app.get("/api/programs/:id/subcategories", async (req, res) => {
   const [rows] = await db.query("SELECT * FROM program_subcategories WHERE program_id = ?", [req.params.id]);
