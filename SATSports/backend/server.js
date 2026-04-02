@@ -58,7 +58,7 @@ dirs.forEach(dir => {
   }
 });
 
-
+const JWT_SECRET = process.env.JWT_SECRET || "sat_sports_secret_2026";
 
 app.use('/uploads', express.static(UPLOADS_ROOT));
 
@@ -115,6 +115,7 @@ const db = connection.promise();   // ✅ create db variable
 let sessions = [];
 // LOGIN
 
+// ✅ LOGIN ROUTE
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -125,54 +126,35 @@ app.post("/api/login", async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
     const user = rows[0];
 
-    let coachId = null;
-    let playerId = null;
-
-    if (user.role === "coach") {
-      const [c] = await db.query(
-        "SELECT id FROM coaches WHERE user_id = ?",
-        [user.id]
-      );
-      if (c.length > 0) coachId = c[0].id;
-    }
-
-    if (user.role === "player") {
-      const [p] = await db.query(
-        "SELECT id FROM players WHERE user_id = ?",
-        [user.id]
-      );
-      if (p.length > 0) playerId = p[0].id;
-    }
-
-    // 🔐 CREATE JWT TOKEN
+    // Create the payload with IDs needed for the frontend
     const token = jwt.sign(
-      {
-        id: user.id,
-        role: user.role,
-        name: user.name,
-        coachId,
-        playerId
-      },
+      { id: user.id, role: user.role, name: user.name },
       process.env.JWT_SECRET || "secret123",
       { expiresIn: "7d" }
     );
 
-    res.json({
-      success: true,
-      token   // ✅ ONLY send token
-    });
-
+    res.json({ success: true, token });
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
-    res.status(500).json({ message: "Login failed" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
+// ✅ VERIFY ROUTE (Required for ProtectedRoute)
+app.get("/api/auth/verify", (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.sendStatus(401);
+
+  const token = authHeader.split(" ")[1]; // Grabs token from "Bearer <token>"
+  jwt.verify(token, process.env.JWT_SECRET || "secret123", (err, decoded) => {
+    if (err) return res.sendStatus(403);
+    res.json({ valid: true, user: decoded });
+  });
+});
 // LOGOUT
 app.post("/api/logout", (req, res) => {
   currentUser = null;

@@ -33,6 +33,7 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import PrivateBooking from "./PrivateBooking";
 import AdminPrivateBookings from "./AdminPrivateBooking";
 import PlayerProfile from "./PlayerProfile.tsx";
+import ProtectedRoute from "./ProtectedRoute.tsx";
 import Home from "./Home.tsx";
 import About from "./About.tsx";
 import ProgramsPage from "./ProgramsPage.tsx";
@@ -440,27 +441,6 @@ import EmailIcon from "@mui/icons-material/Email";
 
 
 
-function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const [status, setStatus] = useState<'loading' | 'auth' | 'no-auth'>('loading');
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setStatus('no-auth');
-      return;
-    }
-    
-    fetch(`${API_BASE}/api/auth/verify`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.ok ? setStatus('auth') : setStatus('no-auth'))
-    .catch(() => setStatus('no-auth'));
-  }, []);
-
-  if (status === 'loading') return <LinearProgress />;
-  if (status === 'no-auth') return <Navigate to="/login" replace />;
-  return children;
-}
 
 /* ---------- NEWS ---------- */
 

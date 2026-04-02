@@ -68,7 +68,6 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!username || !password) return setError("Please enter credentials");
-    setError("");
     setLoading(true);
   
     try {
@@ -79,30 +78,29 @@ export default function Login() {
       });
   
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Invalid credentials");
+      if (!res.ok) throw new Error(data.message);
   
-      // Save Auth Data
+      // 🔑 THE FIX: Save token exactly where ProtectedRoute looks for it
       localStorage.setItem("token", data.token);
-      const payload = JSON.parse(atob(data.token.split(".")[1]));
+  
+      // Decode the middle part of the JWT to get role/id
+      const payload = JSON.parse(window.atob(data.token.split(".")[1]));
       localStorage.setItem("role", payload.role);
       localStorage.setItem("userId", String(payload.id));
-      localStorage.setItem("username", payload.name || "User");
   
-      // Trigger Tennis Loader & Redirect
-      setLoading(false);
       setRedirecting(true);
       
+      // Redirect based on role
       setTimeout(() => {
-        const routes: any = { admin: "/admin", coach: "/coach", player: "/player" };
-        window.location.href = routes[payload.role] || "/dashboard";
+        const paths: any = { admin: "/admin", coach: "/coach", player: "/player" };
+        window.location.href = paths[payload.role] || "/dashboard";
       }, 1500);
   
     } catch (err: any) {
-      setLoading(false);
       setError(err.message);
+      setLoading(false);
     }
   };
-
   const sendOtp = async () => {
     if (!email) return setError("Enter your email");
     setLoading(true);

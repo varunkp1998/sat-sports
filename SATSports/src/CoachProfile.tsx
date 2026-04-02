@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Card, CardContent, Typography, TextField, Button, Stack, Avatar, Divider, 
   Box, Alert, CircularProgress, IconButton, InputAdornment, Container, Fade, Grid
@@ -147,9 +147,17 @@ function CoachProfile() {
   );
 
   // Enhancement: Smart Avatar Source
-  const avatarSrc = profile?.photo?.startsWith("http") 
+// Enhancement: Smart Avatar Source with Cache Busting
+const avatarSrc = useMemo(() => {
+  if (!profile?.photo) return "";
+  
+  const base = profile.photo.startsWith("http") 
     ? profile.photo 
-    : profile?.photo ? `${API_BASE}${profile.photo}` : "";
+    : `${API_BASE}${profile.photo}`;
+
+  // Adds a timestamp to the URL so the browser loads the fresh upload immediately
+  return `${base}?t=${Date.now()}`;
+}, [profile?.photo]);
 
   return (
     <Box sx={{ background: "#020617", minHeight: "100vh", py: 6, color: "white" }}>
