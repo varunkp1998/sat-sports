@@ -1159,16 +1159,20 @@ app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => 
 });
 app.get("/api/coach/sessions/:sessionId/players", async (req, res) => {
   const { sessionId } = req.params;
-
-  const [rows] = await db.query(
-    `SELECT p.id, p.name, p.age
-     FROM session_players sp
-     JOIN players p ON p.id = sp.player_id
-     WHERE sp.session_id = ?`,
-    [sessionId]
-  );
-
-  res.json(rows);
+  try {
+    // This finds all players enrolled in the programs linked to this specific session
+    const [rows] = await db.query(
+      `SELECT DISTINCT p.id, p.name, p.age 
+       FROM players p
+       JOIN session_programs sp ON sp.program_id = p.program_id
+       WHERE sp.session_id = ?`,
+      [sessionId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Fetch Players Error:", err);
+    res.status(500).json({ message: "Failed to load players" });
+  }
 });
 app.post("/api/coach/sessions/:sessionId/attendance", async (req, res) => {
   const { sessionId } = req.params;
