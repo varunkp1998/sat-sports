@@ -1531,35 +1531,71 @@ app.get("/api/coach/profile/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const [[row]] = await db.query(
-      `SELECT u.email, u.role, c.name
-       FROM users u
-       JOIN coaches c ON c.user_id = u.id
-       WHERE u.id = ?`,
+    const [rows] = await db.query(
+      `SELECT id, name, email, photo 
+       FROM coaches 
+       WHERE user_id = ?`,
       [userId]
     );
 
-    if (!row) return res.status(404).json({ message: "Profile not found" });
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Coach not found" });
+    }
 
-    res.json(row);
+    const coach = rows[0];
+
+    // ✅ FLATTEN THE RESPONSE
+    // Your React code does: setName(data.name)
+    // If you send { coach: { name: 'Varun' } }, data.name is undefined.
+    res.json({
+      coachId: coach.id,
+      name: coach.name,
+      email: coach.email,
+      photo: coach.photo, 
+      role: "coach"
+    });
+
   } catch (err) {
-    console.error("COACH PROFILE ERROR:", err);
+    console.error("PROFILE FETCH ERROR:", err);
     res.status(500).json({ message: "Failed to load profile" });
   }
 });
-app.put("/api/coach/profile", async (req, res) => {
+// ✅ Changed path to match frontend: /api/coach/update-profile
+app.put("/api/coach/update-profile", async (req, res) => {
   const { userId, name } = req.body;
 
+  if (!userId || !name) {
+    return res.status(400).json({ success: false, message: "Missing Name or User ID" });
+  }
+
   try {
-    await db.query(
+    // 1. Update the 'coaches' table
+    const coachUpdate = db.query(
       "UPDATE coaches SET name = ? WHERE user_id = ?",
       [name, userId]
     );
 
-    res.json({ success: true });
+    // 2. Update the 'users' table (Optional but recommended for consistency)
+    const userUpdate = db.query(
+      "UPDATE users SET name = ? WHERE id = ?",
+      [name, userId]
+    );
+
+    // Run both updates
+    await Promise.all([coachUpdate, userUpdate]);
+
+    res.json({ 
+      success: true, 
+      message: "Profile details synchronized across all tables" 
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to update profile" });
+    console.error("UPDATE ERROR:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Database synchronization failed", 
+      error: err.message 
+    });
   }
 });
 app.post("/api/coach/change-password", async (req, res) => {
@@ -3488,48 +3524,50 @@ if (!fs.existsSync(uploadDir)) {
 
 // THE UPLOAD ENDPOINT
 // ✅ Use the 'upload' instance you already defined with multer.diskStorage
+// ✅ Correcting the upload flow for Cloudinary Sync
 app.post("/api/coach/upload-photo", upload.single("photo"), async (req, res) => {
   try {
-    // 1. Multer has now populated req.body and req.file
     const { userId } = req.body; 
     const file = req.file;
 
-    if (!userId) {
-      return res.status(400).json({ message: "Missing userId in request body" });
+    if (!userId || !file) {
+      return res.status(400).json({ success: false, message: "Missing userId or photo file" });
     }
 
-    if (!file) {
-      return res.status(400).json({ message: "No file received by server" });
-    }
-
-    // 2. Upload the local file to Cloudinary (Using your uploadCloud config)
-    // Multer saved it to 'uploads/profiles/filename.jpg'
+    // 1. Upload to Cloudinary
+    // We use file.path which Multer generated locally
     const result = await uploadCloud.uploader.upload(file.path, {
       folder: "coach_profiles",
       public_id: `coach_${userId}`,
       overwrite: true,
+      transformation: [{ width: 500, height: 500, crop: "limit" }] // Optimization
     });
 
     const imageUrl = result.secure_url;
 
-    // 3. Update Database
+    // 2. Update Database with the SECURE URL (Cloudinary)
     await db.query(
       "UPDATE coaches SET photo = ? WHERE user_id = ?",
       [imageUrl, userId]
     );
 
-    // 4. CLEANUP: Delete the local temp file after uploading to Cloudinary
-    fs.unlinkSync(file.path);
+    // 3. CLEANUP: IMPORTANT for Render's limited disk space
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
 
     res.json({ 
       success: true, 
       url: imageUrl, 
-      message: "Cloudinary Sync Complete" 
+      message: "Sync Complete" 
     });
 
   } catch (err) {
     console.error("UPLOAD CRASH:", err);
-    res.status(500).json({ message: "Server error during upload", error: err.message });
+    // Even if it crashes, try to clean up the temp file if it exists
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    
+    res.status(500).json({ success: false, message: "Cloud upload failed", error: err.message });
   }
 });
 // Get subcategories for a program

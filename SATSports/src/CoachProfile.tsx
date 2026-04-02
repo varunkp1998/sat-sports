@@ -92,13 +92,16 @@ function CoachProfile() {
     
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/coach/update-profile`, {
+      const res = await fetch(`${API_BASE}/api/coach/update-profile`, { // ⬅️ Must match the backend path!
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, name }),
       });
+      
       if (res.ok) {
         setMessage({ type: "success", text: "PROFILE DETAILS UPDATED" });
+        // Update local storage so the sidebar/header updates too
+        localStorage.setItem("username", name);
       }
     } catch {
       setMessage({ type: "error", text: "SYNC FAILED" });
@@ -106,7 +109,6 @@ function CoachProfile() {
       setSaving(false);
     }
   };
-
   // 4. SECURITY PROTOCOL - With Hardened Validation
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword) {
