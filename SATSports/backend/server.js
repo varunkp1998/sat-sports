@@ -1562,40 +1562,21 @@ app.get("/api/coach/profile/:userId", async (req, res) => {
 });
 // ✅ Changed path to match frontend: /api/coach/update-profile
 app.put("/api/coach/update-profile", async (req, res) => {
-  const { userId, name } = req.body;
-
-  if (!userId || !name) {
-    return res.status(400).json({ success: false, message: "Missing Name or User ID" });
-  }
+  const { userId, name, bio } = req.body; // Destructure bio
 
   try {
-    // 1. Update the 'coaches' table
-    const coachUpdate = db.query(
-      "UPDATE coaches SET name = ? WHERE user_id = ?",
-      [name, userId]
+    await db.query(
+      "UPDATE coaches SET name = ?, bio = ? WHERE user_id = ?",
+      [name, bio, userId]
     );
 
-    // 2. Update the 'users' table (Optional but recommended for consistency)
-    const userUpdate = db.query(
-      "UPDATE users SET name = ? WHERE id = ?",
-      [name, userId]
-    );
+    // Also update users table for the name
+    await db.query("UPDATE users SET name = ? WHERE id = ?", [name, userId]);
 
-    // Run both updates
-    await Promise.all([coachUpdate, userUpdate]);
-
-    res.json({ 
-      success: true, 
-      message: "Profile details synchronized across all tables" 
-    });
-
+    res.json({ success: true });
   } catch (err) {
-    console.error("UPDATE ERROR:", err);
-    res.status(500).json({ 
-      success: false, 
-      message: "Database synchronization failed", 
-      error: err.message 
-    });
+    console.error(err);
+    res.status(500).json({ message: "Failed to update profile" });
   }
 });
 app.post("/api/coach/change-password", async (req, res) => {

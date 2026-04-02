@@ -17,6 +17,7 @@ function CoachProfile() {
   // Data States
   const [profile, setProfile] = useState<any>(null);
   const [name, setName] = useState("");
+  const [bio, setBio] = useState(""); // 🟢 New state for Bio
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,6 +30,7 @@ function CoachProfile() {
   const [showPass, setShowPass] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // 1. LOAD PROFILE
   const loadProfile = useCallback(async () => {
     if (!userId) return;
     try {
@@ -37,6 +39,7 @@ function CoachProfile() {
       const data = await res.json();
       setProfile(data);
       setName(typeof data.name === 'string' ? data.name : "");
+      setBio(typeof data.bio === 'string' ? data.bio : ""); // 🟢 Load Bio from DB
     } catch (err) {
       setMessage({ type: "error", text: "DATABASE SYNC ERROR" });
     } finally {
@@ -46,6 +49,7 @@ function CoachProfile() {
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
+  // 2. PHOTO CHANGE
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -82,6 +86,7 @@ function CoachProfile() {
     }
   };
 
+  // 3. SAVE PROFILE DETAILS (Updated to include Bio)
   const handleSaveProfile = async () => {
     if (!name.trim()) return setMessage({ type: "error", text: "NAME REQUIRED" });
     
@@ -90,7 +95,7 @@ function CoachProfile() {
       const res = await fetch(`${API_BASE}/api/coach/update-profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, name }),
+        body: JSON.stringify({ userId, name, bio }), // 🟢 Sending Bio to Backend
       });
       
       if (res.ok) {
@@ -104,6 +109,7 @@ function CoachProfile() {
     }
   };
 
+  // 4. CHANGE PASSWORD
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword) return setMessage({ type: "error", text: "ALL FIELDS REQUIRED" });
     if (newPassword !== confirmPassword) return setMessage({ type: "error", text: "PASSWORDS DO NOT MATCH" });
@@ -129,7 +135,7 @@ function CoachProfile() {
     }
   };
 
-  // 🛡️ Hardened Avatar Source to eliminate Error #310
+  // 🛡️ Avatar Source
   const avatarSrc = useMemo(() => {
     if (!profile || !profile.photo) return "";
     const photoPath = typeof profile.photo === 'object' ? profile.photo.url : profile.photo;
@@ -192,8 +198,33 @@ function CoachProfile() {
                   <Divider sx={{ my: 4, bgcolor: "rgba(255,255,255,0.05)" }} />
 
                   <Stack spacing={3}>
-                    <TextField label="DISPLAY NAME" fullWidth value={name} onChange={(e) => setName(e.target.value)} sx={darkInputStyle} />
-                    <Button fullWidth variant="contained" onClick={handleSaveProfile} disabled={saving || !name} sx={primaryBtnStyle}>
+                    <TextField 
+                      label="DISPLAY NAME" 
+                      fullWidth 
+                      value={name} 
+                      onChange={(e) => setName(e.target.value)} 
+                      sx={darkInputStyle} 
+                    />
+
+                    {/* 🟢 NEW BIO FIELD ADDED HERE */}
+                    <TextField 
+                      label="PROFESSIONAL BIO / EXPERIENCE" 
+                      fullWidth 
+                      multiline
+                      rows={4}
+                      placeholder="Share your coaching philosophy, years of experience, and specializations..."
+                      value={bio} 
+                      onChange={(e) => setBio(e.target.value)} 
+                      sx={darkInputStyle} 
+                    />
+
+                    <Button 
+                      fullWidth 
+                      variant="contained" 
+                      onClick={handleSaveProfile} 
+                      disabled={saving || !name} 
+                      sx={primaryBtnStyle}
+                    >
                       {saving ? <CircularProgress size={24} color="inherit" /> : "SYNC PROFILE DETAILS"}
                     </Button>
                   </Stack>
@@ -247,7 +278,7 @@ function CoachProfile() {
 const glassCardStyle = { borderRadius: 6, background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", color: "white" };
 const avatarStyle = { width: 140, height: 140, bgcolor: "#ef4444", fontSize: "3rem", fontWeight: 900, border: "4px solid rgba(255,255,255,0.05)" };
 const cameraBtnStyle = { position: "absolute", bottom: 5, right: 5, bgcolor: "white", color: "black", "&:hover": { bgcolor: "#ef4444", color: "white" } };
-const darkInputStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } } };
+const darkInputStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } }, "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)", fontWeight: 800 } };
 const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, background: "linear-gradient(135deg, #f97316, #ef4444)" };
 const secondaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, borderColor: "#ef4444", color: "#ef4444" };
 const alertStyle = (type: string) => ({ mb: 4, borderRadius: 3, bgcolor: type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)", color: type === "success" ? "#22c55e" : "#ef4444" });
