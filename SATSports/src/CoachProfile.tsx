@@ -151,14 +151,15 @@ function CoachProfile() {
   // Enhancement: Smart Avatar Source
 // Enhancement: Smart Avatar Source with Cache Busting
 const avatarSrc = useMemo(() => {
+  // 1. Safety first: Check if the photo exists
   if (!profile?.photo) return "";
-  
-  // 🛡️ THE FIX: Check if photo is an object before using it
-  const photoPath = typeof profile.photo === 'object' 
-    ? profile.photo.url  // Extract the string if it's an object
-    : profile.photo;     // Otherwise use as-is
 
-  // Guard against non-string values to prevent #310
+  // 2. THE FIX: Extract the string if it's an object { url: "..." }
+  const photoPath = typeof profile.photo === 'object' 
+    ? profile.photo.url 
+    : profile.photo;
+
+  // 3. Final Guard: If it's still not a string, return empty to prevent crash #310
   if (typeof photoPath !== 'string') return "";
 
   const base = photoPath.startsWith("http") 
