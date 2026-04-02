@@ -3908,3 +3908,30 @@ app.post("/api/payment/verify-court", async (req, res) => {
 
   res.json({ success: true });
 });
+app.post("/api/coach/post-tournament", async (req, res) => {
+  const { player1, player2, score, review, coachId } = req.body;
+
+  try {
+    await db.query(
+      "INSERT INTO practice_tournaments (player1, player2, score, review, coach_id) VALUES (?, ?, ?, ?, ?)",
+      [player1, player2, score, review, coachId]
+    );
+    res.json({ success: true, message: "Tournament result saved" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to save match result" });
+  }
+});
+app.get("/api/coach/tournament-history/:coachId", async (req, res) => {
+  const { coachId } = req.params;
+  try {
+    const [rows] = await db.query(
+      "SELECT * FROM practice_tournaments WHERE coach_id = ? ORDER BY created_at DESC",
+      [coachId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch match history" });
+  }
+});
