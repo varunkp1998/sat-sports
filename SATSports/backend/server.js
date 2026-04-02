@@ -1379,7 +1379,7 @@ app.get("/api/coach/profile/:userId", async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      `SELECT id, name, email, photo 
+      `SELECT id, name, email, photo ,bio
        FROM coaches 
        WHERE user_id = ?`,
       [userId]
@@ -1395,7 +1395,8 @@ app.get("/api/coach/profile/:userId", async (req, res) => {
       coachId: coach.id,
       name: coach.name,
       email: coach.email,
-      photo: coach.photo, // 🖼️ This sends the file path to the UI
+      photo: coach.photo,
+      bio: coach.bio, // 👈 ADD THIS LINE // 🖼️ This sends the file path to the UI
       role: "coach"
     });
 
