@@ -26,6 +26,7 @@ export default function CoachLayout() {
   const menuItems = [
     { label: "🏠 Dashboard", path: "/coach" },
     { label: "📅 My Sessions", path: "/coach/sessions" },
+    { label: "🏆 Practice Tournaments", path: "/coach/tournaments" }, // 🟢 Added
     { label: "📝 Apply Leave", path: "/coach/leave" },
     { label: "👤 My Profile", path: "/coach/profile" }
   ];

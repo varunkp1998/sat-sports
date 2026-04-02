@@ -6,6 +6,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import AdminLocations from "./AdminLocations";
+import PracticeTournaments from "./PracticeTournaments.tsx";
 import AdminVerify from "./AdminVerify";
 import AdminNews from "./AdminNews.tsx";
 import AdminTournaments from "./AdminTournaments.tsx";
@@ -159,6 +160,7 @@ export default function App() {
     <Route path="sessions/:sessionId/attendance" element={<CoachAttendance />} />
     <Route path="leave" element={<CoachLeave />} />
     <Route path="profile" element={<CoachProfile />} />
+    <Route path="tournaments" element={<PracticeTournaments />} /> {/* 🟢 Added */}
   </Route>
 
   {/* --- Player Routes --- */}
