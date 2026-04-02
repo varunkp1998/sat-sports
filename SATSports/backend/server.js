@@ -3010,6 +3010,7 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
   try {
     await connection.beginTransaction();
 
+    // 1. Fetch booking details
     const [[booking]] = await connection.query(
       "SELECT * FROM private_bookings WHERE id=?", [id]
     );
@@ -3019,15 +3020,14 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // UPDATE BOOKING STATUS
+    // 2. Update booking status
     await connection.query(`
       UPDATE private_bookings 
       SET status='approved', coach_id=?, location_id=? 
       WHERE id=?
     `, [coach_id, court_id || booking.location_id, id]);
 
-    // CREATE OFFICIAL TRAINING SESSION (Robust logic)
-    // Note: booking.start_time and booking.end_time should be in 'HH:mm:ss' format
+    // 3. Create the official training session
     await connection.query(`
       INSERT INTO training_sessions 
       (coach_id, session_date, start_time, end_time, location_id, category)
@@ -3040,14 +3040,16 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
       court_id || booking.location_id
     ]);
 
+    // Commit DB changes before attempting email
     await connection.commit();
 
-    // SEND EMAIL (Non-blocking)
-    await resend.emails.send({
-      from: "SAT Sports <no-reply@sat-sports.in>",
-      to: booking.email,
-      subject: "🎾 Your Session is Confirmed!",
-      html: `
+    // 4. Send Confirmation Email (Awaited with error logging)
+    try {
+      const { data, error } = await resend.emails.send({
+        from: "SAT Sports <no-reply@sat-sports.in>",
+        to: booking.email,
+        subject: "🎾 Your Session is Confirmed!",
+        html: `
         <div style="font-family:Arial,sans-serif;background:#f5f7fb;padding:20px;">
           <div style="max-width:500px;margin:auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,0.1);">
             <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:25px;text-align:center;color:white;">
@@ -3068,14 +3070,26 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
             </div>
           </div>
         </div>`
-    }).catch(e => console.error("Email failed:", e));
+      });
 
+      if (error) {
+        console.error("❌ Resend API Error:", error);
+      } else {
+        console.log("📧 Approval email sent successfully:", data.id);
+      }
+    } catch (emailErr) {
+      console.error("❌ Email system crash:", emailErr);
+    }
+
+    // Always return success if the DB update worked, even if the email failed
     res.json({ success: true });
+
   } catch (err) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
+    console.error("APPROVAL ERROR:", err);
     res.status(500).json({ message: "Approval failed" });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 });
 app.put("/api/admin/private-bookings/:id/reject", async (req, res) => {
