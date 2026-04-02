@@ -12,7 +12,7 @@ import API_BASE from "./api";
 const MotionBox = motion(Box);
 
 function CoachProfile() {
-  const userId = localStorage.getItem("userId");
+  const userId = localStorage.getItem("userId") || "";
 
   // Data States
   const [profile, setProfile] = useState<any>(null);
@@ -29,7 +29,6 @@ function CoachProfile() {
   const [showPass, setShowPass] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // 1. LOAD PROFILE - Deduplicated logic
   const loadProfile = useCallback(async () => {
     if (!userId) return;
     try {
@@ -37,7 +36,7 @@ function CoachProfile() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       setProfile(data);
-      setName(data.name || "");
+      setName(typeof data.name === 'string' ? data.name : "");
     } catch (err) {
       setMessage({ type: "error", text: "DATABASE SYNC ERROR" });
     } finally {
@@ -47,12 +46,10 @@ function CoachProfile() {
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  // 2. CLOUDINARY UPLOAD - With Size Guard
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Foolproof: Client-side size limit (2MB)
     if (file.size > 2 * 1024 * 1024) {
       setMessage({ type: "error", text: "PHOTO TOO LARGE (MAX 2MB)" });
       return;
@@ -60,7 +57,7 @@ function CoachProfile() {
 
     const formData = new FormData();
     formData.append("photo", file);
-    formData.append("userId", userId || "");
+    formData.append("userId", userId);
 
     setUploading(true);
     setMessage(null);
@@ -73,7 +70,6 @@ function CoachProfile() {
       const data = await res.json();
 
       if (res.ok) {
-        // Update profile state with the new Cloudinary secure_url
         setProfile((prev: any) => ({ ...prev, photo: data.url }));
         setMessage({ type: "success", text: "CLOUD STORAGE SYNCED" });
       } else {
@@ -86,13 +82,12 @@ function CoachProfile() {
     }
   };
 
-  // 3. SAVE PROFILE DETAILS
   const handleSaveProfile = async () => {
     if (!name.trim()) return setMessage({ type: "error", text: "NAME REQUIRED" });
     
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/coach/update-profile`, { // ⬅️ Must match the backend path!
+      const res = await fetch(`${API_BASE}/api/coach/update-profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, name }),
@@ -100,7 +95,6 @@ function CoachProfile() {
       
       if (res.ok) {
         setMessage({ type: "success", text: "PROFILE DETAILS UPDATED" });
-        // Update local storage so the sidebar/header updates too
         localStorage.setItem("username", name);
       }
     } catch {
@@ -109,17 +103,10 @@ function CoachProfile() {
       setSaving(false);
     }
   };
-  // 4. SECURITY PROTOCOL - With Hardened Validation
+
   const handleChangePassword = async () => {
-    if (!oldPassword || !newPassword) {
-      return setMessage({ type: "error", text: "ALL FIELDS REQUIRED" });
-    }
-    if (newPassword !== confirmPassword) {
-      return setMessage({ type: "error", text: "PASSWORDS DO NOT MATCH" });
-    }
-    if (newPassword.length < 6) {
-      return setMessage({ type: "error", text: "MINIMUM 6 CHARACTERS" });
-    }
+    if (!oldPassword || !newPassword) return setMessage({ type: "error", text: "ALL FIELDS REQUIRED" });
+    if (newPassword !== confirmPassword) return setMessage({ type: "error", text: "PASSWORDS DO NOT MATCH" });
 
     setPassSaving(true);
     try {
@@ -142,41 +129,24 @@ function CoachProfile() {
     }
   };
 
+  // 🛡️ Hardened Avatar Source to eliminate Error #310
+  const avatarSrc = useMemo(() => {
+    if (!profile || !profile.photo) return "";
+    const photoPath = typeof profile.photo === 'object' ? profile.photo.url : profile.photo;
+    if (typeof photoPath !== 'string') return "";
+    const base = photoPath.startsWith("http") ? photoPath : `${API_BASE}${photoPath}`;
+    return `${base.split('?')[0]}?t=${Date.now()}`;
+  }, [profile]);
+
   if (loading) return (
     <Box display="flex" justifyContent="center" alignItems="center" height="100vh" bgcolor="#020617">
       <CircularProgress color="error" />
     </Box>
   );
 
-  // Enhancement: Smart Avatar Source
-// Enhancement: Smart Avatar Source with Cache Busting
-// 🛡️ Hardened Avatar Source to eliminate Error #310
-const avatarSrc = useMemo(() => {
-  // 1. Initial Load Guard: If profile is null, return empty string immediately
-  if (!profile || !profile.photo) {
-    return "";
-  }
-
-  // 2. Type Guard: Ensure we aren't trying to process an object
-  const photoPath = typeof profile.photo === 'object' ? profile.photo.url : profile.photo;
-
-  // 3. Final String Check
-  if (typeof photoPath !== 'string') {
-    return "";
-  }
-
-  // 4. Construct URL
-  const base = photoPath.startsWith("http") 
-    ? photoPath 
-    : `${API_BASE}${photoPath}`;
-
-  // 5. Cache Buster (Cleaned)
-  return `${base.split('?')[0]}?t=${Date.now()}`;
-}, [profile]); // Changed dependency to 'profile' to catch the full update
   return (
     <Box sx={{ background: "#020617", minHeight: "100vh", py: 6, color: "white" }}>
       <Container maxWidth="md">
-        
         <Box sx={{ mb: 6 }}>
           <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 3 }}>COMMAND CENTER</Typography>
           <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5 }}>COACH <span style={{ color: "#ef4444" }}>PROFILE</span></Typography>
@@ -184,29 +154,22 @@ const avatarSrc = useMemo(() => {
 
         {message && (
           <Fade in>
-            <Alert 
-              severity={message.type} 
-              sx={alertStyle(message.type)}
-              onClose={() => setMessage(null)}
-            >
+            <Alert severity={message.type} sx={alertStyle(message.type)} onClose={() => setMessage(null)}>
               {message.text.toUpperCase()}
             </Alert>
           </Fade>
         )}
 
         <Grid container spacing={4}>
-          {/* PROFILE IDENTITY */}
           <Grid item xs={12}>
             <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <Card sx={glassCardStyle}>
                 <CardContent sx={{ p: 5 }}>
                   <Stack direction={{ xs: "column", md: "row" }} spacing={5} alignItems="center">
-                    
                     <Box sx={{ position: "relative" }}>
-                    <Avatar src={avatarSrc} sx={avatarStyle}>
-  {/* This ensures that if avatarSrc is empty, it renders the first letter of the name string */}
-  {typeof name === 'string' ? name[0] : "C"}
-</Avatar>
+                      <Avatar src={avatarSrc} sx={avatarStyle}>
+                        {typeof name === 'string' && name.length > 0 ? name[0].toUpperCase() : "C"}
+                      </Avatar>
                       <input accept="image/*" style={{ display: "none" }} id="photo-upload" type="file" onChange={handlePhotoChange} />
                       <label htmlFor="photo-upload">
                         <IconButton component="span" disabled={uploading} sx={cameraBtnStyle}>
@@ -218,29 +181,19 @@ const avatarSrc = useMemo(() => {
                     <Box sx={{ flexGrow: 1, textAlign: { xs: "center", md: "left" } }}>
                       <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5 }}>{name.toUpperCase()}</Typography>
                       <Typography variant="body1" sx={{ color: "#ef4444", fontWeight: 800, letterSpacing: 1, mb: 2 }}>
-                        OFFICIAL COACH ID: #{userId?.slice(-4) || "0000"}
+                        OFFICIAL COACH ID: #{String(userId).slice(-4)}
                       </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.5, fontWeight: 700 }}>{profile?.email}</Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.5, fontWeight: 700 }}>
+                        {typeof profile?.email === 'string' ? profile.email : ""}
+                      </Typography>
                     </Box>
                   </Stack>
 
                   <Divider sx={{ my: 4, bgcolor: "rgba(255,255,255,0.05)" }} />
 
                   <Stack spacing={3}>
-                    <TextField
-                      label="DISPLAY NAME"
-                      fullWidth
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      sx={darkInputStyle}
-                    />
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={handleSaveProfile}
-                      disabled={saving || !name}
-                      sx={primaryBtnStyle}
-                    >
+                    <TextField label="DISPLAY NAME" fullWidth value={name} onChange={(e) => setName(e.target.value)} sx={darkInputStyle} />
+                    <Button fullWidth variant="contained" onClick={handleSaveProfile} disabled={saving || !name} sx={primaryBtnStyle}>
                       {saving ? <CircularProgress size={24} color="inherit" /> : "SYNC PROFILE DETAILS"}
                     </Button>
                   </Stack>
@@ -248,8 +201,7 @@ const avatarSrc = useMemo(() => {
               </Card>
             </MotionBox>
           </Grid>
-
-          {/* SECURITY */}
+          
           <Grid item xs={12}>
             <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <Card sx={glassCardStyle}>
@@ -274,30 +226,10 @@ const avatarSrc = useMemo(() => {
                       }}
                     />
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                      <TextField
-                        label="NEW ACCESS KEY"
-                        type="password"
-                        fullWidth
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        sx={darkInputStyle}
-                      />
-                      <TextField
-                        label="CONFIRM KEY"
-                        type="password"
-                        fullWidth
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        sx={darkInputStyle}
-                      />
+                      <TextField label="NEW ACCESS KEY" type="password" fullWidth value={newPassword} onChange={(e) => setNewPassword(e.target.value)} sx={darkInputStyle} />
+                      <TextField label="CONFIRM KEY" type="password" fullWidth value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} sx={darkInputStyle} />
                     </Stack>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      onClick={handleChangePassword}
-                      disabled={passSaving || !newPassword}
-                      sx={secondaryBtnStyle}
-                    >
+                    <Button fullWidth variant="outlined" onClick={handleChangePassword} disabled={passSaving || !newPassword} sx={secondaryBtnStyle}>
                       {passSaving ? <CircularProgress size={24} color="inherit" /> : "OVERWRITE ACCESS KEY"}
                     </Button>
                   </Stack>
@@ -311,13 +243,13 @@ const avatarSrc = useMemo(() => {
   );
 }
 
-// Styles (Deduplicated & Fixed)
-const glassCardStyle = { borderRadius: 6, background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", color: "white", boxShadow: "0 20px 40px rgba(0,0,0,0.4)" };
-const avatarStyle = { width: 140, height: 140, bgcolor: "#ef4444", fontSize: "3rem", fontWeight: 900, border: "4px solid rgba(255,255,255,0.05)", boxShadow: "0 0 30px rgba(239, 68, 68, 0.2)" };
-const cameraBtnStyle = { position: "absolute", bottom: 5, right: 5, bgcolor: "white", color: "black", boxShadow: 10, "&:hover": { bgcolor: "#ef4444", color: "white" } };
-const darkInputStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, fontWeight: 700, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } }, "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)", fontWeight: 800 } };
-const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, background: "linear-gradient(135deg, #f97316, #ef4444)", color: "white", boxShadow: "0 10px 20px rgba(239, 68, 68, 0.2)" };
-const secondaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, borderColor: "#ef4444", color: "#ef4444", "&:hover": { borderColor: "#ff4444", bgcolor: "rgba(239, 68, 68, 0.05)", borderWidth: 1 } };
-const alertStyle = (type: string) => ({ mb: 4, borderRadius: 3, fontWeight: 900, bgcolor: type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)", color: type === "success" ? "#22c55e" : "#ef4444", border: `1px solid ${type === "success" ? "#22c55e44" : "#ef444444"}` });
+// Styles
+const glassCardStyle = { borderRadius: 6, background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", color: "white" };
+const avatarStyle = { width: 140, height: 140, bgcolor: "#ef4444", fontSize: "3rem", fontWeight: 900, border: "4px solid rgba(255,255,255,0.05)" };
+const cameraBtnStyle = { position: "absolute", bottom: 5, right: 5, bgcolor: "white", color: "black", "&:hover": { bgcolor: "#ef4444", color: "white" } };
+const darkInputStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } } };
+const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, background: "linear-gradient(135deg, #f97316, #ef4444)" };
+const secondaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, borderColor: "#ef4444", color: "#ef4444" };
+const alertStyle = (type: string) => ({ mb: 4, borderRadius: 3, bgcolor: type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)", color: type === "success" ? "#22c55e" : "#ef4444" });
 
 export default CoachProfile;
