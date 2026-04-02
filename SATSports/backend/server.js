@@ -3505,24 +3505,34 @@ if (!fs.existsSync(uploadDir)) {
 // Storage Configuration
 
 // THE UPLOAD ENDPOINT
-app.post("/api/coach/upload-photo", upload.single('photo'), async (req, res) => {
+app.post("/api/coach/upload-photo", async (req, res) => {
   try {
     const { userId } = req.body;
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const file = req.files.photo; // Assuming you use express-fileupload or similar
 
-    // 🟢 Use req.file.filename (e.g., coach-123.jpg)
-    const photoUrl = `/uploads/profiles/${req.file.filename}`;
+    // 1. Upload to Cloudinary
+    // We use a folder called 'coach_profiles' to keep things organized
+    const result = await cloudinary.uploader.upload(file.tempFilePath, {
+      folder: "coach_profiles",
+      public_id: `coach_${userId}`, // Overwrites existing photo for this user
+      transformation: [{ width: 500, height: 500, crop: "limit" }] // Optimization
+    });
 
+    const imageUrl = result.secure_url;
+
+    // 2. Update Database with the Cloudinary URL
     await db.query(
       "UPDATE coaches SET photo = ? WHERE user_id = ?",
-      [photoUrl, userId]
+      [imageUrl, userId]
     );
 
-    res.json({ url: photoUrl });
+    res.json({ url: imageUrl });
   } catch (err) {
-    res.status(500).json({ message: "Upload failed" });
+    console.error(err);
+    res.status(500).json({ message: "Cloudinary Sync Failed" });
   }
 });
+2.
 // Get subcategories for a program
 app.get("/api/programs/:id/subcategories", async (req, res) => {
   const [rows] = await db.query("SELECT * FROM program_subcategories WHERE program_id = ?", [req.params.id]);

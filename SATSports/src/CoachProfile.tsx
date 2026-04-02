@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Card, CardContent, Typography, TextField, Button, Stack, Avatar, Divider, 
-  Box, Alert, CircularProgress, IconButton, InputAdornment, Container, Fade,Grid
+  Box, Alert, CircularProgress, IconButton, InputAdornment, Container, Fade, Grid
 } from "@mui/material";
 import { motion } from "framer-motion";
 import Visibility from "@mui/icons-material/Visibility";
@@ -29,42 +29,116 @@ function CoachProfile() {
   const [showPass, setShowPass] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // 1. LOAD PROFILE (Logic remains the same)
-  useEffect(() => {
+  // 1. LOAD PROFILE - Deduplicated logic
+  const loadProfile = useCallback(async () => {
     if (!userId) return;
-    fetch(`${API_BASE}/api/coach/profile/${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setProfile(data);
-        setName(data.name || "");
-      })
-      .catch(() => setMessage({ type: "error", text: "Failed to sync profile data" }))
-      .finally(() => setLoading(false));
+    try {
+      const res = await fetch(`${API_BASE}/api/coach/profile/${userId}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setProfile(data);
+      setName(data.name || "");
+    } catch (err) {
+      setMessage({ type: "error", text: "DATABASE SYNC ERROR" });
+    } finally {
+      setLoading(false);
+    }
   }, [userId]);
 
-  // 2. PHOTO UPLOAD (Logic remains the same)
+  useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  // 2. CLOUDINARY UPLOAD - With Size Guard
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || file.size > 2 * 1024 * 1024) return;
+    if (!file) return;
+
+    // Foolproof: Client-side size limit (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: "error", text: "PHOTO TOO LARGE (MAX 2MB)" });
+      return;
+    }
 
     const formData = new FormData();
     formData.append("photo", file);
     formData.append("userId", userId || "");
 
     setUploading(true);
+    setMessage(null);
+
     try {
-      const res = await fetch(`${API_BASE}/api/coach/upload-photo`, { method: "POST", body: formData });
+      const res = await fetch(`${API_BASE}/api/coach/upload-photo`, { 
+        method: "POST", 
+        body: formData 
+      });
       const data = await res.json();
+
       if (res.ok) {
-        setProfile({ ...profile, photo: data.url });
-        setMessage({ type: "success", text: "ID PHOTO UPDATED" });
+        // Update profile state with the new Cloudinary secure_url
+        setProfile((prev: any) => ({ ...prev, photo: data.url }));
+        setMessage({ type: "success", text: "CLOUD STORAGE SYNCED" });
+      } else {
+        throw new Error(data.message);
       }
-    } finally { setUploading(false); }
+    } catch (err) {
+      setMessage({ type: "error", text: "UPLOAD FAILED" });
+    } finally {
+      setUploading(false);
+    }
   };
 
-  // 3. SAVE PROFILE & PASSWORD (Logic remains the same)
-  const handleSaveProfile = async () => { /* ... (Existing save logic) ... */ };
-  const handleChangePassword = async () => { /* ... (Existing password logic) ... */ };
+  // 3. SAVE PROFILE DETAILS
+  const handleSaveProfile = async () => {
+    if (!name.trim()) return setMessage({ type: "error", text: "NAME REQUIRED" });
+    
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/coach/update-profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, name }),
+      });
+      if (res.ok) {
+        setMessage({ type: "success", text: "PROFILE DETAILS UPDATED" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "SYNC FAILED" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 4. SECURITY PROTOCOL - With Hardened Validation
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword) {
+      return setMessage({ type: "error", text: "ALL FIELDS REQUIRED" });
+    }
+    if (newPassword !== confirmPassword) {
+      return setMessage({ type: "error", text: "PASSWORDS DO NOT MATCH" });
+    }
+    if (newPassword.length < 6) {
+      return setMessage({ type: "error", text: "MINIMUM 6 CHARACTERS" });
+    }
+
+    setPassSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/coach/change-password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, oldPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage({ type: "success", text: "ACCESS KEY OVERWRITTEN" });
+        setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+      } else {
+        setMessage({ type: "error", text: data.message || "WRONG CURRENT KEY" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "SECURITY UPDATE FAILED" });
+    } finally {
+      setPassSaving(false);
+    }
+  };
 
   if (loading) return (
     <Box display="flex" justifyContent="center" alignItems="center" height="100vh" bgcolor="#020617">
@@ -72,11 +146,15 @@ function CoachProfile() {
     </Box>
   );
 
+  // Enhancement: Smart Avatar Source
+  const avatarSrc = profile?.photo?.startsWith("http") 
+    ? profile.photo 
+    : profile?.photo ? `${API_BASE}${profile.photo}` : "";
+
   return (
     <Box sx={{ background: "#020617", minHeight: "100vh", py: 6, color: "white" }}>
       <Container maxWidth="md">
         
-        {/* HEADER */}
         <Box sx={{ mb: 6 }}>
           <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 3 }}>COMMAND CENTER</Typography>
           <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5 }}>COACH <span style={{ color: "#ef4444" }}>PROFILE</span></Typography>
@@ -95,19 +173,15 @@ function CoachProfile() {
         )}
 
         <Grid container spacing={4}>
-          {/* PROFILE IDENTITY CARD */}
+          {/* PROFILE IDENTITY */}
           <Grid item xs={12}>
             <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <Card sx={glassCardStyle}>
                 <CardContent sx={{ p: 5 }}>
                   <Stack direction={{ xs: "column", md: "row" }} spacing={5} alignItems="center">
                     
-                    {/* AVATAR SECTION */}
                     <Box sx={{ position: "relative" }}>
-                      <Avatar
-                        src={profile?.photo ? `${API_BASE}${profile.photo}` : ""}
-                        sx={avatarStyle}
-                      >
+                      <Avatar src={avatarSrc} sx={avatarStyle}>
                         {name?.[0] || "C"}
                       </Avatar>
                       <input accept="image/*" style={{ display: "none" }} id="photo-upload" type="file" onChange={handlePhotoChange} />
@@ -118,7 +192,6 @@ function CoachProfile() {
                       </label>
                     </Box>
 
-                    {/* DETAILS SECTION */}
                     <Box sx={{ flexGrow: 1, textAlign: { xs: "center", md: "left" } }}>
                       <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5 }}>{name.toUpperCase()}</Typography>
                       <Typography variant="body1" sx={{ color: "#ef4444", fontWeight: 800, letterSpacing: 1, mb: 2 }}>
@@ -142,7 +215,7 @@ function CoachProfile() {
                       fullWidth
                       variant="contained"
                       onClick={handleSaveProfile}
-                      disabled={saving}
+                      disabled={saving || !name}
                       sx={primaryBtnStyle}
                     >
                       {saving ? <CircularProgress size={24} color="inherit" /> : "SYNC PROFILE DETAILS"}
@@ -153,7 +226,7 @@ function CoachProfile() {
             </MotionBox>
           </Grid>
 
-          {/* SECURITY CARD */}
+          {/* SECURITY */}
           <Grid item xs={12}>
             <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <Card sx={glassCardStyle}>
@@ -199,7 +272,7 @@ function CoachProfile() {
                       fullWidth
                       variant="outlined"
                       onClick={handleChangePassword}
-                      disabled={passSaving}
+                      disabled={passSaving || !newPassword}
                       sx={secondaryBtnStyle}
                     >
                       {passSaving ? <CircularProgress size={24} color="inherit" /> : "OVERWRITE ACCESS KEY"}
@@ -215,57 +288,13 @@ function CoachProfile() {
   );
 }
 
-// 💅 DESIGN SYSTEM TOKENS
-const glassCardStyle = { 
-  borderRadius: 6, 
-  background: "rgba(255,255,255,0.03)", 
-  backdropFilter: "blur(20px)", 
-  border: "1px solid rgba(255,255,255,0.08)", 
-  color: "white", 
-  boxShadow: "0 20px 40px rgba(0,0,0,0.4)" 
-};
-
-const avatarStyle = { 
-  width: 140, height: 140, 
-  bgcolor: "#ef4444", 
-  fontSize: "3rem", 
-  fontWeight: 900,
-  border: "4px solid rgba(255,255,255,0.05)",
-  boxShadow: "0 0 30px rgba(239, 68, 68, 0.2)"
-};
-
-const cameraBtnStyle = {
-  position: "absolute", bottom: 5, right: 5,
-  bgcolor: "white", color: "black",
-  boxShadow: 10, "&:hover": { bgcolor: "#ef4444", color: "white" }
-};
-
-const darkInputStyle = {
-  "& .MuiOutlinedInput-root": {
-    color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, fontWeight: 700,
-    "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-    "&:hover fieldset": { borderColor: "#ef4444" }
-  },
-  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)", fontWeight: 800 }
-};
-
-const primaryBtnStyle = { 
-  py: 2, borderRadius: 3, fontWeight: 950, 
-  background: "linear-gradient(135deg, #f97316, #ef4444)", 
-  color: "white", boxShadow: "0 10px 20px rgba(239, 68, 68, 0.2)" 
-};
-
-const secondaryBtnStyle = { 
-  py: 2, borderRadius: 3, fontWeight: 950, 
-  borderColor: "#ef4444", color: "#ef4444", 
-  "&:hover": { borderColor: "#ff4444", bgcolor: "rgba(239, 68, 68, 0.05)", borderWidth: 1 } 
-};
-
-const alertStyle = (type: string) => ({
-  mb: 4, borderRadius: 3, fontWeight: 900,
-  bgcolor: type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)",
-  color: type === "success" ? "#22c55e" : "#ef4444",
-  border: `1px solid ${type === "success" ? "#22c55e44" : "#ef444444"}`
-});
+// Styles (Deduplicated & Fixed)
+const glassCardStyle = { borderRadius: 6, background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", color: "white", boxShadow: "0 20px 40px rgba(0,0,0,0.4)" };
+const avatarStyle = { width: 140, height: 140, bgcolor: "#ef4444", fontSize: "3rem", fontWeight: 900, border: "4px solid rgba(255,255,255,0.05)", boxShadow: "0 0 30px rgba(239, 68, 68, 0.2)" };
+const cameraBtnStyle = { position: "absolute", bottom: 5, right: 5, bgcolor: "white", color: "black", boxShadow: 10, "&:hover": { bgcolor: "#ef4444", color: "white" } };
+const darkInputStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, fontWeight: 700, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } }, "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)", fontWeight: 800 } };
+const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, background: "linear-gradient(135deg, #f97316, #ef4444)", color: "white", boxShadow: "0 10px 20px rgba(239, 68, 68, 0.2)" };
+const secondaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, borderColor: "#ef4444", color: "#ef4444", "&:hover": { borderColor: "#ff4444", bgcolor: "rgba(239, 68, 68, 0.05)", borderWidth: 1 } };
+const alertStyle = (type: string) => ({ mb: 4, borderRadius: 3, fontWeight: 900, bgcolor: type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)", color: type === "success" ? "#22c55e" : "#ef4444", border: `1px solid ${type === "success" ? "#22c55e44" : "#ef444444"}` });
 
 export default CoachProfile;
