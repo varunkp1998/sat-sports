@@ -2487,15 +2487,41 @@ app.post("/api/admin/locations-full", async (req, res) => {
     res.status(500).json({ error: "Failed to save facility data" });
   }
 });
-app.post("/api/admin/locations", async (req, res) => {
-  const { name } = req.body;
+app.post("/api/admin/locations-sync", async (req, res) => {
+  const { id, name, lat, lng, price } = req.body;
 
-  await db.query(
-    "INSERT INTO locations (name) VALUES (?)",
-    [name]
-  );
+  try {
+    let locationId = id;
 
-  res.json({ success: true });
+    if (id) {
+      // 1. Update existing location
+      await db.query(
+        "UPDATE locations SET name = ?, lat = ?, lng = ? WHERE id = ?",
+        [name, lat || null, lng || null, id]
+      );
+    } else {
+      // 2. Insert new location
+      const [result] = await db.query(
+        "INSERT INTO locations (name, lat, lng) VALUES (?, ?, ?)",
+        [name, lat || null, lng || null]
+      );
+      locationId = result.insertId;
+    }
+
+    // 3. Sync Price (Upsert logic)
+    if (price !== undefined) {
+      await db.query(`
+        INSERT INTO private_booking_prices (location_id, price)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE price = VALUES(price)
+      `, [locationId, price || 0]);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Sync failed" });
+  }
 });
 app.put("/api/admin/locations/:id", async (req, res) => {
   const { id } = req.params;
@@ -2510,10 +2536,14 @@ app.put("/api/admin/locations/:id", async (req, res) => {
 });
 app.delete("/api/admin/locations/:id", async (req, res) => {
   const { id } = req.params;
-
-  await db.query("DELETE FROM locations WHERE id=?", [id]);
-
-  res.json({ success: true });
+  try {
+    // Delete price first to avoid foreign key issues
+    await db.query("DELETE FROM private_booking_prices WHERE location_id = ?", [id]);
+    await db.query("DELETE FROM locations WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Delete failed" });
+  }
 });
 app.get("/api/player/details/:userId", async (req, res) => {
   const { userId } = req.params;
