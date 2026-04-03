@@ -2442,9 +2442,50 @@ app.post("/api/admin/players/bulk-assign", async (req, res) => {
 
   res.json({ success: true });
 });
+// GET all locations with their associated prices
 app.get("/api/admin/locations", async (req, res) => {
-  const [rows] = await db.query("SELECT * FROM locations");
-  res.json(rows);
+  try {
+    const [rows] = await db.query(`
+      SELECT l.*, p.price 
+      FROM locations l 
+      LEFT JOIN private_booking_prices p ON l.id = p.location_id
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// SAVE/UPDATE Location & Price
+app.post("/api/admin/locations-full", async (req, res) => {
+  const { id, name, lat, lng, price } = req.body;
+
+  try {
+    let locationId = id;
+
+    if (id) {
+      // Update existing location
+      await db.query("UPDATE locations SET name=?, lat=?, lng=? WHERE id=?", [name, lat, lng, id]);
+    } else {
+      // Insert new location
+      const [result] = await db.query("INSERT INTO locations (name, lat, lng) VALUES (?, ?, ?)", [name, lat, lng]);
+      locationId = result.insertId;
+    }
+
+    // Upsert the price
+    if (price !== undefined) {
+      await db.query(`
+        INSERT INTO private_booking_prices (location_id, price) 
+        VALUES (?, ?) 
+        ON DUPLICATE KEY UPDATE price = VALUES(price)
+      `, [locationId, price]);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to save facility data" });
+  }
 });
 app.post("/api/admin/locations", async (req, res) => {
   const { name } = req.body;
