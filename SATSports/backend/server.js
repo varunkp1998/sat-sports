@@ -906,131 +906,69 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 
 // Check-in status
 
+// --- STATUS API ---
 app.get("/api/coach/checkin/status", async (req, res) => {
-  const { coachId, sessionId, date } = req.query; // Ensure 'date' is passed from frontend
+  const { coachId, sessionId, date } = req.query;
 
-  // Foolproof check: if params are missing, don't even hit the DB
   if (!coachId || !sessionId) {
     return res.status(400).json({ error: "Missing coachId or sessionId" });
   }
 
   try {
+    // Use the passed date or default to current date in YYYY-MM-DD
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
     const [rows] = await db.query(
-      `SELECT 
-          checkout_time,
-          is_late
-       FROM coach_checkins
-       WHERE coach_id = ? 
-       AND session_id = ? 
-       AND DATE(checkin_time) = ?
-       ORDER BY checkin_time DESC LIMIT 1`, 
-      [coachId, sessionId, date || new Date().toISOString().split('T')[0]]
+      `SELECT checkout_time, is_late FROM coach_checkins 
+       WHERE coach_id = ? AND session_id = ? AND DATE(checkin_time) = ?
+       ORDER BY id DESC LIMIT 1`,
+      [coachId, sessionId, targetDate]
     );
 
-    // If no record exists for TODAY
     if (rows.length === 0) {
-      return res.json({
-        checkedIn: false,
-        completed: false,
-        isLate: 0
-      });
+      return res.json({ checkedIn: false, completed: false, isLate: 0 });
     }
 
     const record = rows[0];
-
-    // logic: If there's a check-in but NO checkout_time, they are currently 'checkedIn'
-    const isCompleted = record.checkout_time !== null;
-    const isCurrentlyCheckedIn = !isCompleted;
-
     res.json({
-      checkedIn: isCurrentlyCheckedIn,
-      completed: isCompleted,
+      checkedIn: record.checkout_time === null,
+      completed: record.checkout_time !== null,
       isLate: record.is_late || 0
     });
   } catch (err) {
-    console.error("Status Route Error:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("SQL Error in Status API:", err);
+    res.status(500).json({ error: "Database sync failed" });
   }
 });
 
-
-app.post("/api/coach/checkin/qr", (req, res) => {
-  const { coachId, qrToken } = req.body;
-
-  if (!coachId || !qrToken) {
-    return res.status(400).json({ message: "Missing coachId or qrToken" });
-  }
-
-  // 1. Find location by QR token
-  connection.query(
-    "SELECT id FROM locations WHERE qr_token = ?",
-    [qrToken],
-    (err, rows) => {
-      if (err) {
-        console.error("Location lookup error:", err);
-        return res.status(500).json({ message: "DB error" });
-      }
-
-      if (rows.length === 0) {
-        return res.status(400).json({ message: "Invalid QR code" });
-      }
-
-      const locationId = rows[0].id;
-
-      // 2. Insert check-in (prevent double check-in via unique constraint or logic)
-      connection.query(
-        `INSERT INTO coach_checkins (coach_id, session_id, location_id, checkin_time)
-VALUES (?, ?, ?, NOW())
-`,
-        [coachId, locationId],
-        (err2, result) => {
-          if (err2) {
-            console.error("Check-in insert error:", err2);
-            return res.status(409).json({ message: "Already checked in today" });
-          }
-      
-          res.json({ success: true, message: "Check-in successful" });
-        }
-      );
-      
-    }
-  );
-});
+// --- CHECKOUT API ---
 app.post("/api/coach/checkout", async (req, res) => {
   const { coachId, sessionId } = req.body;
 
   try {
-    // 1. Find the specific active check-in record
-    // Using LIMIT 1 ensures we only close the most recent open session
-    const [activeSessions] = await db.query(
+    const [active] = await db.query(
       `SELECT id FROM coach_checkins 
        WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL 
-       ORDER BY checkin_time DESC LIMIT 1`,
+       ORDER BY id DESC LIMIT 1`,
       [coachId, sessionId]
     );
 
-    if (activeSessions.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "No active check-in found or already checked out." 
-      });
+    if (active.length === 0) {
+      return res.status(400).json({ message: "No active check-in found." });
     }
 
-    const recordId = activeSessions[0].id;
-
-    // 2. Update that specific record
     await db.query(
       `UPDATE coach_checkins 
        SET checkout_time = NOW(),
            work_minutes = TIMESTAMPDIFF(MINUTE, checkin_time, NOW())
        WHERE id = ?`,
-      [recordId]
+      [active[0].id]
     );
 
-    res.json({ success: true, message: "Checked out successfully" });
+    res.json({ success: true });
   } catch (err) {
     console.error("Checkout Error:", err);
-    res.status(500).json({ success: false, error: "Internal Server Error" });
+    res.status(500).json({ error: "Checkout failed" });
   }
 });
 app.get("/api/admin/live-coaches", (req, res) => {
