@@ -160,8 +160,11 @@ export default function CoachSessions() {
   };
   const handleCheckOut = async (sessionId: number) => {
     if (actionLoading) return;
-    if (!window.confirm("Are you sure you want to end this session?")) return;
-    
+  
+    // Foolproof Step 1: Confirm intent
+    const confirm = window.confirm("Are you sure you want to end this session? You won't be able to mark attendance after closing.");
+    if (!confirm) return;
+  
     setActionLoading(sessionId);
   
     try {
@@ -174,17 +177,16 @@ export default function CoachSessions() {
       const data = await res.json();
   
       if (res.ok) {
-        // Update local state so the card shows "SESSION CLOSED" immediately
+        // Foolproof Step 2: Update local UI state immediately
         setCheckedInMap(prev => ({
           ...prev,
           [sessionId]: { ...prev[sessionId], completed: true, checkedIn: false }
         }));
-        alert("Session completed and synced.");
       } else {
         alert(data.message || "Checkout failed");
       }
     } catch (err) {
-      alert("Network error during checkout");
+      alert("Network error. Please check your connection.");
     } finally {
       setActionLoading(null);
     }
@@ -222,17 +224,24 @@ export default function CoachSessions() {
                         <Button 
   fullWidth 
   variant="outlined" 
+  onClick={() => handleCheckOut(s.id)}
+  disabled={actionLoading === s.id}
   sx={{ 
+    mt: 1,
     color: "#ef4444", 
     borderColor: "#ef4444", 
     fontWeight: 800,
-    "&:hover": { borderColor: "#f87171", color: "#f87171" }
+    borderRadius: 2,
+    "&:hover": { borderColor: "#f87171", bgcolor: "rgba(239, 68, 68, 0.05)" }
   }}
-  disabled={actionLoading === s.id}
-  onClick={() => handleCheckOut(s.id)}
 >
-  {actionLoading === s.id ? <CircularProgress size={20} color="inherit" /> : "END SESSION"}
-</Button>                      </Stack>
+  {actionLoading === s.id ? (
+    <CircularProgress size={20} color="inherit" />
+  ) : (
+    "END SESSION"
+  )}
+</Button>
+                     </Stack>
                     ) : (
                       <Button 
                         fullWidth 
