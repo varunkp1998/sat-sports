@@ -258,13 +258,19 @@ export default function CoachSessions() {
                      </Stack>
                     ) : (
                       <Button 
-                        fullWidth 
-                        sx={isLive ? primaryBtnStyle : disabledBtnStyle} 
-                        disabled={!isLive || actionLoading === s.id}
-                        onClick={() => handleCheckIn(s.id, s.location_id)}
-                      >
-                        {actionLoading === s.id ? <CircularProgress size={20} color="inherit"/> : isLive ? "CHECK IN" : `WAITING (${diffMin}m)`}
-                      </Button>
+  fullWidth 
+  sx={isLive ? primaryBtnStyle : disabledBtnStyle} 
+  disabled={!isLive || actionLoading === s.id}
+  onClick={() => handleCheckIn(s.id, s.location_id)}
+>
+  {actionLoading === s.id ? (
+    <CircularProgress size={20} color="inherit"/>
+  ) : isLive ? (
+    "CHECK IN"
+  ) : (
+    `WAITING (${diffMin}m)` // This will now be clearly visible
+  )}
+</Button>
                     )}
                   </CardContent>
                 </Card>
@@ -292,7 +298,18 @@ export default function CoachSessions() {
 // Minimalist Styles for production
 const sessionCardStyle = (comp: boolean) => ({ borderRadius: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "white", opacity: comp ? 0.5 : 1 });
 const primaryBtnStyle = { py: 1.5, borderRadius: 2, background: "linear-gradient(135deg, #f97316, #ef4444)", color: 'white', fontWeight: 800 };
-const disabledBtnStyle = { py: 1.5, borderRadius: 2, bgcolor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.2)" };
+const disabledBtnStyle = { 
+  py: 1.5, 
+  borderRadius: 2, 
+  bgcolor: "rgba(255,255,255,0.05)",
+  color: "#cbd5e1", 
+  fontWeight: 700,
+  border: "1px solid rgba(255,255,255,0.2)", // Adds a subtle outline
+  "&.Mui-disabled": { 
+    color: "#cbd5e1",
+    border: "1px solid rgba(255,255,255,0.2)" 
+  }
+};
 const attendanceBtnStyle = { py: 1.5, borderRadius: 2, bgcolor: "#22c55e", color: "white", fontWeight: 800 };
 const finalizedBoxStyle = { py: 1.5, textAlign: 'center', bgcolor: 'rgba(34, 197, 94, 0.1)', borderRadius: 2, color: '#22c55e', fontWeight: 800 };
 const cameraOverlayStyle = { position: 'fixed', inset: 0, bgcolor: '#020617', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3 };
