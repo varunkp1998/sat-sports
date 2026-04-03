@@ -46,37 +46,51 @@ export default function CoachSessions() {
 
   // 3. INITIALIZER: Unified Data Fetching
   const initData = useCallback(async () => {
+    setLoading(true);
     try {
       const userId = localStorage.getItem("userId");
       if (!userId) return;
-
+  
+      // 1. Get Coach Profile
       const profileRes = await fetch(`${API_BASE}/api/coach/profile/${userId}`);
       const profile = await profileRes.json();
       setCoachId(profile.coachId);
-
+  
+      // 2. Get Sessions
       const sessionRes = await fetch(`${API_BASE}/api/coach/sessions/${profile.coachId}`);
       const sessionData = await sessionRes.json();
       setSessions(sessionData);
-
-      const statusPromises = sessionData.map((s: Session) => 
-        fetch(`${API_BASE}/api/coach/checkin/status?coachId=${profile.coachId}&sessionId=${s.id}&date=${dayjs(s.session_date).format("YYYY-MM-DD")}`)
-          .then(res => res.json())
-          .then(data => ({ id: s.id, data }))
-      );
-
-      const statuses = await Promise.all(statuses);
+  
+      // 3. Get Statuses (Hardened individual fetching)
       const newMap: Record<number, CheckInState> = {};
-      statuses.forEach((res: any) => {
-        newMap[res.id] = { checkedIn: res.data.checkedIn, completed: res.data.completed, isLate: res.data.isLate || 0 };
-      });
+      
+      await Promise.all(sessionData.map(async (s: Session) => {
+        try {
+          const dateStr = dayjs(s.session_date).format("YYYY-MM-DD");
+          const statusUrl = `${API_BASE}/api/coach/checkin/status?coachId=${profile.coachId}&sessionId=${s.id}&date=${dateStr}`;
+          
+          const statusRes = await fetch(statusUrl);
+          if (!statusRes.ok) throw new Error("Status failed");
+          
+          const data = await statusRes.json();
+          newMap[s.id] = { 
+            checkedIn: !!data.checkedIn, 
+            completed: !!data.completed, 
+            isLate: data.isLate || 0 
+          };
+        } catch (err) {
+          console.warn(`Sync failed for session ${s.id}, using default state.`);
+          newMap[s.id] = { checkedIn: false, completed: false, isLate: 0 };
+        }
+      }));
+  
       setCheckedInMap(newMap);
     } catch (err) {
-      console.error("Sync Error");
+      console.error("Critical Sync Error:", err);
     } finally {
       setLoading(false);
     }
   }, []);
-
   useEffect(() => { initData(); }, [initData]);
 
   // 4. GPS HELPER: With 6s timeout to prevent hanging
