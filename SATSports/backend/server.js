@@ -907,49 +907,51 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 // Check-in status
 
 app.get("/api/coach/checkin/status", async (req, res) => {
-  const { coachId, sessionId } = req.query;
+  const { coachId, sessionId, date } = req.query; // Ensure 'date' is passed from frontend
 
-  const [rows] = await db.query(
-    `SELECT 
-        MAX(cc.checkout_time) AS checkout_time,
-        MAX(cc.is_late) AS is_late,
-        COUNT(cc.id) AS total
-     FROM coach_checkins cc
-     JOIN training_sessions ts ON ts.id = cc.session_id
-     WHERE cc.coach_id = ?
-     AND cc.session_id = ?
-     AND DATE(cc.checkin_time) = ts.session_date`,
-    [coachId, sessionId]
-  );
-
-  const row = rows[0];
-
-  // ✅ No record
-  if (!row.total) {
-    return res.json({
-      checkedIn: false,
-      completed: false,
-      isLate: 0
-    });
+  // Foolproof check: if params are missing, don't even hit the DB
+  if (!coachId || !sessionId) {
+    return res.status(400).json({ error: "Missing coachId or sessionId" });
   }
 
-  // ✅ Completed if ANY checkout exists
-  if (row.checkout_time) {
-    return res.json({
-      checkedIn: false,
-      completed: true,
-      isLate: row.is_late || 0
-    });
-  }
+  try {
+    const [rows] = await db.query(
+      `SELECT 
+          checkout_time,
+          is_late
+       FROM coach_checkins
+       WHERE coach_id = ? 
+       AND session_id = ? 
+       AND DATE(checkin_time) = ?
+       ORDER BY checkin_time DESC LIMIT 1`, 
+      [coachId, sessionId, date || new Date().toISOString().split('T')[0]]
+    );
 
-  // ✅ Otherwise checked in
-  return res.json({
-    checkedIn: true,
-    completed: false,
-    isLate: row.is_late || 0
-  });
+    // If no record exists for TODAY
+    if (rows.length === 0) {
+      return res.json({
+        checkedIn: false,
+        completed: false,
+        isLate: 0
+      });
+    }
+
+    const record = rows[0];
+
+    // logic: If there's a check-in but NO checkout_time, they are currently 'checkedIn'
+    const isCompleted = record.checkout_time !== null;
+    const isCurrentlyCheckedIn = !isCompleted;
+
+    res.json({
+      checkedIn: isCurrentlyCheckedIn,
+      completed: isCompleted,
+      isLate: record.is_late || 0
+    });
+  } catch (err) {
+    console.error("Status Route Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
-
 
 
 app.post("/api/coach/checkin/qr", (req, res) => {
