@@ -29,7 +29,7 @@ export default function CoachSessions() {
   
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // 1. CLEANUP: Kill camera tracks when overlay closes
+  // 1. CLEANUP: Camera tracks
   useEffect(() => {
     if (!showCamera && videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
@@ -38,62 +38,57 @@ export default function CoachSessions() {
     }
   }, [showCamera]);
 
-  // 2. TICKER: Keep time and UI status updated
+  // 2. TICKER: Update every 10s
   useEffect(() => {
     const timer = setInterval(() => setNow(dayjs()), 10000);
     return () => clearInterval(timer);
   }, []);
 
-  // 3. INITIALIZER: Unified Data Fetching
+  // 3. INITIALIZER: Fetch sessions and statuses based on Session ID (not current date)
   const initData = useCallback(async () => {
     setLoading(true);
     try {
       const userId = localStorage.getItem("userId");
       if (!userId) return;
   
-      // 1. Get Coach Profile
       const profileRes = await fetch(`${API_BASE}/api/coach/profile/${userId}`);
       const profile = await profileRes.json();
       setCoachId(profile.coachId);
   
-      // 2. Get Sessions
       const sessionRes = await fetch(`${API_BASE}/api/coach/sessions/${profile.coachId}`);
       const sessionData = await sessionRes.json();
       setSessions(sessionData);
   
-      // 3. Get Statuses (Hardened individual fetching)
       const newMap: Record<number, CheckInState> = {};
       
       await Promise.all(sessionData.map(async (s: Session) => {
         try {
-          const dateStr = dayjs(s.session_date).format("YYYY-MM-DD");
-          const statusUrl = `${API_BASE}/api/coach/checkin/status?coachId=${profile.coachId}&sessionId=${s.id}&date=${dateStr}`;
-          
+          // FIX: Pass sessionId to check status. Date is secondary.
+          const statusUrl = `${API_BASE}/api/coach/checkin/status?coachId=${profile.coachId}&sessionId=${s.id}`;
           const statusRes = await fetch(statusUrl);
-          if (!statusRes.ok) throw new Error("Status failed");
-          
           const data = await statusRes.json();
+          
           newMap[s.id] = { 
             checkedIn: !!data.checkedIn, 
             completed: !!data.completed, 
             isLate: data.isLate || 0 
           };
         } catch (err) {
-          console.warn(`Sync failed for session ${s.id}, using default state.`);
           newMap[s.id] = { checkedIn: false, completed: false, isLate: 0 };
         }
       }));
   
       setCheckedInMap(newMap);
     } catch (err) {
-      console.error("Critical Sync Error:", err);
+      console.error("Sync Error:", err);
     } finally {
       setLoading(false);
     }
   }, []);
+
   useEffect(() => { initData(); }, [initData]);
 
-  // 4. GPS HELPER: With 6s timeout to prevent hanging
+  // 4. GPS HELPER
   const getQuickLocation = () => new Promise<{lat: number | null, lng: number | null}>((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
@@ -102,11 +97,10 @@ export default function CoachSessions() {
     );
   });
 
-  // 5. CHECK-IN: Deduplicated & Fail-safe
+  // 5. CHECK-IN
   const handleCheckIn = async (sessionId: number, locationId: number) => {
     if (actionLoading) return;
     setActionLoading(sessionId);
-
     const coords = await getQuickLocation();
     
     const formData = new FormData();
@@ -123,7 +117,6 @@ export default function CoachSessions() {
       if (res.ok) {
         setCheckedInMap(prev => ({ ...prev, [sessionId]: { ...prev[sessionId], checkedIn: true } }));
       } else if (res.status === 403 && data.requiresPhoto) {
-        // Trigger Photo Fallback
         setShowCamera({ sessionId, locationId });
         setTimeout(async () => {
           try {
@@ -134,11 +127,32 @@ export default function CoachSessions() {
       } else {
         alert(data.message || "Error");
       }
-    } catch {
-      alert("Network Error");
-    } finally {
-      setActionLoading(null);
-    }
+    } finally { setActionLoading(null); }
+  };
+
+  // 6. CHECK-OUT: Fixes the "Next Day" issue by targeting active session records
+  const handleCheckOut = async (sessionId: number) => {
+    if (actionLoading) return;
+    if (!window.confirm("End this session? This action cannot be undone.")) return;
+
+    setActionLoading(sessionId);
+    try {
+      const res = await fetch(`${API_BASE}/api/coach/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coachId, sessionId })
+      });
+
+      if (res.ok) {
+        setCheckedInMap(prev => ({
+          ...prev,
+          [sessionId]: { ...prev[sessionId], completed: true, checkedIn: false }
+        }));
+      } else {
+        const data = await res.json();
+        alert(data.message || "Checkout failed");
+      }
+    } catch { alert("Network error"); } finally { setActionLoading(null); }
   };
 
   const capturePhotoCheckIn = async () => {
@@ -153,7 +167,6 @@ export default function CoachSessions() {
     canvas.toBlob(async (blob) => {
       if (!blob) return;
       const coords = await getQuickLocation();
-
       const formData = new FormData();
       formData.append("photo", blob, "verify.jpg");
       formData.append("coachId", coachId!);
@@ -166,45 +179,11 @@ export default function CoachSessions() {
       if (res.ok) {
         setCheckedInMap(prev => ({ ...prev, [showCamera.sessionId]: { ...prev[showCamera.sessionId], checkedIn: true } }));
         setShowCamera(null);
-      } else {
-        alert("Upload Failed");
-      }
+      } else { alert("Upload Failed"); }
       setActionLoading(null);
     }, "image/jpeg", 0.7);
   };
-  const handleCheckOut = async (sessionId: number) => {
-    if (actionLoading) return;
-  
-    // Foolproof Step 1: Confirm intent
-    const confirm = window.confirm("Are you sure you want to end this session? You won't be able to mark attendance after closing.");
-    if (!confirm) return;
-  
-    setActionLoading(sessionId);
-  
-    try {
-      const res = await fetch(`${API_BASE}/api/coach/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ coachId, sessionId })
-      });
-  
-      const data = await res.json();
-  
-      if (res.ok) {
-        // Foolproof Step 2: Update local UI state immediately
-        setCheckedInMap(prev => ({
-          ...prev,
-          [sessionId]: { ...prev[sessionId], completed: true, checkedIn: false }
-        }));
-      } else {
-        alert(data.message || "Checkout failed");
-      }
-    } catch (err) {
-      alert("Network error. Please check your connection.");
-    } finally {
-      setActionLoading(null);
-    }
-  };
+
   const filteredSessions = useMemo(() => {
     return sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate);
   }, [sessions, filterDate]);
@@ -214,13 +193,24 @@ export default function CoachSessions() {
   return (
     <Box sx={{ background: "#020617", color: "white", minHeight: "100vh", py: 6 }}>
       <Container maxWidth="xl">
-        <Typography variant="h3" fontWeight={950} mb={4}>MY <span style={{ color: "#ef4444" }}>SESSIONS</span></Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
+          <Typography variant="h3" fontWeight={950}>MY <span style={{ color: "#ef4444" }}>SESSIONS</span></Typography>
+          <TextField 
+            type="date" 
+            size="small" 
+            value={filterDate} 
+            onChange={(e) => setFilterDate(e.target.value)}
+            sx={dateFilterStyle}
+          />
+        </Stack>
         
         <Grid container spacing={3}>
           {filteredSessions.map((s) => {
             const state = checkedInMap[s.id] || { checkedIn: false, completed: false };
             const sessionStart = dayjs(`${dayjs(s.session_date).format("YYYY-MM-DD")} ${s.start_time}`);
             const diffMin = sessionStart.diff(now, "minute");
+            
+            // Logic: 20 mins before start until 3 hours after start
             const isLive = diffMin <= 20 && diffMin > -180;
 
             return (
@@ -236,41 +226,33 @@ export default function CoachSessions() {
                       <Stack spacing={1}>
                         <Button fullWidth sx={attendanceBtnStyle} onClick={() => window.location.href=`/coach/sessions/${s.id}/attendance`}>MARK ATTENDANCE</Button>
                         <Button 
-  fullWidth 
-  variant="outlined" 
-  onClick={() => handleCheckOut(s.id)}
-  disabled={actionLoading === s.id}
-  sx={{ 
-    mt: 1,
-    color: "#ef4444", 
-    borderColor: "#ef4444", 
-    fontWeight: 800,
-    borderRadius: 2,
-    "&:hover": { borderColor: "#f87171", bgcolor: "rgba(239, 68, 68, 0.05)" }
-  }}
->
-  {actionLoading === s.id ? (
-    <CircularProgress size={20} color="inherit" />
-  ) : (
-    "END SESSION"
-  )}
-</Button>
-                     </Stack>
+                          fullWidth 
+                          variant="outlined" 
+                          onClick={() => handleCheckOut(s.id)}
+                          disabled={actionLoading === s.id}
+                          sx={checkOutBtnStyle}
+                        >
+                          {actionLoading === s.id ? <CircularProgress size={20} color="inherit" /> : "END SESSION"}
+                        </Button>
+                      </Stack>
                     ) : (
                       <Button 
-  fullWidth 
-  sx={isLive ? primaryBtnStyle : disabledBtnStyle} 
-  disabled={!isLive || actionLoading === s.id}
-  onClick={() => handleCheckIn(s.id, s.location_id)}
->
-  {actionLoading === s.id ? (
-    <CircularProgress size={20} color="inherit"/>
-  ) : isLive ? (
-    "CHECK IN"
-  ) : (
-    `WAITING (${diffMin}m)` // This will now be clearly visible
-  )}
-</Button>
+                        fullWidth 
+                        sx={{
+                          ...(isLive ? primaryBtnStyle : disabledBtnStyle),
+                          ...(isLive ? pulseAnimation : {})
+                        }} 
+                        disabled={!isLive || actionLoading === s.id}
+                        onClick={() => handleCheckIn(s.id, s.location_id)}
+                      >
+                        {actionLoading === s.id ? (
+                          <CircularProgress size={20} color="inherit"/>
+                        ) : isLive ? (
+                          "CHECK IN"
+                        ) : (
+                          `WAITING (${diffMin}m)`
+                        )}
+                      </Button>
                     )}
                   </CardContent>
                 </Card>
@@ -295,24 +277,24 @@ export default function CoachSessions() {
   );
 }
 
-// Minimalist Styles for production
+// --- STYLES & ANIMATIONS ---
+const pulseAnimation = {
+  "@keyframes pulse": {
+    "0%": { boxShadow: "0 0 0 0px rgba(239, 68, 68, 0.7)" },
+    "70%": { boxShadow: "0 0 0 10px rgba(239, 68, 68, 0)" },
+    "100%": { boxShadow: "0 0 0 0px rgba(239, 68, 68, 0)" },
+  },
+  animation: "pulse 2s infinite",
+};
+
 const sessionCardStyle = (comp: boolean) => ({ borderRadius: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "white", opacity: comp ? 0.5 : 1 });
 const primaryBtnStyle = { py: 1.5, borderRadius: 2, background: "linear-gradient(135deg, #f97316, #ef4444)", color: 'white', fontWeight: 800 };
-const disabledBtnStyle = { 
-  py: 1.5, 
-  borderRadius: 2, 
-  bgcolor: "rgba(255,255,255,0.05)",
-  color: "#cbd5e1", 
-  fontWeight: 700,
-  border: "1px solid rgba(255,255,255,0.2)", // Adds a subtle outline
-  "&.Mui-disabled": { 
-    color: "#cbd5e1",
-    border: "1px solid rgba(255,255,255,0.2)" 
-  }
-};
+const disabledBtnStyle = { py: 1.5, borderRadius: 2, bgcolor: "rgba(255,255,255,0.05)", color: "#cbd5e1", fontWeight: 700, border: "1px solid rgba(255,255,255,0.2)" };
 const attendanceBtnStyle = { py: 1.5, borderRadius: 2, bgcolor: "#22c55e", color: "white", fontWeight: 800 };
+const checkOutBtnStyle = { mt: 1, color: "#ef4444", borderColor: "#ef4444", fontWeight: 800, borderRadius: 2, "&:hover": { borderColor: "#f87171", bgcolor: "rgba(239, 68, 68, 0.05)" } };
 const finalizedBoxStyle = { py: 1.5, textAlign: 'center', bgcolor: 'rgba(34, 197, 94, 0.1)', borderRadius: 2, color: '#22c55e', fontWeight: 800 };
 const cameraOverlayStyle = { position: 'fixed', inset: 0, bgcolor: '#020617', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3 };
 const videoContainer = { width: '100%', maxWidth: '400px', borderRadius: 4, overflow: 'hidden', border: '2px solid #ef4444', mb: 3 };
 const captureBtnStyle = { px: 4, py: 1.5, bgcolor: '#ef4444', color: 'white', borderRadius: 2, fontWeight: 800 };
 const centerStyle = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: '#020617' };
+const dateFilterStyle = { bgcolor: 'white', borderRadius: 2, width: 150, '& input': { p: 1, fontWeight: 800 } };

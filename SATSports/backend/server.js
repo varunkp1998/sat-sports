@@ -908,21 +908,14 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 
 // --- STATUS API ---
 app.get("/api/coach/checkin/status", async (req, res) => {
-  const { coachId, sessionId, date } = req.query;
-
-  if (!coachId || !sessionId) {
-    return res.status(400).json({ error: "Missing coachId or sessionId" });
-  }
+  const { coachId, sessionId } = req.query; // Remove 'date' dependency here
 
   try {
-    // Use the passed date or default to current date in YYYY-MM-DD
-    const targetDate = date || new Date().toISOString().split('T')[0];
-
     const [rows] = await db.query(
       `SELECT checkout_time, is_late FROM coach_checkins 
-       WHERE coach_id = ? AND session_id = ? AND DATE(checkin_time) = ?
-       ORDER BY id DESC LIMIT 1`,
-      [coachId, sessionId, targetDate]
+       WHERE coach_id = ? AND session_id = ? 
+       ORDER BY id DESC LIMIT 1`, // Just get the latest record for THIS session
+      [coachId, sessionId]
     );
 
     if (rows.length === 0) {
@@ -936,25 +929,24 @@ app.get("/api/coach/checkin/status", async (req, res) => {
       isLate: record.is_late || 0
     });
   } catch (err) {
-    console.error("SQL Error in Status API:", err);
-    res.status(500).json({ error: "Database sync failed" });
+    res.status(500).json({ error: "Sync failed" });
   }
 });
-
 // --- CHECKOUT API ---
 app.post("/api/coach/checkout", async (req, res) => {
   const { coachId, sessionId } = req.body;
 
   try {
+    // Find the open check-in for this specific session
     const [active] = await db.query(
-      `SELECT id FROM coach_checkins 
+      `SELECT id, checkin_time FROM coach_checkins 
        WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL 
-       ORDER BY id DESC LIMIT 1`,
+       LIMIT 1`,
       [coachId, sessionId]
     );
 
     if (active.length === 0) {
-      return res.status(400).json({ message: "No active check-in found." });
+      return res.status(400).json({ message: "No active check-in found for this session." });
     }
 
     await db.query(
@@ -967,7 +959,6 @@ app.post("/api/coach/checkout", async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Checkout Error:", err);
     res.status(500).json({ error: "Checkout failed" });
   }
 });
