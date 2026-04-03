@@ -997,30 +997,39 @@ VALUES (?, ?, ?, NOW())
 app.post("/api/coach/checkout", async (req, res) => {
   const { coachId, sessionId } = req.body;
 
-  const [result] = 
-await db.query(
-  `UPDATE coach_checkins
-   SET checkout_time = CONVERT_TZ(NOW(), '+00:00', '+05:30'),
-       work_minutes = TIMESTAMPDIFF(
-         MINUTE,
-         checkin_time,
-         CONVERT_TZ(NOW(), '+00:00', '+05:30')
-       )
-   WHERE coach_id = ? 
-   AND session_id = ? 
-   AND checkout_time IS NULL`,
-  [coachId, sessionId]
-);
+  try {
+    // 1. Find the specific active check-in record
+    // Using LIMIT 1 ensures we only close the most recent open session
+    const [activeSessions] = await db.query(
+      `SELECT id FROM coach_checkins 
+       WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL 
+       ORDER BY checkin_time DESC LIMIT 1`,
+      [coachId, sessionId]
+    );
 
+    if (activeSessions.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "No active check-in found or already checked out." 
+      });
+    }
 
+    const recordId = activeSessions[0].id;
 
-  if (result.affectedRows === 0) {
-    return res.status(400).json({
-      message: "Not checked in or already checked out"
-    });
+    // 2. Update that specific record
+    await db.query(
+      `UPDATE coach_checkins 
+       SET checkout_time = NOW(),
+           work_minutes = TIMESTAMPDIFF(MINUTE, checkin_time, NOW())
+       WHERE id = ?`,
+      [recordId]
+    );
+
+    res.json({ success: true, message: "Checked out successfully" });
+  } catch (err) {
+    console.error("Checkout Error:", err);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
-
-  res.json({ success: true });
 });
 app.get("/api/admin/live-coaches", (req, res) => {
   connection.query(
