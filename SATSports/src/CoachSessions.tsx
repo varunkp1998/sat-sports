@@ -158,7 +158,37 @@ export default function CoachSessions() {
       setActionLoading(null);
     }, "image/jpeg", 0.7);
   };
-
+  const handleCheckOut = async (sessionId: number) => {
+    if (actionLoading) return;
+    if (!window.confirm("Are you sure you want to end this session?")) return;
+    
+    setActionLoading(sessionId);
+  
+    try {
+      const res = await fetch(`${API_BASE}/api/coach/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coachId, sessionId })
+      });
+  
+      const data = await res.json();
+  
+      if (res.ok) {
+        // Update local state so the card shows "SESSION CLOSED" immediately
+        setCheckedInMap(prev => ({
+          ...prev,
+          [sessionId]: { ...prev[sessionId], completed: true, checkedIn: false }
+        }));
+        alert("Session completed and synced.");
+      } else {
+        alert(data.message || "Checkout failed");
+      }
+    } catch (err) {
+      alert("Network error during checkout");
+    } finally {
+      setActionLoading(null);
+    }
+  };
   const filteredSessions = useMemo(() => {
     return sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate);
   }, [sessions, filterDate]);
@@ -189,8 +219,20 @@ export default function CoachSessions() {
                     ) : state.checkedIn ? (
                       <Stack spacing={1}>
                         <Button fullWidth sx={attendanceBtnStyle} onClick={() => window.location.href=`/coach/sessions/${s.id}/attendance`}>MARK ATTENDANCE</Button>
-                        <Button fullWidth variant="outlined" sx={{ color: "#ef4444", borderColor: "#ef4444" }}>END SESSION</Button>
-                      </Stack>
+                        <Button 
+  fullWidth 
+  variant="outlined" 
+  sx={{ 
+    color: "#ef4444", 
+    borderColor: "#ef4444", 
+    fontWeight: 800,
+    "&:hover": { borderColor: "#f87171", color: "#f87171" }
+  }}
+  disabled={actionLoading === s.id}
+  onClick={() => handleCheckOut(s.id)}
+>
+  {actionLoading === s.id ? <CircularProgress size={20} color="inherit" /> : "END SESSION"}
+</Button>                      </Stack>
                     ) : (
                       <Button 
                         fullWidth 
