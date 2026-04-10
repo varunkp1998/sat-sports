@@ -19,18 +19,73 @@ const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const allowedOrigins = [
-  "https://sat-sports.vercel.app",
   "https://www.sat-sports.in",
   "https://sat-sports.in",
-  "https://sat-sports.onrender.com"
 ];
+// ===== FIX MISSING ARRAYS =====
+let news = [];
+let tournaments = [];
+let revenue = [];
+let attendance = [];
+// ===== PERFORMANCE LAYER =====
+const compression = require("compression");
+const rateLimit = require("express-rate-limit");
 
+app.use(compression());
+
+app.use(rateLimit({
+  windowMs: 60 * 1000,
+  max: 100
+}));
+
+const redis = {
+  get: async () => null,
+  set: async () => {},
+  del: async () => {}
+};// ===== CACHE MANAGER =====
+const cacheKeys = {
+  programs: "programs",
+  tournaments: "tournaments",
+  news: "news",
+  sessions: "sessions",
+  players: "players"
+};
+
+const getCache = async (key, fn, ttl = 60) => {
+  const cached = await redis.get(key);
+  if (cached) return JSON.parse(cached);
+
+  const data = await fn();
+  await redis.set(key, JSON.stringify(data), "EX", ttl);
+  return data;
+};
+
+const invalidateCache = async (...keys) => {
+  await Promise.all(keys.map(k => redis.del(k)));
+};
+// cache helper
+const cache = async (key, fetchFn, ttl = 60) => {
+  const cached = await redis.get(key);
+  if (cached) return JSON.parse(cached);
+
+  const data = await fetchFn();
+  await redis.set(key, JSON.stringify(data), "EX", ttl);
+  return data;
+};
 // ✅ BODY PARSERS (ONLY ONCE)
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ CORS (ONLY ONCE)
 app.use(cors({
-  origin: true,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS blocked: Origin not allowed'));
+    }
+  },
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
@@ -169,15 +224,14 @@ app.post("/api/logout", (req, res) => {
 // READ (Public - all programs)
 app.get("/api/programs", async (req, res) => {
   try {
-    const [rows] = await db.query(`
-      SELECT id, title, min_age, max_age, category FROM programs
-    `);
+    const data = await cache("programs", async () => {
+      const [rows] = await db.query("SELECT * FROM programs");
+      return rows;
+    });
 
-    res.json(rows);
-
+    res.json(data);
   } catch (err) {
-    console.error("PROGRAMS ERROR:", err);
-    res.status(500).json({ message: "Failed to load programs" });
+    res.status(500).json({ error: err.message });
   }
 });
 // READ (Admin - all programs)
@@ -295,44 +349,11 @@ app.delete("/api/programs/:id", async (req, res) => {
   }
 });
 // --- REVENUE / FINANCE ---
-let revenue = [
-    {
-      id: 1,
-      date: "2026-01-20",
-      type: "CR",
-      amount: 2000,
-      description: "Rahul Sharma - Monthly Fees",
-      playerId: 1,
-      programId: 1,
-    },
-    {
-      id: 2,
-      date: "2026-01-21",
-      type: "DR",
-      amount: 500,
-      description: "Court Maintenance",
-      programId: 1,
-    },
-  ];
-  
-// --- NEWS CMS ---
-let news = [
-    {
-      id: 1,
-      title: "Academy Cup Announced",
-      body: "Registrations are now open for the Academy Cup.",
-      date: "2026-01-15",
-      category: "Event", // News | Event
-      isPublished: true,
-    },
-  ];
 
 // --- NEWS & EVENTS ---
 
 // READ (Public)
-app.get("/api/news", (req, res) => {
-    res.json(news.filter(n => n.isPublished));
-  });
+
   
   // READ (Admin)
   app.get("/api/admin/news",  (req, res) => {
@@ -376,41 +397,27 @@ app.post("/api/news", (req, res) => {
 });
 
 // --- TOURNAMENTS CMS ---
-let tournaments = [
-  { id: 1, name: "Academy Cup", date: "2026-02-12", status: "Open", registrationOpen: true },
-];
 
 app.get("/api/tournaments", async (req, res) => {
-  const [rows] = await db.query(`
-    SELECT 
-      t.*,
-      COUNT(tp.player_id) AS playerCount
-    FROM tournaments t
-    LEFT JOIN tournament_players tp 
-      ON tp.tournament_id = t.id
-    GROUP BY t.id
-    ORDER BY t.date DESC
-  `);
+  try {
+    const data = await cache("tournaments", async () => {
+      const [rows] = await db.query("SELECT * FROM tournaments");
+      return rows;
+    });
 
-  res.json(rows);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.post("/api/tournaments", (req, res) => {
-  const item = { id: Date.now(), ...req.body };
-  tournaments.push(item);
-  res.json(item);
-});
 
-app.listen(4000, () => {
-  console.log("CMS Backend running on http://localhost:4000");
-});
+
+
 // --- TOURNAMENTS ---
 
 // READ (Public)
-app.get("/api/tournaments", (req, res) => {
-    res.json(tournaments.filter(t => t.isPublished));
-  });
-  
+
   // READ (Admin)
 
   app.post("/api/admin/tournaments", upload.single("image"), async (req, res) => {
@@ -492,17 +499,19 @@ app.get("/api/admin/attendance", async (req, res) => {
   // --- PLAYERS ---
 // --- PLAYERS ---
 app.get("/api/admin/players", async (req, res) => {
-  const [rows] = await db.query(`
-    SELECT 
-      p.*, 
-      pr.title AS programTitle,
-      u.email
-    FROM players p
-    LEFT JOIN programs pr ON pr.id = p.program_id
-    LEFT JOIN users u ON u.id = p.user_id
-    ORDER BY p.created_at DESC
-  `);
-  res.json(rows);
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const [rows] = await db.query(
+      "SELECT * FROM players LIMIT ? OFFSET ?",
+      [Number(limit), Number(offset)]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 
@@ -708,10 +717,7 @@ app.get("/api/admin/attendance/player/:playerId", async (req, res) => {
   }
 });
 // GET attendance for a specific player
-app.get("/api/admin/attendance/player/:playerId",  (req, res) => {
-    const { playerId } = req.params;
-    res.json(attendance.filter(a => a.playerId == playerId));
-  });
+
 // --- REVENUE / FINANCE ---
 
 // READ (Admin)
@@ -811,13 +817,10 @@ app.get("/api/admin/revenue",  (req, res) => {
       const sessionId = result.insertId;
   
       // 2. Insert mapping
-      for (const pid of program_ids) {
-        await db.query(
-          `INSERT INTO session_programs (session_id, program_id)
-           VALUES (?, ?)`,
-          [sessionId, pid]
-        );
-      }
+      await db.query(
+        "INSERT INTO session_programs (session_id, program_id) VALUES ?",
+        [program_ids.map(pid => [sessionId, pid])]
+      );
   
       res.json({ success: true });
     } catch (err) {
@@ -859,13 +862,10 @@ app.put("/api/admin/sessions/:id", async (req, res) => {
 
     // 3. Insert new mappings
     if (Array.isArray(program_ids)) {
-      for (const pid of program_ids) {
-        await db.query(
-          `INSERT INTO session_programs (session_id, program_id)
-           VALUES (?, ?)`,
-          [id, pid]
-        );
-      }
+      await db.query(
+        "INSERT INTO session_programs (session_id, program_id) VALUES ?",
+        [program_ids.map(pid => [id, pid])]
+      );
     }
 
     res.json({ success: true });
@@ -3946,3 +3946,9 @@ app.get("/api/coach/tournament-history/:coachId", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch match history" });
   }
 });
+const server = app.listen(4000, () => {
+  console.log("Server running on port 4000");
+});
+
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
