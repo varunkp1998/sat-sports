@@ -84,7 +84,6 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true
 }));
-app.options("*", cors());
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "https://www.sat-sports.in");
   res.header("Access-Control-Allow-Credentials", "true");
