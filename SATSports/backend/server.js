@@ -76,7 +76,6 @@ const cache = async (key, fetchFn, ttl = 60) => {
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ CORS (ONLY ONCE)
-const cors = require("cors");
 
 app.use(cors({
   origin: [
