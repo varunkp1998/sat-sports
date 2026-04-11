@@ -849,7 +849,6 @@ app.put("/api/admin/sessions/:id", async (req, res) => {
     program_ids
   } = req.body;
 
-  const db = connection.promise();
 
   try {
     // 1. Update session
@@ -970,7 +969,7 @@ app.post("/api/coach/checkout", async (req, res) => {
   }
 });
 app.get("/api/admin/live-coaches", (req, res) => {
-  connection.query(
+  db.query(
     `SELECT c.id, c.name, l.name AS location, cc.checkin_time
      FROM coach_checkins cc
      JOIN coaches c ON c.id = cc.coach_id
@@ -985,7 +984,7 @@ app.get("/api/admin/live-coaches", (req, res) => {
 app.post("/api/attendance", (req, res) => {
   const { coachId } = req.body;
 
-  connection.query(
+  db.query(
     `SELECT 1 FROM coach_checkins
      WHERE coach_id = ? AND checkin_date = CURDATE() AND checkout_time IS NULL`,
     [coachId],
@@ -1046,7 +1045,7 @@ app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => 
     await connection.beginTransaction();
 
     // 2. Location Verification
-    const [locations] = await connection.query("SELECT lat, lng FROM locations WHERE id = ?", [locationId]);
+    const [locations] = await db.query("SELECT lat, lng FROM locations WHERE id = ?", [locationId]);
     if (locations.length === 0) throw new Error("LOCATION_NOT_FOUND");
     
     const location = locations[0];
@@ -1062,13 +1061,13 @@ app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => 
     }
 
     // 3. Late Check
-    const [sessions] = await connection.query(`SELECT session_date, start_time FROM training_sessions WHERE id=?`, [sessionId]);
+    const [sessions] = await db.query(`SELECT session_date, start_time FROM training_sessions WHERE id=?`, [sessionId]);
     const now = dayjs(); // Using dayjs for cleaner date math
     const sessionStart = dayjs(`${dayjs(sessions[0].session_date).format("YYYY-MM-DD")} ${sessions[0].start_time}`);
     const isLate = now.isAfter(sessionStart) ? 1 : 0;
 
     // 4. The Final INSERT (With Method)
-    await connection.query(
+    await db.query(
       `INSERT IGNORE INTO coach_checkins 
        (coach_id, session_id, location_id, lat, lng, checkin_time, is_late, verification_photo, method)
        VALUES (?, ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+05:30'), ?, ?, ?)`,
@@ -1839,7 +1838,7 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
     await connection.beginTransaction();
 
     // 1️⃣ Get application data
-    const [[appData]] = await connection.query(
+    const [[appData]] = await db.query(
       "SELECT * FROM applications WHERE id = ?",
       [id]
     );
@@ -1859,7 +1858,7 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
 
     // Fallback logic if no program was selected
     if (!programId && appData.age) {
-      const [[autoProgram]] = await connection.query(
+      const [[autoProgram]] = await db.query(
         `SELECT id FROM programs 
          WHERE ? BETWEEN min_age AND max_age 
          ORDER BY min_age DESC LIMIT 1`,
@@ -1869,7 +1868,7 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
     }
 
     // 3️⃣ Handle User Account (Check if email exists)
-    const [existingUsers] = await connection.query(
+    const [existingUsers] = await db.query(
       "SELECT id FROM users WHERE email = ?",
       [appData.email]
     );
@@ -1881,14 +1880,14 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
     if (existingUsers.length > 0) {
       userId = existingUsers[0].id;
       // Upgrade role to player if they were just a guest/parent
-      await connection.query(
+      await db.query(
         "UPDATE users SET role = 'player' WHERE id = ?",
         [userId]
       );
     } else {
       password = Math.random().toString(36).slice(-8); // Generate random temp password
       isNewUser = true;
-      const [userResult] = await connection.query(
+      const [userResult] = await db.query(
         "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'player')",
         [appData.name, appData.email, password]
       );
@@ -1896,26 +1895,26 @@ app.post("/api/admin/applications/:id/approve", async (req, res) => {
     }
 
     // 4️⃣ Create Player Profile (Linking User to Program)
-    const [existingPlayer] = await connection.query(
+    const [existingPlayer] = await db.query(
       "SELECT id FROM players WHERE user_id = ?",
       [userId]
     );
 
     if (existingPlayer.length === 0) {
-      await connection.query(
+      await db.query(
         `INSERT INTO players (user_id, name, age, program_id) VALUES (?, ?, ?, ?)`,
         [userId, appData.name, appData.age, programId]
       );
     } else {
       // If player exists, just ensure their program is updated
-      await connection.query(
+      await db.query(
         "UPDATE players SET program_id = ? WHERE user_id = ?",
         [programId, userId]
       );
     }
 
     // 5️⃣ Update Application Status
-    await connection.query(
+    await db.query(
       "UPDATE applications SET status = 'approved' WHERE id = ?",
       [id]
     );
@@ -3019,7 +3018,7 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
     await connection.beginTransaction();
 
     // 1. Fetch booking details
-    const [[booking]] = await connection.query(
+    const [[booking]] = await db.query(
       "SELECT * FROM private_bookings WHERE id=?", [id]
     );
 
@@ -3029,14 +3028,14 @@ app.put("/api/admin/private-bookings/:id/approve", async (req, res) => {
     }
 
     // 2. Update booking status
-    await connection.query(`
+    await db.query(`
       UPDATE private_bookings 
       SET status='approved', coach_id=?, location_id=? 
       WHERE id=?
     `, [coach_id, court_id || booking.location_id, id]);
 
     // 3. Create the official training session
-    await connection.query(`
+    await db.query(`
       INSERT INTO training_sessions 
       (coach_id, session_date, start_time, end_time, location_id, category)
       VALUES (?, ?, ?, ?, ?, 'Private')
@@ -3239,13 +3238,13 @@ app.post("/api/payment/verify", async (req, res) => {
     }
 
     // 🔹 STEP 2: FETCH DATA
-    const [[player]] = await connection.query("SELECT id, name, email FROM players WHERE id = ?", [playerId]);
-    const [[program]] = await connection.query("SELECT id, title FROM programs WHERE id = ?", [programId]);
+    const [[player]] = await db.query("SELECT id, name, email FROM players WHERE id = ?", [playerId]);
+    const [[program]] = await db.query("SELECT id, title FROM programs WHERE id = ?", [programId]);
 
     if (!player) throw new Error("Player not found");
 
     // 🔹 STEP 3: INSERT PAYMENT
-    const [result] = await connection.query(
+    const [result] = await db.query(
       `INSERT INTO payments 
       (player_id, source, source_id, sessions, amount, plan, status, payment_method, payment_id)
       VALUES (?, 'program', ?, ?, ?, ?, 'paid', 'razorpay', ?)`,
@@ -3264,7 +3263,7 @@ app.post("/api/payment/verify", async (req, res) => {
       sessions
     });
 
-    await connection.query("UPDATE payments SET invoice_url = ? WHERE id = ?", [invoiceUrl, paymentId]);
+    await db.query("UPDATE payments SET invoice_url = ? WHERE id = ?", [invoiceUrl, paymentId]);
 
     // Commit DB changes before sending email to ensure data integrity
     await connection.commit();
@@ -3829,7 +3828,7 @@ app.post("/api/payment/verify-private", async (req, res) => {
     }
 
     // ✅ CREATE BOOKING ONLY AFTER PAYMENT
-    await connection.query(`
+    await db.query(`
       INSERT INTO private_bookings
       (name, email, phone, location_id, booking_date, start_time, end_time, payment_status, razorpay_order_id, razorpay_payment_id, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, 'pending')
