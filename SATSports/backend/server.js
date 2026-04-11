@@ -76,21 +76,25 @@ const cache = async (key, fetchFn, ttl = 60) => {
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ CORS (ONLY ONCE)
+const cors = require("cors");
+
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS blocked: Origin not allowed'));
-    }
-  },
-  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  origin: [
+    "https://sat-sports.in",
+    "https://www.sat-sports.in"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true
 }));
+app.options("*", cors());
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://www.sat-sports.in");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
+  next();
+});
 // ✅ IMPORTANT
 
 
@@ -156,16 +160,20 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 
 
 let isAuthenticated = false;
+const mysql = require("mysql2/promise");
 
-const connection = mysql.createPool({
+const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: process.env.DB_PORT
+  port: process.env.DB_PORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 });
-
-const db = connection.promise();   // ✅ create db variable
 
 let sessions = [];
 // LOGIN
@@ -806,7 +814,6 @@ app.get("/api/admin/revenue",  (req, res) => {
     } = req.body;
   
     try {
-      // 1. Insert session
       const [result] = await db.query(
         `INSERT INTO training_sessions 
          (session_date, start_time, end_time, location_id, coach_id)
@@ -816,13 +823,16 @@ app.get("/api/admin/revenue",  (req, res) => {
   
       const sessionId = result.insertId;
   
-      // 2. Insert mapping
-      await db.query(
-        "INSERT INTO session_programs (session_id, program_id) VALUES ?",
-        [program_ids.map(pid => [sessionId, pid])]
-      );
+      await Promise.all([
+        db.query(
+          "INSERT INTO session_programs (session_id, program_id) VALUES ?",
+          [program_ids.map(pid => [sessionId, pid])]
+        ),
+        invalidateCache("sessions")
+      ]);
   
       res.json({ success: true });
+  
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Failed to create session" });
@@ -1101,22 +1111,24 @@ app.post("/api/coach/sessions/:sessionId/attendance", async (req, res) => {
   const { attendance } = req.body;
 
   try {
-    for (const a of attendance) {
-      await db.execute(
-        `INSERT INTO session_attendance 
-         (session_id, player_id, present, remark)
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE 
-           present = VALUES(present),
-           remark = VALUES(remark)`,
-        [
-          sessionId,
-          a.playerId,
-          a.present ? 1 : 0,
-          a.remark || null
-        ]
-      );
-    }
+    await Promise.all(
+      attendance.map(a =>
+        db.execute(
+          `INSERT INTO session_attendance 
+           (session_id, player_id, present, remark)
+           VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             present = VALUES(present),
+             remark = VALUES(remark)`,
+          [
+            sessionId,
+            a.playerId,
+            a.present ? 1 : 0,
+            a.remark || null
+          ]
+        )
+      )
+    );
 
     res.json({ success: true });
 
@@ -1251,64 +1263,32 @@ app.get("/api/coach/overview/:userId", async (req, res) => {
 
     const coachId = coachRows[0].id;
 
-    const [[todaySessions]] = await db.query(
-      `SELECT COUNT(*) as cnt
-       FROM training_sessions
-       WHERE coach_id = ? AND session_date = CURDATE()`,
-      [coachId]
-    );
+    const [
+      todaySessions,
+      todaySessionList,
+      upcoming,
+      weekly,
+      players,
+      checkins
+    ] = await Promise.all([
+      db.query(`SELECT COUNT(*) as cnt FROM training_sessions WHERE coach_id = ? AND session_date = CURDATE()`, [coachId]),
+      db.query(`SELECT id, start_time, end_time FROM training_sessions WHERE coach_id = ? AND session_date = CURDATE()`, [coachId]),
+      db.query(`SELECT session_date, start_time, end_time FROM training_sessions WHERE coach_id = ? AND session_date >= CURDATE() LIMIT 5`, [coachId]),
+      db.query(`SELECT DAYOFWEEK(session_date) as d, COUNT(*) as cnt FROM training_sessions WHERE coach_id = ? GROUP BY d`, [coachId]),
+      db.query(`SELECT COUNT(DISTINCT sp.player_id) AS activePlayers FROM session_players sp JOIN training_sessions ts ON ts.id = sp.session_id WHERE ts.coach_id = ?`, [coachId]),
+      db.query(`SELECT COUNT(*) AS checkinsToday FROM coach_checkins WHERE coach_id = ? AND checkin_date = CURDATE()`, [coachId])
+    ]);
 
-    const [todaySessionList] = await db.query(
-      `SELECT id, start_time, end_time
-       FROM training_sessions
-       WHERE coach_id = ? AND session_date = CURDATE()
-       ORDER BY start_time`,
-      [coachId]
-    );
+    res.json({
+      coachName: coachRows[0].name,
+      todaySessionCount: todaySessions[0][0].cnt,
+      todaySessionList: todaySessionList[0],
+      upcoming: upcoming[0],
+      weekly: weekly[0],
+      activePlayers: players[0][0].activePlayers,
+      checkinsToday: checkins[0][0].checkinsToday
+    });
 
-    const [upcoming] = await db.query(
-      `SELECT session_date, start_time, end_time
-       FROM training_sessions
-       WHERE coach_id = ? AND session_date >= CURDATE()
-       ORDER BY session_date
-       LIMIT 5`,
-      [coachId]
-    );
-
-    const [weekly] = await db.query(
-      `SELECT DAYOFWEEK(session_date) as d, COUNT(*) as cnt
-       FROM training_sessions
-       WHERE coach_id = ?
-       AND session_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-       GROUP BY d`,
-      [coachId]
-    );
-// Active Players
-const [[players]] = await db.query(
-  `SELECT COUNT(DISTINCT sp.player_id) AS activePlayers
-   FROM session_players sp
-   JOIN training_sessions ts ON ts.id = sp.session_id
-   WHERE ts.coach_id = ?`,
-  [coachId]
-);
-
-// Check-ins Today
-const [[checkins]] = await db.query(
-  `SELECT COUNT(*) AS checkinsToday
-   FROM coach_checkins
-   WHERE coach_id = ?
-   AND checkin_date = CURDATE()`,
-  [coachId]
-);
-res.json({
-  coachName: coachRows[0].name,
-  todaySessionCount: todaySessions.cnt,
-  todaySessionList,
-  upcoming,
-  weekly,
-  activePlayers: players.activePlayers,
-  checkinsToday: checkins.checkinsToday
-});
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Overview failed" });
@@ -1800,10 +1780,26 @@ app.put("/api/admin/players/:id/promote", async (req, res) => {
   res.json({ success: true });
 });
 app.post("/api/admin/players/import", upload.single("file"), async (req, res) => {
-  // parse excel
-  // loop rows
-  // insert players + users
-  res.json({ success: true });
+  const workbook = xlsx.readFile(req.file.path);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = xlsx.utils.sheet_to_json(sheet);
+
+  try {
+    await Promise.all(
+      rows.map(r =>
+        db.query(
+          `INSERT INTO players (name, email, phone, age) VALUES (?, ?, ?, ?)`,
+          [r.name, r.email, r.phone, r.age]
+        )
+      )
+    );
+
+    res.json({ success: true, count: rows.length });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Import failed" });
+  }
 });
 // CREATE application (public)
 app.post("/api/applications", async (req, res) => {
