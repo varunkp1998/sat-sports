@@ -12,7 +12,7 @@ const dayjs = require('dayjs');
 const nodemailer = require("nodemailer");
 const app = express();
 app.use(express.json());
-
+app.set("trust proxy", 1);
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
