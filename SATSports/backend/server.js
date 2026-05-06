@@ -17,10 +17,26 @@ const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// ✅ Correct Unified CORS Configuration
 const allowedOrigins = [
-  "https://www.sat-sports.in",
   "https://sat-sports.in",
+  "https://www.sat-sports.in"
 ];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"] // Essential for data routes
+}));
 // ===== FIX MISSING ARRAYS =====
 let news = [];
 let tournaments = [];
@@ -76,22 +92,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // ✅ CORS (ONLY ONCE)
 
-app.use(cors({
-  origin: [
-    "https://sat-sports.in",
-    "https://www.sat-sports.in"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true
-}));
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://www.sat-sports.in");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
-  next();
-});
+
 // ✅ IMPORTANT
 
 
