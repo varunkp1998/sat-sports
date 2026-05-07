@@ -48,6 +48,7 @@ const AdminPayroll = lazy(() => import("./AdminCoachPayroll"));
 const AdminReports = lazy(() => import("./AdminReports"));
 const AdminTournaments = lazy(() => import("./AdminTournaments"));
 const AdminCourtBookings = lazy(() => import("./AdminCourtBookings"));
+const AdminDashboard = lazy(() => import("./AdminDashboard"));
 // ⚡ Coach Specific
 const CoachDashboard = lazy(() => import("./CoachDashboard"));
 const CoachSessions = lazy(() => import("./CoachSessions"));
@@ -113,8 +114,7 @@ export default function App() {
             }
           >
             {/* Index redirects to players or dashboard */}
-            <Route index element={<Navigate to="/admin/players" replace />} />
-            
+            <Route index element={<AdminDashboard />} />            
             <Route path="live-presence" element={<AdminLivePresence />} />
             <Route path="locations" element={<AdminLocations />} />
             <Route path="news" element={<AdminNews />} />
