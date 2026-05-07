@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 // CSS and Global Modules
 import "./index.css";
 import "jspdf-autotable";
-import { Box, Typography } from "@mui/material";
+import { Box,Typography } from "@mui/material";
 // Static Components (Immediate Load)
 import Header from "./Header";
 import ProtectedRoute from "./ProtectedRoute";
