@@ -37,7 +37,17 @@ const AdminNews = lazy(() => import("./AdminNews"));
 const AdminPlayers = lazy(() => import("./AdminPlayers"));
 const AdminPrivateBookings = lazy(() => import("./AdminPrivateBooking"));
 const PlayerProfile = lazy(() => import("./PlayerProfile"));
-
+const AdminCoaches = lazy(() => import("./AdminCoaches"));
+const AdminPrograms = lazy(() => import("./AdminPrograms"));
+const AdminSessions = lazy(() => import("./AdminSessions"));
+const AdminApplications = lazy(() => import("./AdminApplications"));
+const AdminAttendance = lazy(() => import("./AdminAttendance"));
+const AdminLeaves = lazy(() => import("./AdminLeaves"));
+const AdminRevenue = lazy(() => import("./AdminRevenue"));
+const AdminPayroll = lazy(() => import("./AdminCoachPayroll"));
+const AdminReports = lazy(() => import("./AdminReports"));
+const AdminTournaments = lazy(() => import("./AdminTournaments"));
+const AdminCourtBookings = lazy(() => import("./AdminCourtBookings"));
 // ⚡ Coach Specific
 const CoachDashboard = lazy(() => import("./CoachDashboard"));
 const CoachSessions = lazy(() => import("./CoachSessions"));
@@ -111,6 +121,18 @@ export default function App() {
             <Route path="players" element={<AdminPlayers />} />
             <Route path="players/:id" element={<PlayerProfile />} />
             <Route path="private-bookings" element={<AdminPrivateBookings />} />
+            <Route path="programs" element={<AdminPrograms />} />
+<Route path="sessions" element={<AdminSessions />} />
+<Route path="coaches" element={<AdminCoaches />} />
+<Route path="applications" element={<AdminApplications />} />
+<Route path="attendance" element={<AdminAttendance />} />
+<Route path="leaves" element={<AdminLeaves />} />
+<Route path="live" element={<AdminLivePresence />} />
+<Route path="revenue" element={<AdminRevenue />} />
+<Route path="payroll" element={<AdminPayroll />} />
+<Route path="reports" element={<AdminReports />} />
+<Route path="tournaments" element={<AdminTournaments />} />
+<Route path="court-bookings" element={<AdminCourtBookings />} />
           </Route>
 
           {/* 404 Redirect */}
