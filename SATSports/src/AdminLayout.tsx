@@ -3,7 +3,7 @@ import {
   Box, Typography, List, ListItem, ListItemText,
   IconButton, Drawer, Divider, Collapse
 } from "@mui/material";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -84,7 +84,7 @@ const NavItem = React.memo(({ item, isActive, isChild, onCloseMobile }: any) => 
   </ListItem>
 ));
 
-function AdminLayout({ children }: { children: React.ReactNode }) {
+function AdminLayout (){
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Academy: true });
 
@@ -178,8 +178,8 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
 
       {/* MAIN CONTENT AREA */}
       <Box component="main" sx={mainContentStyle}>
-        {children}
-      </Box>
+  <Outlet />
+</Box>
     </Box>
   );
 }
