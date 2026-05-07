@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Button, Stack, 
   Paper, Table, TableBody, TableCell, TableContainer, Grid,
   TableHead, TableRow, TextField, ToggleButton, ToggleButtonGroup, 
-  Chip, Avatar, Divider, Fade
+  Chip, Avatar, Fade, CircularProgress
 } from "@mui/material";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -17,13 +17,14 @@ import SummarizeIcon from '@mui/icons-material/Summarize';
 
 import API_BASE from "./api";
 
-type PayrollRow = {
+// --- TYPES ---
+interface PayrollRow {
   coachId: number;
   coachName: string;
   date?: string;
   month?: string;
   totalMinutes: number;
-};
+}
 
 export default function AdminCoachPayroll() {
   const [mode, setMode] = useState<"daily" | "monthly">("daily");
@@ -54,25 +55,27 @@ export default function AdminCoachPayroll() {
   const totalAcademyMinutes = rows.reduce((acc, r) => acc + Number(r.totalMinutes || 0), 0);
   const totalAcademyHours = (totalAcademyMinutes / 60).toFixed(2);
 
-  // --- Exports ---
+  // --- EXPORTS ---
   const exportToExcel = () => {
     const sheetData = rows.map((r) => ({
       Coach: r.coachName,
       Period: mode === "daily" ? (r.date?.slice(0,10) || date) : (r.month || month),
-      "Minutes": r.totalMinutes,
-      "Hours": (r.totalMinutes / 60).toFixed(2),
+      "Total Minutes": r.totalMinutes,
+      "Payable Hours": (r.totalMinutes / 60).toFixed(2),
     }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), "Payroll");
-    XLSX.writeFile(wb, `Coach_Payroll_${mode}_${mode === 'daily' ? date : month}.xlsx`);
+    const ws = XLSX.utils.json_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(wb, ws, "Payroll_Report");
+    XLSX.writeFile(wb, `SAT_Payroll_${mode}_${mode === 'daily' ? date : month}.xlsx`);
   };
 
   const exportToPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(18);
-    doc.text("Coach Work Hours & Payroll Report", 14, 20);
+    doc.text("Coach Payroll & Hours Report", 14, 20);
     doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleString()} | Period: ${mode.toUpperCase()}`, 14, 28);
+    doc.setTextColor(100);
+    doc.text(`Period: ${mode.toUpperCase()} | Generated: ${new Date().toLocaleString()}`, 14, 28);
     
     (doc as any).autoTable({
       startY: 35,
@@ -83,18 +86,19 @@ export default function AdminCoachPayroll() {
         r.totalMinutes,
         (r.totalMinutes / 60).toFixed(2),
       ]),
-      headStyles: { fillStyle: '#4f46e5' }
+      headStyles: { fillColor: [79, 70, 229] }, // Brand Indigo
+      theme: 'striped'
     });
-    doc.save(`Payroll_Report_${date}.pdf`);
+    doc.save(`SAT_Payroll_${mode}_${date}.pdf`);
   };
 
   return (
     <Box sx={containerStyle}>
-      {/* HEADER & CONTROLS */}
+      {/* HEADER */}
       <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={3} mb={6}>
-        <Box>
+        <Box textAlign={{ xs: 'center', md: 'left' }}>
           <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">Payroll Analytics</Typography>
-          <Typography variant="body2" color="text.secondary">Monitor coach performance and billable hours</Typography>
+          <Typography variant="body2" color="text.secondary">Monitor performance and billable coaching hours</Typography>
         </Box>
 
         <Paper sx={controlPaperStyle}>
@@ -103,23 +107,24 @@ export default function AdminCoachPayroll() {
             exclusive
             onChange={(_, val) => val && setMode(val)}
             size="small"
-            sx={{ mr: 2 }}
+            sx={{ mr: { sm: 2 }, mb: { xs: 1, sm: 0 } }}
           >
             <ToggleButton value="daily" sx={toggleBtnStyle}>Daily</ToggleButton>
             <ToggleButton value="monthly" sx={toggleBtnStyle}>Monthly</ToggleButton>
           </ToggleButtonGroup>
 
-          {mode === "daily" ? (
-            <TextField type="date" size="small" value={date} onChange={(e) => setDate(e.target.value)} sx={inputStyle} />
-          ) : (
-            <TextField type="month" size="small" value={month} onChange={(e) => setMonth(e.target.value)} sx={inputStyle} />
-          )}
-
-          <Button variant="contained" onClick={loadReport} sx={refreshBtnStyle}>Sync</Button>
+          <Stack direction="row" spacing={1} alignItems="center">
+            {mode === "daily" ? (
+              <TextField type="date" size="small" value={date} onChange={(e) => setDate(e.target.value)} sx={inputStyle} />
+            ) : (
+              <TextField type="month" size="small" value={month} onChange={(e) => setMonth(e.target.value)} sx={inputStyle} />
+            )}
+            <Button variant="contained" onClick={loadReport} sx={refreshBtnStyle}>Sync</Button>
+          </Stack>
         </Paper>
       </Stack>
 
-      {/* SUMMARY KPI */}
+      {/* KPI SUMMARY */}
       <Grid container spacing={3} mb={4}>
         <Grid item xs={12} md={4}>
             <Card sx={summaryCardStyle}>
@@ -127,57 +132,68 @@ export default function AdminCoachPayroll() {
                     <Avatar sx={{ bgcolor: '#eff6ff', color: '#3b82f6', mr: 2 }}><TimerIcon /></Avatar>
                     <Box>
                         <Typography variant="caption" fontWeight={800} color="text.secondary">TOTAL ACADEMY HOURS</Typography>
-                        <Typography variant="h4" fontWeight={900}>{totalAcademyHours} <small style={{ fontSize: '14px' }}>hrs</small></Typography>
+                        <Typography variant="h4" fontWeight={900}>{totalAcademyHours} <small style={{ fontSize: '14px', color: '#64748b' }}>hrs</small></Typography>
                     </Box>
                 </CardContent>
             </Card>
         </Grid>
         <Grid item xs={12} md={8}>
-            <Stack direction="row" spacing={2} height="100%" alignItems="center" justifyContent="flex-end">
-                <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={exportToExcel} sx={actionBtnStyle}>Excel Export</Button>
+            <Stack direction="row" spacing={2} height="100%" alignItems="center" justifyContent={{ xs: 'center', md: 'flex-end' }}>
+                <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={exportToExcel} sx={actionBtnStyle}>Export Excel</Button>
                 <Button variant="outlined" startIcon={<SummarizeIcon />} onClick={exportToPDF} sx={actionBtnStyle}>PDF Report</Button>
             </Stack>
         </Grid>
       </Grid>
 
-      {/* TABLE */}
+      {/* REPORT TABLE */}
       <TableContainer component={Paper} sx={tablePaperStyle}>
         <Table stickyHeader>
           <TableHead>
             <TableRow>
               <TableCell sx={headerStyle}>Coach Name</TableCell>
               <TableCell sx={headerStyle}>{mode === "daily" ? "Work Date" : "Billing Month"}</TableCell>
-              <TableCell sx={headerStyle}>Duration</TableCell>
-              <TableCell sx={headerStyle}>Payroll Hours</TableCell>
+              <TableCell sx={headerStyle}>Logged Minutes</TableCell>
+              <TableCell sx={headerStyle}>Payable Hours</TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {rows.map((r, idx) => {
-              const minutes = Number(r.totalMinutes || 0);
-              const hours = (minutes / 60).toFixed(2);
-              return (
-                <Fade in timeout={idx * 100} key={idx}>
-                  <TableRow hover>
-                    <TableCell>
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar sx={{ width: 32, height: 32, fontSize: '0.8rem', bgcolor: '#4f46e5' }}>{r.coachName.charAt(0)}</Avatar>
-                        <Typography fontWeight={700} color="#1e293b">{r.coachName}</Typography>
-                      </Stack>
+            {loading ? (
+                <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 10 }}>
+                        <CircularProgress size={30} sx={{ mb: 2 }} />
+                        <Typography variant="body2" color="text.secondary">Fetching payroll data...</Typography>
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600} color="text.secondary">
-                        {mode === "daily" ? (r.date?.slice(0, 10) || date) : (r.month || month)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell><Chip label={`${minutes} min`} size="small" sx={minuteChipStyle} /></TableCell>
-                    <TableCell>
-                       <Typography fontWeight={900} color="#10b981">{hours} <span style={{ fontSize: '10px' }}>HRS</span></Typography>
-                    </TableCell>
-                  </TableRow>
-                </Fade>
-              );
-            })}
+                </TableRow>
+            ) : (
+                rows.map((r, idx) => {
+                  const minutes = Number(r.totalMinutes || 0);
+                  const hours = (minutes / 60).toFixed(2);
+                  return (
+                    <Fade in timeout={idx * 50} key={`${r.coachId}-${idx}`}>
+                      <TableRow hover>
+                        <TableCell>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Avatar sx={{ width: 32, height: 32, fontSize: '0.8rem', bgcolor: '#4f46e5', fontWeight: 700 }}>
+                                {r.coachName?.[0]?.toUpperCase() || "C"}
+                            </Avatar>
+                            <Typography fontWeight={700} color="#1e293b">{r.coachName}</Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600} color="text.secondary">
+                            {mode === "daily" ? (r.date?.slice(0, 10) || date) : (r.month || month)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell><Chip label={`${minutes} min`} size="small" sx={minuteChipStyle} /></TableCell>
+                        <TableCell>
+                           <Typography fontWeight={900} color="#10b981">{hours} <span style={{ fontSize: '10px' }}>HRS</span></Typography>
+                        </TableCell>
+                      </TableRow>
+                    </Fade>
+                  );
+                })
+            )}
 
             {!loading && rows.length > 0 && (
                 <TableRow sx={{ bgcolor: '#f8fafc' }}>
@@ -203,11 +219,14 @@ export default function AdminCoachPayroll() {
 
 // --- STYLING ---
 const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
-const controlPaperStyle = { p: 1.5, borderRadius: 4, display: 'flex', alignItems: 'center', bgcolor: 'white', border: '1px solid #e2e8f0', boxShadow: 'none' };
+const controlPaperStyle = { 
+  p: 1.5, borderRadius: 4, display: 'flex', flexWrap: 'wrap', 
+  alignItems: 'center', bgcolor: 'white', border: '1px solid #e2e8f0', boxShadow: 'none' 
+};
 const tablePaperStyle = { borderRadius: 5, border: '1px solid #e2e8f0', boxShadow: '0 10px 30px rgba(0,0,0,0.02)', overflow: 'hidden' };
-const summaryCardStyle = { borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none' };
+const summaryCardStyle = { borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none', bgcolor: 'white' };
 const headerStyle = { fontWeight: 900, bgcolor: '#f8fafc', color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', py: 2 };
-const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: '#f8fafc' }, width: 160, mr: 2 };
+const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: '#f8fafc' }, width: { xs: '100%', sm: 160 } };
 const toggleBtnStyle = { fontWeight: 800, textTransform: 'none', px: 3, borderRadius: '10px !important' };
 const refreshBtnStyle = { borderRadius: 2.5, fontWeight: 900, px: 3 };
 const actionBtnStyle = { borderRadius: 2.5, fontWeight: 800, textTransform: 'none', px: 3, color: '#475569', borderColor: '#e2e8f0' };

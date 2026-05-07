@@ -17,7 +17,7 @@ function CoachProfile() {
   // Data States
   const [profile, setProfile] = useState<any>(null);
   const [name, setName] = useState("");
-  const [bio, setBio] = useState(""); // 🟢 New state for Bio
+  const [bio, setBio] = useState(""); 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -37,9 +37,10 @@ function CoachProfile() {
       const res = await fetch(`${API_BASE}/api/coach/profile/${userId}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
+      
       setProfile(data);
-      setName(typeof data.name === 'string' ? data.name : "");
-      setBio(typeof data.bio === 'string' ? data.bio : ""); // 🟢 Load Bio from DB
+      setName(data.name || "");
+      setBio(data.bio || ""); 
     } catch (err) {
       setMessage({ type: "error", text: "DATABASE SYNC ERROR" });
     } finally {
@@ -49,7 +50,7 @@ function CoachProfile() {
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  // 2. PHOTO CHANGE
+  // 2. PHOTO CHANGE (With optimized cache busting)
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -74,7 +75,8 @@ function CoachProfile() {
       const data = await res.json();
 
       if (res.ok) {
-        setProfile((prev: any) => ({ ...prev, photo: data.url }));
+        // Force refresh by adding timestamp to the specific photo path
+        setProfile((prev: any) => ({ ...prev, photo: `${data.url}?t=${Date.now()}` }));
         setMessage({ type: "success", text: "CLOUD STORAGE SYNCED" });
       } else {
         throw new Error(data.message);
@@ -86,7 +88,7 @@ function CoachProfile() {
     }
   };
 
-  // 3. SAVE PROFILE DETAILS (Updated to include Bio)
+  // 3. SAVE PROFILE DETAILS
   const handleSaveProfile = async () => {
     if (!name.trim()) return setMessage({ type: "error", text: "NAME REQUIRED" });
     
@@ -95,7 +97,7 @@ function CoachProfile() {
       const res = await fetch(`${API_BASE}/api/coach/update-profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, name, bio }), // 🟢 Sending Bio to Backend
+        body: JSON.stringify({ userId, name, bio }),
       });
       
       if (res.ok) {
@@ -135,27 +137,26 @@ function CoachProfile() {
     }
   };
 
-  // 🛡️ Avatar Source
   const avatarSrc = useMemo(() => {
-    if (!profile || !profile.photo) return "";
+    if (!profile?.photo) return "";
     const photoPath = typeof profile.photo === 'object' ? profile.photo.url : profile.photo;
-    if (typeof photoPath !== 'string') return "";
-    const base = photoPath.startsWith("http") ? photoPath : `${API_BASE}${photoPath}`;
-    return `${base.split('?')[0]}?t=${Date.now()}`;
+    return photoPath.startsWith("http") ? photoPath : `${API_BASE}${photoPath}`;
   }, [profile]);
 
   if (loading) return (
     <Box display="flex" justifyContent="center" alignItems="center" height="100vh" bgcolor="#020617">
-      <CircularProgress color="error" />
+      <CircularProgress color="error" thickness={5} />
     </Box>
   );
 
   return (
-    <Box sx={{ background: "#020617", minHeight: "100vh", py: 6, color: "white" }}>
+    <Box sx={{ background: "#020617", minHeight: "100vh", py: { xs: 4, md: 6 }, color: "white" }}>
       <Container maxWidth="md">
         <Box sx={{ mb: 6 }}>
           <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 3 }}>COMMAND CENTER</Typography>
-          <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5 }}>COACH <span style={{ color: "#ef4444" }}>PROFILE</span></Typography>
+          <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5, fontSize: { xs: '2.5rem', md: '3.5rem' } }}>
+            COACH <span style={{ color: "#ef4444" }}>PROFILE</span>
+          </Typography>
         </Box>
 
         {message && (
@@ -170,11 +171,11 @@ function CoachProfile() {
           <Grid item xs={12}>
             <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <Card sx={glassCardStyle}>
-                <CardContent sx={{ p: 5 }}>
+                <CardContent sx={{ p: { xs: 3, md: 5 } }}>
                   <Stack direction={{ xs: "column", md: "row" }} spacing={5} alignItems="center">
                     <Box sx={{ position: "relative" }}>
                       <Avatar src={avatarSrc} sx={avatarStyle}>
-                        {typeof name === 'string' && name.length > 0 ? name[0].toUpperCase() : "C"}
+                        {name ? name[0].toUpperCase() : "C"}
                       </Avatar>
                       <input accept="image/*" style={{ display: "none" }} id="photo-upload" type="file" onChange={handlePhotoChange} />
                       <label htmlFor="photo-upload">
@@ -185,12 +186,12 @@ function CoachProfile() {
                     </Box>
 
                     <Box sx={{ flexGrow: 1, textAlign: { xs: "center", md: "left" } }}>
-                      <Typography variant="h4" fontWeight={900} sx={{ mb: 0.5 }}>{name.toUpperCase()}</Typography>
-                      <Typography variant="body1" sx={{ color: "#ef4444", fontWeight: 800, letterSpacing: 1, mb: 2 }}>
+                      <Typography variant="h4" fontWeight={950} sx={{ mb: 0.5, letterSpacing: -1 }}>{name.toUpperCase()}</Typography>
+                      <Typography variant="body1" sx={{ color: "#ef4444", fontWeight: 800, letterSpacing: 1, mb: 1.5 }}>
                         OFFICIAL COACH ID: #{String(userId).slice(-4)}
                       </Typography>
                       <Typography variant="body2" sx={{ opacity: 0.5, fontWeight: 700 }}>
-                        {typeof profile?.email === 'string' ? profile.email : ""}
+                        {profile?.email || "NO EMAIL LINKED"}
                       </Typography>
                     </Box>
                   </Stack>
@@ -206,13 +207,12 @@ function CoachProfile() {
                       sx={darkInputStyle} 
                     />
 
-                    {/* 🟢 NEW BIO FIELD ADDED HERE */}
                     <TextField 
                       label="PROFESSIONAL BIO / EXPERIENCE" 
                       fullWidth 
                       multiline
                       rows={4}
-                      placeholder="Share your coaching philosophy, years of experience, and specializations..."
+                      placeholder="Coaching philosophy, years of experience, or certifications..."
                       value={bio} 
                       onChange={(e) => setBio(e.target.value)} 
                       sx={darkInputStyle} 
@@ -236,7 +236,7 @@ function CoachProfile() {
           <Grid item xs={12}>
             <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <Card sx={glassCardStyle}>
-                <CardContent sx={{ p: 5 }}>
+                <CardContent sx={{ p: { xs: 3, md: 5 } }}>
                   <Typography variant="h6" fontWeight={900} mb={4} sx={{ letterSpacing: 1 }}>SECURITY PROTOCOLS</Typography>
                   <Stack spacing={3}>
                     <TextField
@@ -274,13 +274,13 @@ function CoachProfile() {
   );
 }
 
-// Styles
+// --- STYLES ---
 const glassCardStyle = { borderRadius: 6, background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", color: "white" };
-const avatarStyle = { width: 140, height: 140, bgcolor: "#ef4444", fontSize: "3rem", fontWeight: 900, border: "4px solid rgba(255,255,255,0.05)" };
+const avatarStyle = { width: 140, height: 140, bgcolor: "#ef4444", fontSize: "3rem", fontWeight: 900, border: "4px solid rgba(255,255,255,0.05)", boxShadow: "0 10px 30px rgba(239, 68, 68, 0.2)" };
 const cameraBtnStyle = { position: "absolute", bottom: 5, right: 5, bgcolor: "white", color: "black", "&:hover": { bgcolor: "#ef4444", color: "white" } };
-const darkInputStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } }, "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)", fontWeight: 800 } };
-const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, background: "linear-gradient(135deg, #f97316, #ef4444)" };
-const secondaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, borderColor: "#ef4444", color: "#ef4444" };
-const alertStyle = (type: string) => ({ mb: 4, borderRadius: 3, bgcolor: type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)", color: type === "success" ? "#22c55e" : "#ef4444" });
+const darkInputStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" }, "&.Mui-focused fieldset": { borderColor: "#ef4444" } }, "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)", fontWeight: 800 } };
+const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, background: "linear-gradient(135deg, #f97316, #ef4444)", color: "white" };
+const secondaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, borderColor: "#ef4444", color: "#ef4444", "&:hover": { bgcolor: "rgba(239, 68, 68, 0.05)", borderColor: "#ef4444" } };
+const alertStyle = (type: string) => ({ mb: 4, borderRadius: 3, bgcolor: type === "success" ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)", color: type === "success" ? "#22c55e" : "#ef4444", fontWeight: 700 });
 
 export default CoachProfile;

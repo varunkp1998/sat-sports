@@ -6,10 +6,9 @@ import {
   TableContainer, Avatar
 } from "@mui/material";
 import HistoryIcon from "@mui/icons-material/History";
-import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
-import BadgeIcon from "@mui/icons-material/Badge";
 import API_BASE from "./api";
 
+// --- TYPES ---
 type PlayerAttendanceRow = {
   session_id: number;
   player_id: number;
@@ -31,33 +30,36 @@ type CoachCheckinRow = {
 };
 
 export default function AdminAttendance() {
-  const [mode, setMode] = useState<"players" | "coaches" | any>("players");
+  const [mode, setMode] = useState<"players" | "coaches">("players");
   const [playerRows, setPlayerRows] = useState<PlayerAttendanceRow[]>([]);
   const [coachRows, setCoachRows] = useState<CoachCheckinRow[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const loadPlayers = async () => {
+  const loadData = async () => {
+    setLoading(true);
+    const endpoint = mode === "players" ? "attendance" : "coach-checkins";
     try {
-      const res = await fetch(`${API_BASE}/api/admin/attendance?date=${selectedDate}`);
+      const res = await fetch(`${API_BASE}/api/admin/${endpoint}?date=${selectedDate}`);
       const data = await res.json();
-      setPlayerRows(data);
-    } catch (err) { handleToast("Error loading player data", "error"); }
-  };
-
-  const loadCoaches = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/coach-checkins?date=${selectedDate}`);
-      const data = await res.json();
-      setCoachRows(data);
-    } catch (err) { handleToast("Error loading coach data", "error"); }
+      if (mode === "players") {
+        setPlayerRows(Array.isArray(data) ? data : []);
+      } else {
+        setCoachRows(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      handleToast(`Error loading ${mode} data`, "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    mode === "players" ? loadPlayers() : loadCoaches();
+    loadData();
   }, [mode, selectedDate]);
 
   const handleToast = (message: string, severity: "success" | "error") => {
@@ -69,7 +71,7 @@ export default function AdminAttendance() {
       
       {/* HEADER SECTION */}
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems="center" mb={6}>
-        <Box>
+        <Box textAlign={{ xs: 'center', md: 'left' }}>
           <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">
             Attendance Center
           </Typography>
@@ -101,7 +103,7 @@ export default function AdminAttendance() {
               }
               label={
                 <Typography variant="caption" fontWeight={900} color="text.secondary" sx={{ textTransform: 'uppercase' }}>
-                  {mode === "coaches" ? "Coaches View" : "Players View"}
+                  {mode === "coaches" ? "Coaches" : "Players"}
                 </Typography>
               }
               sx={{ m: 0, px: 1 }}
@@ -128,11 +130,11 @@ export default function AdminAttendance() {
                 <TableBody>
                   {/* PLAYER ROWS */}
                   {mode === "players" && playerRows.map((r, idx) => (
-                    <TableRow key={idx} hover sx={rowStyle}>
+                    <TableRow key={`player-${idx}`} hover sx={rowStyle}>
                       <TableCell>
                         <Stack direction="row" spacing={2} alignItems="center">
                           <Avatar sx={{ bgcolor: '#eff6ff', color: '#3b82f6', width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700 }}>
-                            {r.playerName.charAt(0)}
+                            {r.playerName?.[0] || "P"}
                           </Avatar>
                           <Typography variant="body2" fontWeight={800} color="#1e293b">{r.playerName}</Typography>
                         </Stack>
@@ -141,15 +143,15 @@ export default function AdminAttendance() {
                         <Chip label={r.programTitle} size="small" sx={programChipStyle} />
                       </TableCell>
                       <TableCell>
-                        {r.present ? (
-                          <Chip label="Present" size="small" sx={successChipStyle} />
-                        ) : (
-                          <Chip label="Absent" size="small" sx={errorChipStyle} />
-                        )}
+                        <Chip 
+                          label={r.present ? "Present" : "Absent"} 
+                          size="small" 
+                          sx={r.present ? successChipStyle : errorChipStyle} 
+                        />
                       </TableCell>
                       <TableCell>
                         <Typography variant="caption" fontWeight={700} color="text.secondary">
-                          {r.session_date.slice(0, 10)}
+                          {r.session_date?.slice(0, 10)}
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -157,11 +159,11 @@ export default function AdminAttendance() {
 
                   {/* COACH ROWS */}
                   {mode === "coaches" && coachRows.map((r) => (
-                    <TableRow key={r.id} hover sx={rowStyle}>
+                    <TableRow key={`coach-${r.id}`} hover sx={rowStyle}>
                       <TableCell>
                         <Stack direction="row" spacing={2} alignItems="center">
                           <Avatar sx={{ bgcolor: '#f0fdf4', color: '#16a34a', width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700 }}>
-                            {r.coachName.charAt(0)}
+                            {r.coachName?.[0] || "C"}
                           </Avatar>
                           <Typography variant="body2" fontWeight={800} color="#1e293b">{r.coachName}</Typography>
                         </Stack>
@@ -171,11 +173,11 @@ export default function AdminAttendance() {
                         <Typography variant="caption" color="text.secondary">{r.start_time} - {r.end_time}</Typography>
                       </TableCell>
                       <TableCell>
-                        {r.checkout_time === null ? (
-                          <Chip label="Active" size="small" sx={activeChipStyle} />
-                        ) : (
-                          <Chip label="Completed" size="small" sx={completedChipStyle} />
-                        )}
+                        <Chip 
+                          label={r.checkout_time === null ? "Active" : "Completed"} 
+                          size="small" 
+                          sx={r.checkout_time === null ? activeChipStyle : completedChipStyle} 
+                        />
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
@@ -187,11 +189,11 @@ export default function AdminAttendance() {
                   ))}
 
                   {/* EMPTY STATE */}
-                  {((mode === "players" && playerRows.length === 0) || (mode === "coaches" && coachRows.length === 0)) && (
+                  {!loading && ((mode === "players" && playerRows.length === 0) || (mode === "coaches" && coachRows.length === 0)) && (
                     <TableRow>
                       <TableCell colSpan={4} align="center" sx={{ py: 10 }}>
                         <Typography variant="body2" fontWeight={700} color="text.secondary">
-                          No records found for this date.
+                          No records found for {selectedDate}.
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -203,7 +205,6 @@ export default function AdminAttendance() {
         </Card>
       </Fade>
 
-      {/* TOAST NOTIFICATION */}
       <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({ ...toast, open: false })}>
         <Alert severity={toast.severity} variant="filled" sx={{ borderRadius: 2, fontWeight: 700 }}>
           {toast.message}
@@ -213,17 +214,20 @@ export default function AdminAttendance() {
   );
 }
 
-// --- STYLING ---
+// --- STYLES ---
 const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
-const datePaperStyle = { p: "6px 16px", borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', alignItems: 'center' };
+const datePaperStyle = { p: "6px 16px", borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', alignItems: 'center', bgcolor: 'white' };
 const togglePaperStyle = { p: "2px 8px", borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', alignItems: 'center', bgcolor: 'white' };
 const glassCardStyle = { borderRadius: 6, border: '1px solid #e2e8f0', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.04)', overflow: 'hidden', bgcolor: 'white' };
 const thStyle = { fontWeight: 900, color: '#64748b', fontSize: '0.7rem', letterSpacing: 1.2, py: 2, px: 3 };
 const rowStyle = { '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { bgcolor: '#fcfcfd' } };
 
-// --- CHIP STYLES ---
 const programChipStyle = { bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 800, borderRadius: 1.5 };
 const successChipStyle = { bgcolor: '#dcfce7', color: '#15803d', fontWeight: 800, borderRadius: 1.5 };
 const errorChipStyle = { bgcolor: '#fee2e2', color: '#b91c1c', fontWeight: 800, borderRadius: 1.5 };
-const activeChipStyle = { bgcolor: '#3b82f6', color: 'white', fontWeight: 800, borderRadius: 1.5, animation: 'pulse 2s infinite' };
+const activeChipStyle = { 
+  bgcolor: '#3b82f6', color: 'white', fontWeight: 800, borderRadius: 1.5,
+  '@keyframes pulse': { '0%': { opacity: 1 }, '50%': { opacity: 0.6 }, '100%': { opacity: 1 } },
+  animation: 'pulse 2s infinite'
+};
 const completedChipStyle = { bgcolor: '#f1f5f9', color: '#475569', fontWeight: 800, borderRadius: 1.5 };

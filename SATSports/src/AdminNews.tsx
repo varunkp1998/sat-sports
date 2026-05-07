@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Box, Typography, Card, CardContent, Button, Stack, TextField, 
   Grid, Chip, IconButton, MenuItem, Select, FormControl, InputLabel, 
@@ -15,215 +15,161 @@ export default function AdminNews() {
   const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
 
-  // Form State
-  const [form, setForm] = useState({
-    title: "",
-    body: "",
-    category: "News",
-    isPublished: true
-  });
+  const [form, setForm] = useState({ title: "", body: "", category: "News", isPublished: true });
 
-  const loadNews = async () => {
+  const loadNews = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/news`);
       const data = await res.json();
-      setItems(data);
-    } catch (err) { handleToast("Failed to load news", "error"); }
-  };
+      setItems(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setToast({ open: true, message: "Sync error", severity: "error" });
+    }
+  }, []);
 
-  useEffect(() => { loadNews(); }, []);
-
-  const handleToast = (message: string, severity: "success" | "error") => {
-    setToast({ open: true, message, severity });
-  };
+  useEffect(() => { loadNews(); }, [loadNews]);
 
   const saveItem = async () => {
-    if (!form.title || !form.body) return handleToast("Title and Content required", "error");
+    if (!form.title || !form.body) return;
+    setLoading(true);
 
     const method = editingId ? "PUT" : "POST";
     const url = editingId ? `${API_BASE}/api/news/${editingId}` : `${API_BASE}/api/news`;
 
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    // 🚀 OPTIMISTIC UPDATE
+    const tempItem = { ...form, id: editingId || Date.now(), created_at: new Date().toISOString() };
+    if (!editingId) setItems(prev => [tempItem, ...prev]);
 
-    if (res.ok) {
-      handleToast(editingId ? "Update successful" : "Post created", "success");
-      resetForm();
-      loadNews();
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (res.ok) {
+        setToast({ open: true, message: editingId ? "Updated" : "Published", severity: "success" });
+        setEditingId(null);
+        setForm({ title: "", body: "", category: "News", isPublished: true });
+        loadNews();
+      }
+    } catch {
+      loadNews(); // Revert on fail
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const editItem = (item: any) => {
-    setEditingId(item.id);
-    setForm({
-      title: item.title,
-      body: item.body,
-      category: item.category,
-      isPublished: item.isPublished
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const deleteItem = async (id: number) => {
-    if (!window.confirm("Delete this post?")) return;
-    const res = await fetch(`${API_BASE}/api/news/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      handleToast("Item deleted", "success");
-      loadNews();
-    }
+    if (!window.confirm("Delete post?")) return;
+    setItems(prev => prev.filter(i => i.id !== id));
+    await fetch(`${API_BASE}/api/news/${id}`, { method: "DELETE" });
   };
 
-  const resetForm = () => {
-    setEditingId(null);
-    setForm({ title: "", body: "", category: "News", isPublished: true });
-  };
-
-  const filteredItems = items.filter(i => 
-    i.title.toLowerCase().includes(search.toLowerCase()) || 
-    i.category.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredItems = useMemo(() => {
+    const s = search.toLowerCase();
+    return items.filter(i => i.title.toLowerCase().includes(s) || i.category.toLowerCase().includes(s));
+  }, [items, search]);
 
   return (
-    <Box sx={containerStyle}>
-      {/* HEADER */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={6}>
-        <Box>
-          <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">News & Events</Typography>
-          <Typography variant="body2" color="text.secondary">Broadcast updates to all academy members</Typography>
-        </Box>
-      </Stack>
+    <Box sx={rootStyle}>
+      <Box mb={4}>
+        <Typography variant="h4" fontWeight={950} sx={{ letterSpacing: -1.5 }}>NEWS & <span style={{color: '#4f46e5'}}>ALERTS</span></Typography>
+        <Typography variant="body2" sx={{ opacity: 0.6 }}>Broadcast updates and events to the academy</Typography>
+      </Box>
 
-      {/* COMPOSER FORM */}
-      <Card sx={glassCardStyle}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h6" fontWeight={800} mb={3} color="#1e293b">
-            {editingId ? "Edit Publication" : "Create New Announcement"}
-          </Typography>
-          
-          <Grid container spacing={3}>
+      {/* COMPOSER */}
+      <Card sx={composerCard}>
+        <CardContent sx={{ p: 3 }}>
+          <Grid container spacing={2}>
             <Grid item xs={12} md={4}>
-              <TextField 
-                fullWidth label="Title" variant="outlined" sx={inputStyle}
-                value={form.title} onChange={e => setForm({...form, title: e.target.value})}
-              />
+              <TextField fullWidth label="Headline" value={form.title} onChange={e => setForm({...form, title: e.target.value})} sx={inputField} />
             </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField 
-                fullWidth label="Content / Description" variant="outlined" sx={inputStyle}
-                value={form.body} onChange={e => setForm({...form, body: e.target.value})}
-              />
+            <Grid item xs={12} md={5}>
+              <TextField fullWidth label="Content" value={form.body} onChange={e => setForm({...form, body: e.target.value})} sx={inputField} />
             </Grid>
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth sx={inputStyle}>
-                <InputLabel>Type</InputLabel>
-                <Select label="Type" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-                  <MenuItem value="News">News</MenuItem>
-                  <MenuItem value="Event">Event</MenuItem>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth sx={inputField}>
+                <InputLabel>Category</InputLabel>
+                <Select label="Category" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
+                  <MenuItem value="News">Academy News</MenuItem>
+                  <MenuItem value="Event">Special Event</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
           </Grid>
-
+          
           <Stack direction="row" justifyContent="space-between" alignItems="center" mt={3}>
-            <FormControlLabel
-              control={<Switch checked={form.isPublished} onChange={e => setForm({...form, isPublished: e.target.checked})} />}
-              label={<Typography variant="body2" fontWeight={700}>Publish immediately</Typography>}
+            <FormControlLabel 
+              control={<Switch size="small" checked={form.isPublished} onChange={e => setForm({...form, isPublished: e.target.checked})} />} 
+              label={<Typography variant="caption" fontWeight={900}>PUBLIC VISIBILITY</Typography>} 
             />
             <Stack direction="row" spacing={1}>
-              {editingId && <Button onClick={resetForm} color="inherit" sx={{ fontWeight: 800 }}>Cancel</Button>}
-              <Button variant="contained" onClick={saveItem} sx={primaryBtnStyle}>
-                {editingId ? "Update Post" : "Post Announcement"}
+              {editingId && <Button size="small" onClick={() => { setEditingId(null); setForm({title:"", body:"", category:"News", isPublished:true}); }}>Cancel</Button>}
+              <Button variant="contained" disableElevation onClick={saveItem} sx={postBtn}>
+                {editingId ? "Update" : "Broadcast"}
               </Button>
             </Stack>
           </Stack>
         </CardContent>
       </Card>
 
-      {/* FILTER SEARCH */}
-      <Paper sx={searchPaperStyle}>
-        <SearchIcon sx={{ color: 'text.secondary', mr: 1.5 }} />
-        <TextField
-          fullWidth placeholder="Filter by title or type..." variant="standard"
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          InputProps={{ disableUnderline: true, sx: { fontWeight: 600 } }}
-        />
+      <Paper sx={searchBar}>
+        <SearchIcon sx={{ fontSize: 18, mr: 1, opacity: 0.5 }} />
+        <TextField fullWidth placeholder="Search headlines..." variant="standard" InputProps={{ disableUnderline: true }} onChange={e => setSearch(e.target.value)} sx={{ '& input': { fontWeight: 700, fontSize: '0.9rem' } }} />
       </Paper>
 
-      {/* LISTING */}
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         {filteredItems.map((n) => {
-          const date = new Date(n.created_at || Date.now());
-          const day = date.getDate();
-          const month = date.toLocaleString("default", { month: "short" }).toUpperCase();
-
+          const d = new Date(n.created_at);
           return (
             <Grid item xs={12} md={6} key={n.id}>
-              <Fade in timeout={500}>
-                <Card sx={newsCardStyle}>
-                  <CardContent sx={{ display: "flex", gap: 3, p: 3 }}>
-                    
-                    {/* DATE BOX */}
-                    <Box sx={dateBoxStyle}>
-                      <Typography variant="h5" fontWeight={900} lineHeight={1}>{day}</Typography>
-                      <Typography variant="caption" fontWeight={800}>{month}</Typography>
+              <Fade in>
+                <Card sx={newsCard}>
+                  <Stack direction="row" spacing={2} p={2}>
+                    <Box sx={dateStyle}>
+                      <Typography variant="h6" fontWeight={900} lineHeight={1.1}>{d.getDate()}</Typography>
+                      <Typography variant="caption" fontWeight={900}>{d.toLocaleString('default', { month: 'short' }).toUpperCase()}</Typography>
                     </Box>
-
-                    {/* CONTENT */}
-                    <Box flex={1}>
-                      <Stack direction="row" spacing={1} mb={0.5}>
-                        <Chip 
-                          label={n.category} 
-                          size="small" 
-                          icon={n.category === 'Event' ? <EventIcon style={{ fontSize: 14 }}/> : <CampaignIcon style={{ fontSize: 14 }}/>}
-                          sx={categoryChipStyle(n.category)}
-                        />
-                        {!n.isPublished && <Chip label="Draft" size="small" variant="outlined" sx={{ fontWeight: 800, fontSize: '0.6rem' }} />}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} mb={0.5} alignItems="center">
+                        <Chip label={n.category} size="small" sx={tagStyle(n.category)} />
+                        {!n.isPublished && <Typography variant="caption" fontWeight={900} color="error">DRAFT</Typography>}
                       </Stack>
-                      
-                      <Typography variant="subtitle1" fontWeight={800} color="#1e293b" mb={0.5}>{n.title}</Typography>
-                      <Typography variant="body2" color="text.secondary" mb={2} sx={bodyTruncateStyle}>{n.body}</Typography>
-
-                      <Divider sx={{ my: 1.5, borderStyle: 'dashed' }} />
-
-                      <Stack direction="row" spacing={1}>
-                        <Button size="small" startIcon={<EditIcon />} onClick={() => editItem(n)} sx={actionBtnStyle}>Edit</Button>
-                        <Button size="small" startIcon={<DeleteIcon />} color="error" onClick={() => deleteItem(n.id)} sx={actionBtnStyle}>Delete</Button>
+                      <Typography variant="subtitle2" fontWeight={900} noWrap>{n.title}</Typography>
+                      <Typography variant="caption" sx={truncateBody}>{n.body}</Typography>
+                      <Stack direction="row" spacing={2} mt={1.5}>
+                        <Typography variant="caption" sx={actionText} onClick={() => { setEditingId(n.id); setForm({title:n.title, body:n.body, category:n.category, isPublished:n.isPublished}); window.scrollTo(0,0); }}>Edit</Typography>
+                        <Typography variant="caption" sx={{ ...actionText, color: '#ef4444' }} onClick={() => deleteItem(n.id)}>Delete</Typography>
                       </Stack>
                     </Box>
-
-                  </CardContent>
+                  </Stack>
                 </Card>
               </Fade>
             </Grid>
           );
         })}
       </Grid>
-
-      <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({ ...toast, open: false })}>
-        <Alert severity={toast.severity} variant="filled" sx={{ borderRadius: 2 }}>{toast.message}</Alert>
-      </Snackbar>
     </Box>
   );
 }
 
-// --- STYLING ---
-const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
-const glassCardStyle = { borderRadius: 6, border: '1px solid #e2e8f0', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.04)', bgcolor: 'white', mb: 6 };
-const searchPaperStyle = { p: "12px 24px", display: 'flex', alignItems: 'center', borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none', mb: 4, bgcolor: 'white' };
-const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 3, bgcolor: '#fcfcfd' } };
-const primaryBtnStyle = { px: 4, py: 1.2, borderRadius: 3, fontWeight: 900, textTransform: 'none', background: 'linear-gradient(135deg, #2563eb, #4f46e5)', color: 'white', boxShadow: '0 10px 20px -5px rgba(37, 99, 235, 0.4)' };
-const newsCardStyle = { borderRadius: 5, border: '1px solid #e2e8f0', bgcolor: 'white', transition: '0.2s', '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 12px 25px -10px rgba(0,0,0,0.08)' }};
-const dateBoxStyle = { minWidth: 65, height: 65, background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: 'white', borderRadius: 3, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: '0 5px 15px -5px rgba(79, 70, 229, 0.4)' };
-const bodyTruncateStyle = { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' };
-const actionBtnStyle = { fontWeight: 800, textTransform: 'none', borderRadius: 2 };
+// --- STATIC PERFORMANCE STYLES ---
+const rootStyle = { p: { xs: 2, md: 5 }, bgcolor: "#f8fafc", minHeight: "100vh" };
+const composerCard = { borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', mb: 4 };
+const inputField = { "& .MuiOutlinedInput-root": { borderRadius: 2, bgcolor: '#f8fafc', fontWeight: 700, fontSize: '0.85rem' } };
+const postBtn = { borderRadius: 2, fontWeight: 900, textTransform: 'none', px: 4, bgcolor: '#4f46e5' };
+const searchBar = { px: 2, py: 1, display: 'flex', alignItems: 'center', borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: 'none', mb: 3 };
+const newsCard = { borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', '&:hover': { bgcolor: '#fff', borderColor: '#4f46e5' } };
+const dateStyle = { width: 50, height: 50, bgcolor: '#4f46e5', color: 'white', borderRadius: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' };
+const truncateBody = { opacity: 0.6, fontWeight: 500, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' };
+const actionText = { fontWeight: 900, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } };
 
-const categoryChipStyle = (cat: string) => ({
+const tagStyle = (cat: string) => ({
+  height: 18, fontSize: '0.6rem', fontWeight: 900,
   bgcolor: cat === 'Event' ? '#fef3c7' : '#eff6ff',
-  color: cat === 'Event' ? '#92400e' : '#1d4ed8',
-  fontWeight: 900, fontSize: '0.65rem', border: 'none'
+  color: cat === 'Event' ? '#92400e' : '#1d4ed8'
 });

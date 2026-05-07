@@ -7,7 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import dayjs from "dayjs";
+import isBetween from "dayjs/plugin/isBetween";
 import API_BASE from "./api";
+
+// Initialize dayjs plugin
+dayjs.extend(isBetween);
 
 const MotionBox = motion(Box);
 
@@ -28,7 +32,7 @@ export default function CoachLeave() {
 
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // 1. DATA SYNC - Deduplicated with useCallback
+  // 1. DATA SYNC
   const loadData = useCallback(async () => {
     if (!coachId) return;
     try {
@@ -50,10 +54,15 @@ export default function CoachLeave() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // 2. FOOLPROOF SUBMISSION
+  // 2. FORM SUBMISSION
   const submitRequest = async () => {
     if (!form.from_date || !form.to_date || !form.reason.trim()) {
       setToast({ type: "error", text: "MISSING MISSION PARAMETERS" });
+      return;
+    }
+
+    if (dayjs(form.to_date).isBefore(dayjs(form.from_date))) {
+      setToast({ type: "error", text: "INVALID DATE RANGE" });
       return;
     }
 
@@ -68,19 +77,19 @@ export default function CoachLeave() {
       if (res.ok) {
         setToast({ type: "success", text: "REQUEST TRANSMITTED ✅" });
         setForm({ from_date: "", to_date: "", reason: "", leave_type: "casual" });
-        loadData();
-        setTab(1); // Auto-switch to Pending tab
+        await loadData(); // Refresh balance and list
+        setTab(1); // Jump to pending
       } else {
-        throw new Error();
+        const errorData = await res.json();
+        setToast({ type: "error", text: errorData.message || "SUBMISSION FAILED" });
       }
     } catch {
-      setToast({ type: "error", text: "TRANSMISSION FAILED" });
+      setToast({ type: "error", text: "NETWORK ERROR" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 3. LOGIC: Duration Calculation
   const leaveDays = useMemo(() => {
     if (!form.from_date || !form.to_date) return 0;
     const start = dayjs(form.from_date);
@@ -91,23 +100,36 @@ export default function CoachLeave() {
 
   if (loading) return (
     <Box sx={centerStyle}>
-      <CircularProgress color="error" />
+      <CircularProgress color="error" thickness={5} />
     </Box>
   );
 
   return (
-    <Box sx={{ minHeight: "100vh", background: "#020617", color: "white", py: 6 }}>
+    <Box sx={{ minHeight: "100vh", background: "#020617", color: "white", py: { xs: 4, md: 6 } }}>
       <Container maxWidth="xl">
         
         {/* HEADER */}
         <Box sx={{ mb: 6 }}>
           <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 3 }}>OFF-FIELD REQUESTS</Typography>
-          <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5 }}>LEAVE <span style={{ color: "#ef4444" }}>CENTER</span></Typography>
+          <Typography variant="h3" fontWeight={950} sx={{ letterSpacing: -1.5, fontSize: { xs: '2.5rem', md: '3.5rem' } }}>
+            LEAVE <span style={{ color: "#ef4444" }}>CENTER</span>
+          </Typography>
         </Box>
 
-        {toast && (
-          <Fade in><Box sx={floatingToastStyle(toast.type)} onClick={() => setToast(null)}>{toast.text}</Box></Fade>
-        )}
+        {/* TOAST NOTIFICATION */}
+        <AnimatePresence>
+          {toast && (
+            <MotionBox 
+              initial={{ opacity: 0, y: 50 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0 }}
+              sx={floatingToastStyle(toast.type)} 
+              onClick={() => setToast(null)}
+            >
+              {toast.text}
+            </MotionBox>
+          )}
+        </AnimatePresence>
 
         <Tabs 
           value={tab} 
@@ -122,11 +144,11 @@ export default function CoachLeave() {
 
         {/* TAB 0: APPLY */}
         {tab === 0 && (
-          <Fade in>
+          <Fade in timeout={500}>
             <Grid container spacing={4}>
               <Grid item xs={12} md={8}>
                 <Card sx={glassCardStyle}>
-                  <CardContent sx={{ p: 4 }}>
+                  <CardContent sx={{ p: { xs: 2, md: 4 } }}>
                     <Typography variant="h6" fontWeight={900} mb={4} color="#ef4444">REQUEST FORM</Typography>
                     <Stack spacing={3}>
                       <FormControl fullWidth sx={formControlStyle}>
@@ -135,6 +157,7 @@ export default function CoachLeave() {
                           value={form.leave_type}
                           label="CATEGORY"
                           onChange={(e) => setForm({ ...form, leave_type: e.target.value })}
+                          MenuProps={{ PaperProps: { sx: { bgcolor: "#0f172a", color: "white" } } }}
                         >
                           <MenuItem value="casual">CASUAL LEAVE</MenuItem>
                           <MenuItem value="medical">MEDICAL LEAVE</MenuItem>
@@ -156,19 +179,22 @@ export default function CoachLeave() {
                       </Stack>
 
                       <TextField
-                        fullWidth multiline rows={4} placeholder="REASON FOR ABSENCE..."
+                        fullWidth multiline rows={4} placeholder="REASON FOR ABSENCE (Required)..."
                         value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })}
                         sx={inputFieldStyle}
                       />
 
                       <Box sx={summaryBoxStyle}>
-                        <Typography fontWeight={900} sx={{ opacity: 0.6 }}>TOTAL DURATION</Typography>
+                        <Typography variant="caption" fontWeight={900} sx={{ opacity: 0.6, letterSpacing: 1 }}>PROJECTED DURATION</Typography>
                         <Typography variant="h4" fontWeight={950}>{leaveDays} DAYS</Typography>
                       </Box>
 
                       <Button 
-                        variant="contained" onClick={submitRequest} 
-                        disabled={leaveDays === 0 || isSubmitting} sx={primaryBtnStyle}
+                        variant="contained" 
+                        fullWidth
+                        onClick={submitRequest} 
+                        disabled={leaveDays <= 0 || isSubmitting} 
+                        sx={primaryBtnStyle}
                       >
                         {isSubmitting ? <CircularProgress size={24} color="inherit" /> : "SUBMIT REQUEST"}
                       </Button>
@@ -179,6 +205,7 @@ export default function CoachLeave() {
 
               <Grid item xs={12} md={4}>
                 <Stack spacing={3}>
+                  {/* CREDIT BALANCE */}
                   <Card sx={balanceCardStyle}>
                     <CardContent sx={{ p: 3 }}>
                       <Typography variant="h6" fontWeight={900} mb={3}>CREDIT BALANCE</Typography>
@@ -186,11 +213,14 @@ export default function CoachLeave() {
                       <BalanceRow label="MEDICAL" value={balance.medical} color="#10b981" />
                     </CardContent>
                   </Card>
+
+                  {/* CALENDAR VIEW */}
                   <Card sx={glassCardStyle}>
                     <CardContent sx={{ ".react-calendar": calendarOverride }}>
                       <Calendar
                         tileContent={({ date }) => {
                           const isLeave = leaves.some(l => 
+                            l.status === 'approved' && 
                             dayjs(date).isBetween(dayjs(l.from_date), dayjs(l.to_date), 'day', '[]')
                           );
                           return isLeave ? <Box sx={calendarDotStyle} /> : null;
@@ -206,13 +236,19 @@ export default function CoachLeave() {
 
         {/* TAB 1 & 2: LISTS */}
         {(tab === 1 || tab === 2) && (
-          <Fade in>
+          <Fade in timeout={500}>
             <Stack spacing={2}>
-              <AnimatePresence>
+              <AnimatePresence mode="popLayout">
                 {leaves
-                  .filter(l => tab === 1 ? (l.status || "").toLowerCase() === "pending" : true)
+                  .filter(l => tab === 1 ? l.status?.toLowerCase() === "pending" : l.status?.toLowerCase() !== "pending")
                   .map((l, index) => (
-                    <MotionBox key={l.id || index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                    <MotionBox 
+                      key={l.id || index} 
+                      initial={{ opacity: 0, x: -20 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
                       <Card sx={glassCardStyle}>
                         <CardContent sx={{ p: 3 }}>
                           <Grid container alignItems="center" spacing={2}>
@@ -221,13 +257,13 @@ export default function CoachLeave() {
                                   {dayjs(l.from_date).format("DD MMM")} — {dayjs(l.to_date).format("DD MMM")}
                                </Typography>
                                <Typography variant="caption" sx={{ opacity: 0.5, fontWeight: 800 }}>
-                                  {(l.leave_type || "casual").toUpperCase()}
+                                  {(l.leave_type || "casual").toUpperCase()} • {dayjs(l.to_date).diff(dayjs(l.from_date), 'day') + 1} DAYS
                                </Typography>
                             </Grid>
                             <Grid item xs={12} md={6}>
-                               <Typography sx={{ fontStyle: 'italic', opacity: 0.7, fontSize: '0.9rem' }}>
-                                  "{l.reason || "Mission notes empty"}"
-                               </Typography>
+                               <Typography sx={{ fontStyle: 'italic', opacity: 0.8, fontSize: '0.9rem' }}>
+                                  "{l.reason || "No notes provided"}"
+                                </Typography>
                             </Grid>
                             <Grid item xs={12} md={3} textAlign={{ xs: "left", md: "right" }}>
                                <Chip 
@@ -242,7 +278,7 @@ export default function CoachLeave() {
                   ))}
               </AnimatePresence>
               {leaves.length === 0 && (
-                <Typography sx={{ textAlign: 'center', py: 10, opacity: 0.3, fontWeight: 900 }}>NO DEPLOYMENT RECORDS</Typography>
+                <Typography sx={{ textAlign: 'center', py: 10, opacity: 0.3, fontWeight: 900 }}>NO DEPLOYMENT RECORDS FOUND</Typography>
               )}
             </Stack>
           </Fade>
@@ -252,12 +288,20 @@ export default function CoachLeave() {
   );
 }
 
-// 🏛️ HELPERS
+// 🏛️ COMPONENTS
 const BalanceRow = ({ label, value, color }: any) => (
   <Stack direction="row" justifyContent="space-between" mb={2} alignItems="center">
     <Typography variant="body2" fontWeight={800} sx={{ opacity: 0.6 }}>{label}</Typography>
     <Box sx={{ flexGrow: 1, mx: 2, height: 6, bgcolor: "rgba(255,255,255,0.05)", borderRadius: 1 }}>
-       <Box sx={{ width: `${Math.min(((value || 0) / 15) * 100, 100)}%`, height: '100%', bgcolor: color, borderRadius: 1 }} />
+       <Box 
+         sx={{ 
+           width: `${Math.min(((value || 0) / 15) * 100, 100)}%`, 
+           height: '100%', 
+           bgcolor: color, 
+           borderRadius: 1,
+           transition: 'width 1s ease-in-out'
+         }} 
+       />
     </Box>
     <Typography fontWeight={900}>{value || 0}</Typography>
   </Stack>
@@ -267,18 +311,18 @@ const BalanceRow = ({ label, value, color }: any) => (
 const centerStyle = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: '#020617' };
 const glassCardStyle = { borderRadius: 6, background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", color: "white" };
 const balanceCardStyle = { ...glassCardStyle, borderLeft: "4px solid #ef4444" };
-const tabsStyle = { bgcolor: "rgba(255,255,255,0.03)", borderRadius: 3, p: 0.5, mb: 4 };
-const tabItemStyle = { fontWeight: 900, color: "rgba(255,255,255,0.4)", borderRadius: 2, "&.Mui-selected": { color: "white", bgcolor: "#ef4444" } };
-const inputFieldStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } }, "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" } };
-const formControlStyle = { "& .MuiOutlinedInput-root": { color: "white", borderRadius: 3, bgcolor: "rgba(255,255,255,0.02)", "& fieldset": { borderColor: "rgba(255,255,255,0.1)" } }, "& .MuiSelect-icon": { color: "white" } };
+const tabsStyle = { bgcolor: "rgba(255,255,255,0.03)", borderRadius: 3, p: 0.5, mb: 4, minHeight: 'auto' };
+const tabItemStyle = { fontWeight: 900, color: "rgba(255,255,255,0.4)", borderRadius: 2, minHeight: '40px', "&.Mui-selected": { color: "white", bgcolor: "#ef4444" } };
+const inputFieldStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 3, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" }, "&.Mui-focused fieldset": { borderColor: "#ef4444" } }, "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" } };
+const formControlStyle = { "& .MuiOutlinedInput-root": { color: "white", borderRadius: 3, bgcolor: "rgba(255,255,255,0.02)", "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } }, "& .MuiSelect-icon": { color: "white" }, "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.5)" } };
 const summaryBoxStyle = { p: 3, bgcolor: "rgba(239, 68, 68, 0.05)", borderRadius: 4, border: "1px solid rgba(239, 68, 68, 0.1)", textAlign: 'center' };
-const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, background: "linear-gradient(135deg, #f97316, #ef4444)", color: "white" };
-const calendarDotStyle = { width: 6, height: 6, bgcolor: "#ef4444", borderRadius: "50%", margin: "auto", mt: 0.5 };
-const calendarOverride = { background: "transparent !important", border: "none !important", color: "white !important", ".react-calendar__tile": { color: "white" }, ".react-calendar__navigation button": { color: "white" }, ".react-calendar__tile--now": { bgcolor: "rgba(255,255,255,0.1) !important", borderRadius: 2 } };
-const floatingToastStyle = (type: string) => ({ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, p: "12px 24px", borderRadius: 2, fontWeight: 900, bgcolor: type === 'success' ? '#22c55e' : '#ef4444', color: 'white', boxShadow: 10 });
+const primaryBtnStyle = { py: 2, borderRadius: 3, fontWeight: 950, background: "linear-gradient(135deg, #f97316, #ef4444)", color: "white", "&:disabled": { opacity: 0.5, color: "rgba(255,255,255,0.5)" } };
+const calendarDotStyle = { width: 6, height: 6, bgcolor: "#ef4444", borderRadius: "50%", margin: "auto", mt: 0.5, boxShadow: '0 0 10px #ef4444' };
+const calendarOverride = { background: "transparent !important", border: "none !important", color: "white !important", ".react-calendar__tile": { color: "white", fontSize: '0.8rem', padding: '12px 0' }, ".react-calendar__navigation button": { color: "white", fontSize: '1rem' }, ".react-calendar__tile--now": { bgcolor: "rgba(255,255,255,0.1) !important", borderRadius: 2 }, ".react-calendar__month-view__weekdays__weekday": { color: "#ef4444 !important", fontWeight: 900, textDecoration: 'none' } };
+const floatingToastStyle = (type: string) => ({ position: 'fixed', bottom: 30, right: 30, zIndex: 9999, p: "14px 28px", borderRadius: 3, fontWeight: 900, bgcolor: type === 'success' ? '#22c55e' : '#ef4444', color: 'white', boxShadow: "0 10px 40px rgba(0,0,0,0.5)", cursor: 'pointer' });
 
 const statusChipStyle = (status: string) => {
   const s = status.toLowerCase();
   const color = s === "approved" ? "#22c55e" : s === "rejected" ? "#ef4444" : "#f59e0b";
-  return { bgcolor: `${color}15`, color: color, border: `1px solid ${color}44`, fontWeight: 900, borderRadius: 1 };
+  return { bgcolor: `${color}15`, color: color, border: `1px solid ${color}44`, fontWeight: 900, borderRadius: 1.5, letterSpacing: 0.5, fontSize: '0.7rem' };
 };

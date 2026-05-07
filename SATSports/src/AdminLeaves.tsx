@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Box, Typography, Grid, Card, CardContent,
   Button, Stack, Chip, Fade, Paper, Snackbar, Alert, Avatar
@@ -11,182 +11,176 @@ import PendingActionsIcon from "@mui/icons-material/PendingActions";
 import CancelIcon from "@mui/icons-material/Cancel";
 import API_BASE from "./api";
 
+// --- HELPERS ---
+const dateToShort = (d: string) => new Date(d).toLocaleDateString();
+
 export default function AdminLeaves() {
   const [leaves, setLeaves] = useState<any[]>([]);
   const [filter, setFilter] = useState("all");
-  const [toast, setToast] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
+  const [toast, setToast] = useState({ open: false, message: "", severity: "success" as any });
 
-  const load = () => {
-    fetch(`${API_BASE}/api/admin/leaves`)
-      .then(res => res.json())
-      .then(setLeaves)
-      .catch(() => handleToast("Failed to load leave requests", "error"));
-  };
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/leaves`);
+      const data = await res.json();
+      setLeaves(Array.isArray(data) ? data : []);
+    } catch {
+      setToast({ open: true, message: "Sync Error", severity: "error" });
+    }
+  }, []);
 
-  useEffect(() => { load(); }, []);
-
-  const handleToast = (message: string, severity: "success" | "error") => {
-    setToast({ open: true, message, severity });
-  };
+  useEffect(() => { load(); }, [load]);
 
   const updateStatus = async (id: number, status: string) => {
+    // Optimistic Update: Change UI immediately
+    setLeaves(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+    
     const res = await fetch(`${API_BASE}/api/admin/leaves/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+
     if (res.ok) {
-      handleToast(`Request ${status}`, "success");
-      load();
+      setToast({ open: true, message: `Request ${status}`, severity: "success" });
+    } else {
+      load(); // Revert on failure
     }
   };
 
-  const filtered = filter === "all" ? leaves : leaves.filter(l => l.status === filter);
+  // 🚀 PERFORMANCE: Pre-calculate Approved Dates for Calendar
+  const approvedDatesSet = useMemo(() => {
+    const dates = new Set();
+    leaves.forEach(l => {
+      if (l.status === "Approved") {
+        let start = new Date(l.start_date);
+        const end = new Date(l.end_date);
+        while (start <= end) {
+          dates.add(start.toDateString());
+          start.setDate(start.getDate() + 1);
+        }
+      }
+    });
+    return dates;
+  }, [leaves]);
 
-  const stats = [
-    { label: "Pending", value: leaves.filter(l => l.status === "Pending").length, color: "#f59e0b", icon: <PendingActionsIcon /> },
-    { label: "Approved", value: leaves.filter(l => l.status === "Approved").length, color: "#10b981", icon: <CheckCircleIcon /> },
-    { label: "Rejected", value: leaves.filter(l => l.status === "Rejected").length, color: "#ef4444", icon: <CancelIcon /> },
-  ];
+  const stats = useMemo(() => [
+    { label: "Pending", val: leaves.filter(l => l.status === "Pending").length, col: "#f59e0b", icon: <PendingActionsIcon /> },
+    { label: "Approved", val: leaves.filter(l => l.status === "Approved").length, col: "#10b981", icon: <CheckCircleIcon /> },
+    { label: "Rejected", val: leaves.filter(l => l.status === "Rejected").length, col: "#ef4444", icon: <CancelIcon /> },
+  ], [leaves]);
+
+  const filtered = useMemo(() => 
+    filter === "all" ? leaves : leaves.filter(l => l.status === filter),
+    [leaves, filter]
+  );
 
   return (
-    <Box sx={containerStyle}>
-      
-      {/* HEADER */}
-      <Box mb={6}>
-        <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">Leave Dashboard</Typography>
-        <Typography variant="body2" color="text.secondary">Review and manage staff time-off requests</Typography>
-      </Box>
+    <Box sx={rootStyle}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={6}>
+        <Box>
+          <Typography variant="h4" fontWeight={950} sx={{ letterSpacing: -1.5 }}>STAFF <span style={{color: '#4f46e5'}}>LEAVES</span></Typography>
+          <Typography variant="body2" sx={{ opacity: 0.6 }}>Operational absence management</Typography>
+        </Box>
+      </Stack>
 
-      {/* STATS ROW */}
-      <Grid container spacing={3} mb={6}>
+      <Grid container spacing={2} mb={4}>
         {stats.map((s) => (
-          <Grid item xs={12} sm={4} key={s.label}>
+          <Grid item xs={4} key={s.label}>
             <Card sx={statCardStyle}>
-              <CardContent sx={{ display: 'flex', alignItems: 'center', p: 3 }}>
-                <Avatar sx={{ bgcolor: `${s.color}15`, color: s.color, mr: 2 }}>{s.icon}</Avatar>
+              <Stack direction="row" alignItems="center" spacing={2} p={2}>
+                <Avatar sx={{ bgcolor: `${s.col}10`, color: s.col, width: 32, height: 32 }}>{s.icon}</Avatar>
                 <Box>
-                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>{s.label}</Typography>
-                  <Typography variant="h4" fontWeight={900}>{s.value}</Typography>
+                  <Typography variant="h5" fontWeight={900}>{s.val}</Typography>
+                  <Typography variant="caption" fontWeight={800} sx={{ opacity: 0.5 }}>{s.label.toUpperCase()}</Typography>
                 </Box>
-              </CardContent>
+              </Stack>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      <Grid container spacing={4}>
-        {/* LEFT: CALENDAR & FILTERS */}
-        <Grid item xs={12} lg={4}>
-          <Stack spacing={3}>
-            <Paper sx={filterPaperStyle}>
-              <Typography variant="subtitle2" fontWeight={900} mb={2} color="#1e293b">Quick Filter</Typography>
-              <Stack direction="row" flexWrap="wrap" gap={1}>
-                {["all", "Pending", "Approved", "Rejected"].map(f => (
-                  <Chip
-                    key={f}
-                    label={f}
-                    onClick={() => setFilter(f)}
-                    sx={filterChipStyle(filter === f)}
-                  />
-                ))}
-              </Stack>
-            </Paper>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={4}>
+          <Paper sx={panelStyle}>
+            <Typography variant="caption" fontWeight={900} display="block" mb={2}>FILTERS</Typography>
+            <Stack direction="row" flexWrap="wrap" gap={1} mb={4}>
+              {["all", "Pending", "Approved", "Rejected"].map(f => (
+                <Chip key={f} label={f} onClick={() => setFilter(f)} sx={filterChip(filter === f)} />
+              ))}
+            </Stack>
 
-            <Card sx={glassCardStyle}>
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight={900} mb={2} display="flex" alignItems="center">
-                  <DateRangeIcon sx={{ mr: 1, fontSize: 18 }} /> Absence Overview
-                </Typography>
-                <Box sx={calendarWrapper}>
-                  <Calendar
-                    tileContent={({ date }) => {
-                      const hasLeave = leaves.some(l => 
-                        l.status === "Approved" && 
-                        new Date(date) >= new Date(l.start_date) && 
-                        new Date(date) <= new Date(l.end_date)
-                      );
-                      return hasLeave ? <div className="dot" /> : null;
-                    }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Stack>
+            <Typography variant="caption" fontWeight={900} display="block" mb={2}>CALENDAR VIEW</Typography>
+            <Box sx={calendarWrapper}>
+              <Calendar tileContent={({ date }) => approvedDatesSet.has(date.toDateString()) ? <div className="dot" /> : null} />
+            </Box>
+          </Paper>
         </Grid>
 
-        {/* RIGHT: LEAVE CARDS */}
-        <Grid item xs={12} lg={8}>
-          <Grid container spacing={2}>
-            {filtered.map(l => (
-              <Grid item xs={12} key={l.id}>
-                <Fade in timeout={400}>
-                  <Card sx={leaveCardStyle}>
-                    <CardContent sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Stack direction="row" spacing={1} alignItems="center" mb={1}>
-                          <Typography fontWeight={900} color="#1e293b">{l.username}</Typography>
-                          <Chip label={l.leave_type} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.65rem' }} />
-                        </Stack>
-                        <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                          {new Date(l.start_date).toLocaleDateString()} — {new Date(l.end_date).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Chip 
-                          label={l.status} 
-                          sx={statusChipStyle(l.status)}
-                        />
-                        {l.status === "Pending" && (
-                          <Stack direction="row" spacing={1}>
-                            <Button size="small" variant="contained" color="success" onClick={() => updateStatus(l.id, "Approved")} sx={actionBtnStyle}>
-                              Approve
-                            </Button>
-                            <Button size="small" variant="outlined" color="error" onClick={() => updateStatus(l.id, "Rejected")} sx={{ borderRadius: 2, fontWeight: 800 }}>
-                              Reject
-                            </Button>
-                          </Stack>
-                        )}
+        <Grid item xs={12} md={8}>
+          <Stack spacing={1.5}>
+            {filtered.map((l, i) => (
+              <Fade in timeout={200} key={l.id}>
+                <Card sx={leaveCardStyle}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" p={2}>
+                    <Box>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography fontWeight={900}>{l.username}</Typography>
+                        <Chip label={l.leave_type} size="small" sx={typeChip} />
                       </Stack>
-                    </CardContent>
-                  </Card>
-                </Fade>
-              </Grid>
+                      <Typography variant="caption" fontWeight={700} sx={{ opacity: 0.5 }}>
+                        {dateToShort(l.start_date)} — {dateToShort(l.end_date)}
+                      </Typography>
+                    </Box>
+
+                    <Stack direction="row" spacing={1}>
+                      {l.status === "Pending" ? (
+                        <>
+                          <Button size="small" variant="contained" disableElevation onClick={() => updateStatus(l.id, "Approved")} sx={approveBtn}>Approve</Button>
+                          <Button size="small" onClick={() => updateStatus(l.id, "Rejected")} sx={rejectBtn}>Reject</Button>
+                        </>
+                      ) : (
+                        <Chip label={l.status.toUpperCase()} sx={statusTag(l.status)} />
+                      )}
+                    </Stack>
+                  </Stack>
+                </Card>
+              </Fade>
             ))}
-          </Grid>
+          </Stack>
         </Grid>
       </Grid>
 
-      <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({ ...toast, open: false })}>
-        <Alert severity={toast.severity} variant="filled" sx={{ borderRadius: 2 }}>{toast.message}</Alert>
+      <Snackbar open={toast.open} autoHideDuration={2000} onClose={() => setToast(p => ({ ...p, open: false }))}>
+        <Alert severity={toast.severity} variant="filled" sx={{ fontWeight: 800 }}>{toast.message}</Alert>
       </Snackbar>
     </Box>
   );
 }
 
-// --- STYLES ---
-const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
-const statCardStyle = { borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none' };
-const filterPaperStyle = { p: 3, borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none' };
-const glassCardStyle = { borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.04)' };
-const leaveCardStyle = { borderRadius: 3, border: '1px solid #e2e8f0', transition: '0.2s', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }};
-const actionBtnStyle = { borderRadius: 2, fontWeight: 800, textTransform: 'none', px: 3 };
+// --- STATIC STYLES ---
+const rootStyle = { p: { xs: 2, md: 5 }, bgcolor: "#f8fafc", minHeight: "100vh" };
+const statCardStyle = { borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' };
+const panelStyle = { p: 3, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' };
+const leaveCardStyle = { borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: 'none', transition: '0.2s', '&:hover': { bgcolor: '#f1f5f9' }};
+const approveBtn = { bgcolor: '#10b981', fontWeight: 900, borderRadius: 1.5, fontSize: '0.7rem', '&:hover': { bgcolor: '#059669' }};
+const rejectBtn = { color: '#ef4444', fontWeight: 900, fontSize: '0.7rem' };
+const typeChip = { fontWeight: 900, fontSize: '0.6rem', height: 20, bgcolor: '#f1f5f9' };
 
-const filterChipStyle = (active: boolean) => ({
-  fontWeight: 800,
-  bgcolor: active ? '#2563eb' : '#f1f5f9',
+const filterChip = (active: boolean) => ({
+  fontWeight: 900, fontSize: '0.7rem',
+  bgcolor: active ? '#0f172a' : 'transparent',
   color: active ? 'white' : '#64748b',
-  '&:hover': { bgcolor: active ? '#1d4ed8' : '#e2e8f0' }
+  border: active ? 'none' : '1px solid #e2e8f0'
 });
 
-const statusChipStyle = (status: string) => {
-  const colors: any = { Approved: { bg: '#dcfce7', text: '#15803d' }, Rejected: { bg: '#fee2e2', text: '#b91c1c' }, Pending: { bg: '#fef3c7', text: '#b45309' }};
-  const theme = colors[status] || colors.Pending;
-  return { bgcolor: theme.bg, color: theme.text, fontWeight: 900, borderRadius: 1.5, fontSize: '0.7rem' };
+const statusTag = (s: string) => {
+  const colors: any = { Approved: '#10b981', Rejected: '#ef4444', Pending: '#f59e0b' };
+  return { fontWeight: 950, fontSize: '0.65rem', color: colors[s], bgcolor: `${colors[s]}10`, borderRadius: 1 };
 };
 
 const calendarWrapper = {
-  '& .react-calendar': { border: 'none', width: '100%', fontFamily: 'inherit' },
-  '& .dot': { height: '6px', width: '6px', backgroundColor: '#ef4444', borderRadius: '50%', margin: '0 auto', marginTop: '2px' }
+  '& .react-calendar': { border: 'none', width: '100%', fontSize: '0.8rem', bgcolor: 'transparent' },
+  '& .react-calendar__tile--now': { bgcolor: '#eff6ff', borderRadius: 1 },
+  '& .dot': { height: '4px', width: '4px', bgcolor: '#4f46e5', borderRadius: '50%', margin: '0 auto' }
 };

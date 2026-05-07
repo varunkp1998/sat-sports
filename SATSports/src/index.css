@@ -1,193 +1,133 @@
 /* ===============================
-   RESET + BASE
+   1. RESET & ROOT CONFIG
 ================================ */
-
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: "Inter", "Segoe UI", sans-serif;
-  background: #f5f7fb;
-  color: #111827;
+:root {
+  --primary: #2563eb;
+  --dark: #111827;
+  --bg: #f5f7fb;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --sidebar-w: 240px;
 }
 
-/* ===============================
-   TYPOGRAPHY
-================================ */
-
-h1, h2, h3, h4 {
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-p {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-/* ===============================
-   LINKS
-================================ */
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-/* ===============================
-   BUTTONS (optional fallback)
-================================ */
-
-button {
-  cursor: pointer;
-  border-radius: 6px;
-  border: none;
-  padding: 8px 14px;
-  font-size: 14px;
-  background: #2563eb;
-  color: white;
-  transition: 0.2s;
-}
-
-button:hover {
-  background: #1d4ed8;
-}
-
-/* ===============================
-   INPUTS
-================================ */
-
-input,
-select,
-textarea {
-  width: 100%;
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
-  font-size: 14px;
-}
-
-input:focus,
-select:focus {
-  outline: none;
-  border-color: #2563eb;
-}
-
-/* ===============================
-   UTILITIES
-================================ */
-
-.container {
-  width: 100%;
-  max-width: 100%;
-  padding: 0;
+#root {
+  width: 100vw;
   margin: 0;
+  padding: 0;
 }
 
-.section {
-  margin-bottom: 24px;
-}
-
-/* ===============================
-   CARD (used outside MUI if needed)
-================================ */
-
-.card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #e5e7eb;
+body {
+  font-family: "Inter", -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text-main);
+  line-height: 1.5;
+  overflow-x: hidden;
 }
 
 /* ===============================
-   HEADER (PUBLIC SITE ONLY)
+   2. DASHBOARD ENGINE (Admin/Coach/Player)
 ================================ */
-
-.header {
-  background: #111827;
-  padding: 12px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header a {
-  color: white;
-  font-size: 14px;
-}
-
-/* ===============================
-   ADMIN TOPBAR (OPTIONAL)
-================================ */
-
-.admin-navbar {
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 14px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* ===============================
-   MOBILE SUPPORT
-================================ */
-
-@media (max-width: 768px) {
-  body {
-    font-size: 14px;
-  }
-
-  .header {
-    padding: 10px 16px;
-  }
-}
-/* PLAYER LAYOUT FIX */
-
 .dashboard {
   display: flex;
   min-height: 100vh;
+  width: 100%;
 }
 
 .sidebar {
-  width: 220px;
-  background: #111827;
+  width: var(--sidebar-w);
+  background: var(--dark);
   color: white;
-  padding: 20px;
-}
-
-.sidebar nav {
+  padding: 24px 16px;
+  flex-shrink: 0; /* ✅ Prevents sidebar collapse */
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.sidebar a {
-  color: white;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.sidebar a:hover {
-  color: #60a5fa;
 }
 
 .content {
   flex: 1;
-  padding: 20px;
-  background: #f5f7fb;
-}
-.mobile-calendar {
-  width: 100% !important;
-  max-width: 100% !important;
-  font-size: 12px;
+  min-width: 0; /* ✅ Fixes child element overflow/truncation */
+  padding: 32px;
+  background: var(--bg);
 }
 
-@media (max-width: 600px) {
+/* ===============================
+   3. TYPOGRAPHY & UI COMPONENTS
+================================ */
+h1, h2, h3, h4 {
+  font-weight: 700;
+  color: var(--dark);
+  letter-spacing: -0.5px;
+}
+
+p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: 0.2s;
+}
+
+.sidebar nav a {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sidebar nav a:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #60a5fa;
+}
+
+/* ===============================
+   4. INPUTS & FALLBACKS
+================================ */
+input, select, textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+  background: white;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  ring: 2px solid rgba(37, 99, 235, 0.1);
+}
+
+/* ===============================
+   5. RESPONSIVE LAYER
+================================ */
+@media (max-width: 900px) {
+  .dashboard {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .content {
+    padding: 16px;
+  }
+  
   .mobile-calendar {
+    width: 100% !important;
     font-size: 11px;
   }
 }

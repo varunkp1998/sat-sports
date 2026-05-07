@@ -2,351 +2,304 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Box, Typography, Card, CardContent, Stack, TextField, Button, 
   MenuItem, Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
-  IconButton, useTheme, Fade, Paper, 
-  Snackbar, Alert, Chip, ToggleButton, ToggleButtonGroup, Switch, FormControlLabel, CircularProgress, LinearProgress
+  IconButton, Fade, Paper, Snackbar, Alert, Chip, ToggleButton, 
+  ToggleButtonGroup, Switch, FormControlLabel, CircularProgress, LinearProgress
 } from "@mui/material";
 import { LocalizationProvider, TimePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import AddBoxIcon from "@mui/icons-material/AddBox";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import API_BASE from "./api";
 
+// --- CONSTANTS ---
 const DAYS = [
   { label: "S", value: 0 }, { label: "M", value: 1 }, { label: "T", value: 2 },
   { label: "W", value: 3 }, { label: "T", value: 4 }, { label: "F", value: 5 }, { label: "S", value: 6 },
 ];
 
 export default function AdminSessions() {
-  // Data States
+  // Master Data
   const [sessions, setSessions] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
-  const [coaches, setCoaches] = useState<any[]>([]);
-  const [programs, setPrograms] = useState<any[]>([]);
+  const [lookups, setLookups] = useState({ locations: [], coaches: [], programs: [] });
 
-  // Multi-Day States
+  // Scheduler Configuration
   const [isMultiDay, setIsMultiDay] = useState(false);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [endDate, setEndDate] = useState(dayjs().add(1, 'month').format("YYYY-MM-DD"));
+  const [dateRange, setDateRange] = useState({ start: dayjs(), end: dayjs().add(1, 'month') });
+  
+  // Form State
+  const [form, setForm] = useState({
+    id: null as number | null,
+    start: dayjs().set('hour', 9).set('minute', 0),
+    end: dayjs().set('hour', 10).set('minute', 0),
+    locationId: "",
+    coachId: "",
+    programIds: [] as number[],
+  });
 
-  // Form States
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
-  const [startTime, setStartTime] = useState<any>(dayjs().set('hour', 9).set('minute', 0));
-  const [endTime, setEndTime] = useState<any>(dayjs().set('hour', 10).set('minute', 0));
-  const [locationId, setLocationId] = useState<string | number>("");
-  const [coachId, setCoachId] = useState<string | number>("");
-  const [programIds, setProgramIds] = useState<number[]>([]);
+  // UI State
   const [filterDate, setFilterDate] = useState(dayjs().format("YYYY-MM-DD"));
+  const [status, setStatus] = useState({ saving: false, progress: 0, loading: true });
+  const [toast, setToast] = useState({ open: false, msg: "", type: "success" as any });
 
-  // UI & Progress States
-  const [toast, setToast] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
-  const [isSaving, setIsSaving] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
-
-  const loadData = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [sRes, lRes, cRes, pRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/sessions`),
-        fetch(`${API_BASE}/api/admin/locations`),
-        fetch(`${API_BASE}/api/admin/coaches`),
-        fetch(`${API_BASE}/api/admin/programs`)
+      const [s, l, c, p] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/sessions`).then(r => r.json()),
+        fetch(`${API_BASE}/api/admin/locations`).then(r => r.json()),
+        fetch(`${API_BASE}/api/admin/coaches`).then(r => r.json()),
+        fetch(`${API_BASE}/api/admin/programs`).then(r => r.json())
       ]);
-      setSessions(await sRes.json());
-      setLocations(await lRes.json());
-      setCoaches(await cRes.json());
-      setPrograms(await pRes.json());
-    } catch (err) {
-      setToast({ open: true, message: "Sync failed", severity: "error" });
+      setSessions(s);
+      setLookups({ locations: l, coaches: c, programs: p });
+    } catch {
+      setToast({ open: true, msg: "Data sync failed", type: "error" });
+    } finally {
+      setStatus(prev => ({ ...prev, loading: false }));
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const resetForm = () => {
-    setEditingId(null);
-    setProgramIds([]);
-    setLocationId("");
-    setCoachId("");
-    setSelectedDays([]);
-    setIsMultiDay(false);
-    setSyncProgress(0);
-    setDate(dayjs().format("YYYY-MM-DD"));
-  };
-
-  // --- FOOLPROOF SEQUENTIAL SAVING ---
-  const saveSession = async () => {
+  // --- LOGIC: BATCH GENERATION ---
+  const handleSave = async () => {
+    const { id, start, end, locationId, coachId, programIds } = form;
     if (!locationId || !coachId || programIds.length === 0) {
-      setToast({ open: true, message: "Required fields missing", severity: "error" });
-      return;
+      return setToast({ open: true, msg: "Missing required fields", type: "error" });
     }
 
-    setIsSaving(true);
-    setSyncProgress(0);
+    setStatus(s => ({ ...s, saving: true, progress: 0 }));
 
-    const basePayload = {
-      start_time: startTime.format("HH:mm:ss"),
-      end_time: endTime.format("HH:mm:ss"),
+    const payloadBase = {
+      start_time: start.format("HH:mm:ss"),
+      end_time: end.format("HH:mm:ss"),
       location_id: Number(locationId),
       coach_id: Number(coachId),
       program_ids: programIds
     };
 
     try {
-      // MODE 1: Single Update or Single Create
-      if (editingId || !isMultiDay) {
-        const url = editingId ? `${API_BASE}/api/admin/sessions/${editingId}` : `${API_BASE}/api/admin/sessions`;
-        const res = await fetch(url, {
-          method: editingId ? "PUT" : "POST",
+      if (id || !isMultiDay) {
+        // Single Entry
+        const url = id ? `${API_BASE}/api/admin/sessions/${id}` : `${API_BASE}/api/admin/sessions`;
+        await fetch(url, {
+          method: id ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...basePayload, session_date: date })
+          body: JSON.stringify({ ...payloadBase, session_date: dateRange.start.format("YYYY-MM-DD") })
         });
-        if (!res.ok) throw new Error("Server rejected request");
-      } 
-      
-      // MODE 2: Multi-Day Sequential Logic (No Bulk API)
-      else {
-        if (selectedDays.length === 0) throw new Error("Select repeat days");
-        
-        let current = dayjs(date);
-        const last = dayjs(endDate);
+      } else {
+        // Multi-Day Generation
+        let current = dateRange.start;
         const targetDates: string[] = [];
-
-        while (current.isBefore(last) || current.isSame(last)) {
-          if (selectedDays.includes(current.day())) {
-            targetDates.push(current.format("YYYY-MM-DD"));
-          }
+        while (current.isBefore(dateRange.end) || current.isSame(dateRange.end)) {
+          if (selectedDays.includes(current.day())) targetDates.push(current.format("YYYY-MM-DD"));
           current = current.add(1, 'day');
         }
 
-        // Sequential Loop to prevent 429 errors or DB locks
         for (let i = 0; i < targetDates.length; i++) {
-          const res = await fetch(`${API_BASE}/api/admin/sessions`, {
+          await fetch(`${API_BASE}/api/admin/sessions`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...basePayload, session_date: targetDates[i] })
+            body: JSON.stringify({ ...payloadBase, session_date: targetDates[i] })
           });
-          if (!res.ok) console.warn(`Skipped: ${targetDates[i]} (Conflict/Error)`);
-          
-          setSyncProgress(Math.round(((i + 1) / targetDates.length) * 100));
+          setStatus(s => ({ ...s, progress: Math.round(((i + 1) / targetDates.length) * 100) }));
         }
       }
 
-      setToast({ open: true, message: "Schedule Updated Successfully", severity: "success" });
-      loadData();
-      resetForm();
-    } catch (err: any) {
-      setToast({ open: true, message: err.message || "Execution Error", severity: "error" });
+      setToast({ open: true, msg: "Schedule published", type: "success" });
+      setForm({ id: null, start: dayjs().set('hour', 9), end: dayjs().set('hour', 10), locationId: "", coachId: "", programIds: [] });
+      setIsMultiDay(false);
+      fetchData();
+    } catch {
+      setToast({ open: true, msg: "Error saving schedule", type: "error" });
     } finally {
-      setIsSaving(false);
+      setStatus(s => ({ ...s, saving: false }));
     }
-  };
-
-  const deleteSession = async (id: number) => {
-    if (!window.confirm("Permanent Delete?")) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/sessions/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setToast({ open: true, message: "Session Removed", severity: "success" });
-        loadData();
-      }
-    } catch (err) {
-      setToast({ open: true, message: "Delete failed", severity: "error" });
-    }
-  };
-
-  const editSession = (s: any) => {
-    setEditingId(s.id);
-    setIsMultiDay(false); // Force off during edit for safety
-    setDate(dayjs(s.session_date).format("YYYY-MM-DD"));
-    setStartTime(dayjs(s.start_time, "HH:mm:ss"));
-    setEndTime(dayjs(s.end_time, "HH:mm:ss"));
-    setLocationId(s.location_id);
-    setCoachId(s.coach_id);
-    setProgramIds(s.program_ids || []);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const filteredSessions = useMemo(() => 
-    sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate),
+    sessions.filter(s => s.session_date === filterDate),
     [sessions, filterDate]
   );
 
+  if (status.loading) return <Box sx={centerStyle}><CircularProgress color="inherit" /></Box>;
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Box sx={containerStyle}>
+      <Box sx={rootStyle}>
         
-        {/* HEADER */}
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems="center" mb={6}>
+        {/* TOP NAV AREA */}
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
           <Box>
-            <Typography variant="h4" fontWeight={900} color="#0f172a">Scheduler</Typography>
-            <Typography variant="body2" color="text.secondary">SAT Sports Academy Operations</Typography>
+            <Typography variant="h4" fontWeight={950} sx={{ letterSpacing: -1 }}>ADMIN <span style={{color: '#ef4444'}}>SESSIONS</span></Typography>
+            <Typography variant="body2" sx={{ opacity: 0.6 }}>Manage academy capacity and staff deployment.</Typography>
           </Box>
           
           <Paper sx={filterPaperStyle}>
-            <FilterListIcon sx={{ color: 'text.secondary', mr: 1 }} />
-            <TextField
-              type="date" size="small" value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              variant="standard" InputProps={{ disableUnderline: true, sx: { fontWeight: 800 } }}
-              sx={{ width: 140 }}
+            <FilterListIcon sx={{ fontSize: 18, mr: 1, opacity: 0.5 }} />
+            <input 
+              type="date" 
+              value={filterDate} 
+              onChange={e => setFilterDate(e.target.value)}
+              style={rawInputStyle} 
             />
-            <Chip label={`${filteredSessions.length} Active`} size="small" sx={countChipStyle} />
           </Paper>
         </Stack>
 
-        {/* INPUT FORM */}
-        <Fade in timeout={600}>
-          <Card sx={glassCardStyle}>
-            <CardContent sx={{ p: { xs: 3, md: 5 } }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
-                <Typography variant="h6" fontWeight={900} color="#1e293b">
-                  {editingId ? "Modify Session" : "Create Schedule"}
-                </Typography>
-                {!editingId && (
-                  <FormControlLabel
-                    control={<Switch checked={isMultiDay} onChange={(e) => setIsMultiDay(e.target.checked)} color="primary" />}
-                    label={<Typography fontWeight={800} variant="body2">Bulk Repeat</Typography>}
-                  />
-                )}
-              </Stack>
+        {/* INPUT PANEL */}
+        <Card sx={glassCardStyle}>
+          <CardContent sx={{ p: 4 }}>
+            <Stack direction="row" justifyContent="space-between" mb={3}>
+              <Typography variant="subtitle1" fontWeight={900}>{form.id ? "EDIT SESSION" : "NEW SCHEDULE"}</Typography>
+              {!form.id && (
+                <FormControlLabel
+                  control={<Switch size="small" checked={isMultiDay} onChange={e => setIsMultiDay(e.target.checked)} />}
+                  label={<Typography variant="caption" fontWeight={900}>RECURRING MODE</Typography>}
+                />
+              )}
+            </Stack>
 
-              <Stack spacing={4}>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                   <TextField fullWidth label={isMultiDay ? "Start From" : "Date"} type="date" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
-                   {isMultiDay && (
-                     <TextField fullWidth label="Repeat Until" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={inputStyle} />
-                   )}
-                </Stack>
-
-                {isMultiDay && (
-                  <Box>
-                    <Typography variant="caption" fontWeight={900} color="primary" sx={{ mb: 1, display: 'block' }}>RECURRING DAYS</Typography>
-                    <ToggleButtonGroup 
-                      fullWidth value={selectedDays} 
-                      onChange={(_, val) => setSelectedDays(val)}
-                      sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}
-                    >
-                      {DAYS.map(d => (
-                        <ToggleButton key={d.value} value={d.value} sx={dayToggleStyle}>
-                          {d.label}
-                        </ToggleButton>
-                      ))}
-                    </ToggleButtonGroup>
-                  </Box>
-                )}
-                
+            <GridContainer>
+              <Box gridColumn="span 12">
                 <Stack direction="row" spacing={2}>
-                  <TimePicker label="Start" value={startTime} onChange={setStartTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
-                  <TimePicker label="End" value={endTime} onChange={setEndTime} slotProps={{ textField: { fullWidth: true, sx: inputStyle } }} />
-                </Stack>
-
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                  <TextField select fullWidth label="Coach" value={coachId} onChange={(e) => setCoachId(e.target.value)} sx={inputStyle}>
-                    {coaches.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-                  </TextField>
-                  <TextField select fullWidth label="Court" value={locationId} onChange={(e) => setLocationId(e.target.value)} sx={inputStyle}>
-                    {locations.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
-                  </TextField>
-                </Stack>
-
-                <TextField
-                  select fullWidth label="Programs" value={programIds}
-                  onChange={(e) => setProgramIds(typeof e.target.value === "string" ? e.target.value.split(",").map(Number) : (e.target.value as number[]))}
-                  SelectProps={{ multiple: true }} sx={inputStyle}
-                >
-                  {programs.map(p => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
-                </TextField>
-
-                <Box>
-                  {isSaving && isMultiDay && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" fontWeight={900}>Generating Sessions: {syncProgress}%</Typography>
-                      <LinearProgress variant="determinate" value={syncProgress} sx={{ height: 8, borderRadius: 4, mt: 1 }} />
-                    </Box>
+                  <TextField 
+                    type="date" 
+                    fullWidth 
+                    label={isMultiDay ? "Start Date" : "Session Date"}
+                    value={dateRange.start.format("YYYY-MM-DD")}
+                    onChange={e => setDateRange(p => ({...p, start: dayjs(e.target.value)}))}
+                    InputLabelProps={{ shrink: true }}
+                    sx={inputStyle}
+                  />
+                  {isMultiDay && (
+                    <TextField 
+                      type="date" 
+                      fullWidth 
+                      label="End Date"
+                      value={dateRange.end.format("YYYY-MM-DD")}
+                      onChange={e => setDateRange(p => ({...p, end: dayjs(e.target.value)}))}
+                      InputLabelProps={{ shrink: true }}
+                      sx={inputStyle}
+                    />
                   )}
-                  <Stack direction="row" spacing={2}>
-                    <Button onClick={saveSession} disabled={isSaving} sx={primaryBtnStyle}>
-                      {isSaving ? <CircularProgress size={24} color="inherit" /> : editingId ? "Save Changes" : isMultiDay ? "Execute Bulk Schedule" : "Add Session"}
-                    </Button>
-                    {editingId && (
-                      <Button onClick={resetForm} variant="outlined" sx={{ borderRadius: 3, fontWeight: 800 }}>Cancel</Button>
-                    )}
-                  </Stack>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Fade>
+                </Stack>
+              </Box>
 
-        {/* AGENDA */}
-        <Box mt={8}>
-          <Typography variant="h5" fontWeight={900} mb={3}>Daily Agenda</Typography>
-          {filteredSessions.length === 0 ? (
-            <Paper sx={emptyPaperStyle}>No sessions for this date</Paper>
-          ) : (
-            <TableContainer component={Paper} sx={tableWrapperStyle}>
-              <Table>
-                <TableHead sx={{ bgcolor: '#f1f5f9' }}>
-                  <TableRow>
-                    <TableCell sx={thStyle}>TIME</TableCell>
-                    <TableCell sx={thStyle}>STAFF</TableCell>
-                    <TableCell sx={thStyle}>LOCATION</TableCell>
-                    <TableCell sx={thStyle}>TARGET</TableCell>
-                    <TableCell sx={thStyle} align="right">ACTION</TableCell>
+              {isMultiDay && (
+                <Box gridColumn="span 12">
+                  <ToggleButtonGroup 
+                    fullWidth 
+                    value={selectedDays} 
+                    onChange={(_, v) => setSelectedDays(v)}
+                    sx={{ gap: 1 }}
+                  >
+                    {DAYS.map(d => (
+                      <ToggleButton key={d.value} value={d.value} sx={dayBtnStyle}>{d.label}</ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Box>
+              )}
+
+              <Box gridColumn="span 6">
+                <TimePicker label="Start Time" value={form.start} onChange={v => setForm(p => ({...p, start: v as Dayjs}))} slotProps={{ textField: { fullWidth: true, sx: inputStyle }}} />
+              </Box>
+              <Box gridColumn="span 6">
+                <TimePicker label="End Time" value={form.end} onChange={v => setForm(p => ({...p, end: v as Dayjs}))} slotProps={{ textField: { fullWidth: true, sx: inputStyle }}} />
+              </Box>
+
+              <Box gridColumn="span 6">
+                <TextField select fullWidth label="Coach" value={form.coachId} onChange={e => setForm(p => ({...p, coachId: e.target.value}))} sx={inputStyle}>
+                  {lookups.coaches.map((c: any) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+                </TextField>
+              </Box>
+              <Box gridColumn="span 6">
+                <TextField select fullWidth label="Court" value={form.locationId} onChange={e => setForm(p => ({...p, locationId: e.target.value}))} sx={inputStyle}>
+                  {lookups.locations.map((l: any) => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
+                </TextField>
+              </Box>
+
+              <Box gridColumn="span 12">
+                <TextField
+                  select fullWidth label="Select Programs"
+                  value={form.programIds}
+                  SelectProps={{ multiple: true }}
+                  onChange={e => setForm(p => ({...p, programIds: e.target.value as number[]}))}
+                  sx={inputStyle}
+                >
+                  {lookups.programs.map((pr: any) => <MenuItem key={pr.id} value={pr.id}>{pr.title}</MenuItem>)}
+                </TextField>
+              </Box>
+            </GridContainer>
+
+            {status.saving && isMultiDay && <LinearProgress variant="determinate" value={status.progress} sx={progressStyle} />}
+
+            <Stack direction="row" spacing={2} mt={4}>
+              <Button fullWidth onClick={handleSave} disabled={status.saving} sx={primaryBtnStyle}>
+                {status.saving ? <CircularProgress size={20} color="inherit" /> : form.id ? "UPDATE SESSION" : "GENERATE SCHEDULE"}
+              </Button>
+              {form.id && <Button onClick={() => setForm(p => ({...p, id: null}))} sx={secondaryBtnStyle}>CANCEL</Button>}
+            </Stack>
+          </CardContent>
+        </Card>
+
+        {/* AGENDA VIEW */}
+        <Box mt={6}>
+          <Typography variant="h6" fontWeight={900} mb={2}>DEPLOYMENT LOG — {dayjs(filterDate).format("MMM DD")}</Typography>
+          <TableContainer component={Paper} sx={tableStyle}>
+            <Table size="small">
+              <TableHead sx={{ bgcolor: "#f8fafc" }}>
+                <TableRow>
+                  <TableCell sx={thStyle}>TIMELINE</TableCell>
+                  <TableCell sx={thStyle}>COACH</TableCell>
+                  <TableCell sx={thStyle}>COURT</TableCell>
+                  <TableCell sx={thStyle}>PROGRAMS</TableCell>
+                  <TableCell align="right" sx={thStyle}>ACTIONS</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredSessions.map(s => (
+                  <TableRow key={s.id} sx={{ "&:hover": { bgcolor: "rgba(0,0,0,0.01)" } }}>
+                    <TableCell sx={{ fontWeight: 900 }}>{s.start_time.slice(0, 5)} - {s.end_time.slice(0, 5)}</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#ef4444" }}>{s.coachName}</TableCell>
+                    <TableCell sx={{ opacity: 0.8 }}>{s.locationName}</TableCell>
+                    <TableCell>
+                      {s.programTitles?.split(",").map((t: string) => <Chip key={t} label={t} size="small" sx={tagStyle} />)}
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton size="small" onClick={() => {
+                        setForm({ id: s.id, start: dayjs(s.start_time, "HH:mm:ss"), end: dayjs(s.end_time, "HH:mm:ss"), coachId: s.coach_id, locationId: s.location_id, programIds: s.program_ids || [] });
+                        window.scrollTo(0,0);
+                      }}><EditIcon fontSize="inherit" /></IconButton>
+                    </TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredSessions.map(s => (
-                    <TableRow key={s.id}>
-                      <TableCell sx={{ fontWeight: 800 }}>
-                        {dayjs(s.start_time, "HH:mm:ss").format("hh:mm A")}
-                      </TableCell>
-                      <TableCell sx={{ color: '#2563eb', fontWeight: 700 }}>{s.coachName}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{s.locationName}</TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                          {s.programTitles?.split(',').map((p: string) => (
-                            <Chip key={p} label={p.trim()} size="small" sx={{ fontSize: '0.65rem', fontWeight: 800 }} />
-                          ))}
-                        </Stack>
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton size="small" onClick={() => editSession(s)}><EditIcon fontSize="inherit" /></IconButton>
-                        <IconButton size="small" color="error" onClick={() => deleteSession(s.id)}><DeleteIcon fontSize="inherit" /></IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
 
-        <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })}>
-          <Alert severity={toast.severity} variant="filled" sx={{ fontWeight: 700 }}>{toast.message}</Alert>
+        <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast(p => ({...p, open: false}))}>
+          <Alert severity={toast.type} variant="filled" sx={{ fontWeight: 900 }}>{toast.msg}</Alert>
         </Snackbar>
       </Box>
     </LocalizationProvider>
   );
 }
 
-// --- STYLES ---
-const containerStyle = { p: { xs: 2, md: 6 }, background: "#f8fafc", minHeight: "100vh" };
-const filterPaperStyle = { p: "8px 16px", display: 'flex', alignItems: 'center', borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none' };
-const countChipStyle = { ml: 2, bgcolor: '#0f172a', color: 'white', fontWeight: 900 };
-const glassCardStyle = { borderRadius: 6, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' };
-const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 2, bgcolor: '#fcfcfd' } };
-const primaryBtnStyle = {
-  px: 4, py: 1.5, borderRadius: 2, fontWeight: 900, textTransform: 'none',
-  background: '#0f172a', color: 'white', "&:hover": { background: '#1e293b' }
-};
-const tableWrapperStyle = { borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none' };
-const thStyle = { fontWeight: 900, color: '#64748b', fontSize: '0.7rem', letterSpacing: 1, py: 2 };
-const emptyPaperStyle = { p: 6, textAlign: 'center', color: '#94a3b8', borderRadius: 4, border: '1px dashed #cbd5e1', bgcolor: 'transparent', fontWeight: 700 };
-const dayToggleStyle = { 
-  flex: 1, borderRadius: "8px !important", border: "1px solid #e2e8f0 !important", fontWeight: 900,
-  "&.Mui-selected": { bgcolor: "#0f172a !important", color: "white" }
-};
+// --- LIGHTWEIGHT STYLES ---
+const rootStyle = { p: { xs: 2, md: 5 }, bgcolor: "#f1f5f9", minHeight: "100vh" };
+const GridContainer = ({ children }: any) => <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 2 }}>{children}</Box>;
+const glassCardStyle = { borderRadius: 4, border: "1px solid #e2e8f0", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)" };
+const inputStyle = { "& .MuiOutlinedInput-root": { borderRadius: 2, bgcolor: "white" } };
+const dayBtnStyle = { flex: 1, borderRadius: "8px !important", border: "1px solid #e2e8f0 !important", fontWeight: 900, "&.Mui-selected": { bgcolor: "#0f172a !important", color: "white" } };
+const primaryBtnStyle = { bgcolor: "#0f172a", color: "white", py: 1.5, borderRadius: 2, fontWeight: 900, "&:hover": { bgcolor: "#1e293b" } };
+const secondaryBtnStyle = { color: "#64748b", fontWeight: 900 };
+const filterPaperStyle = { display: 'flex', alignItems: 'center', p: '4px 12px', borderRadius: 2, border: "1px solid #e2e8f0", boxShadow: "none" };
+const rawInputStyle = { border: "none", outline: "none", background: "transparent", fontWeight: 900, color: "#0f172a", cursor: "pointer" };
+const tableStyle = { borderRadius: 3, border: "1px solid #e2e8f0", boxShadow: "none", overflow: "hidden" };
+const thStyle = { fontWeight: 900, fontSize: "0.65rem", color: "#64748b", letterSpacing: 1, textTransform: "uppercase" };
+const tagStyle = { height: 18, fontSize: "0.6rem", fontWeight: 800, mr: 0.5 };
+const progressStyle = { mt: 2, height: 6, borderRadius: 3, bgcolor: "#e2e8f0", "& .MuiLinearProgress-bar": { bgcolor: "#ef4444" } };
+const centerStyle = { height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", bgcolor: "#f1f5f9" };

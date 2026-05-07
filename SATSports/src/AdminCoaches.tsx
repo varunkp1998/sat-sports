@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box, Typography, Card, CardContent, Stack, TextField, Button, 
+  Box, Typography, Stack, TextField, Button, 
   Table, TableHead, TableRow, TableCell, TableBody, 
-  IconButton, useMediaQuery, useTheme, Fade, Paper, 
-  Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Chip
+  IconButton, Fade, Paper, 
+  Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -11,10 +11,19 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import SearchIcon from "@mui/icons-material/Search";
 import API_BASE from "./api";
 
+// --- TYPES ---
+interface Coach {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+}
+
 export default function AdminCoaches() {
   // Data States
-  const [coaches, setCoaches] = useState<any[]>([]);
+  const [coaches, setCoaches] = useState<Coach[]>([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
   
   // UI States
   const [open, setOpen] = useState(false);
@@ -24,16 +33,16 @@ export default function AdminCoaches() {
   // Form State
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-
   const loadCoaches = async () => {
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/coaches`);
       const data = await res.json();
-      setCoaches(data);
+      setCoaches(Array.isArray(data) ? data : []);
     } catch (err) {
       handleToast("Failed to load coaches", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,7 +58,7 @@ export default function AdminCoaches() {
     setOpen(true);
   };
 
-  const openEdit = (c: any) => {
+  const openEdit = (c: Coach) => {
     setEditingId(c.id);
     setForm({ name: c.name || "", email: c.email || "", phone: c.phone || "" });
     setOpen(true);
@@ -71,25 +80,27 @@ export default function AdminCoaches() {
       });
 
       if (res.ok) {
-        handleToast(editingId ? "Coach updated!" : "Coach added!", "success");
+        handleToast(editingId ? "Coach details updated" : "New coach onboarded", "success");
         loadCoaches();
         setOpen(false);
+      } else {
+        const errorData = await res.json();
+        handleToast(errorData.message || "Failed to save coach", "error");
       }
     } catch (err) {
-      handleToast("Error saving data", "error");
+      handleToast("Network error occurred", "error");
     }
   };
 
   const removeCoach = async (id: number) => {
-    if (!window.confirm("Permanent delete this coach?")) return;
+    if (!window.confirm("Are you sure you want to remove this coach? This action cannot be undone.")) return;
     try {
       const res = await fetch(`${API_BASE}/api/admin/coaches/${id}`, { method: "DELETE" });
       if (res.ok) {
-        handleToast("Coach deleted", "success");
+        handleToast("Coach removed successfully", "success");
         loadCoaches();
       } else {
-        const data = await res.json();
-        handleToast(data.message || "Delete failed", "error");
+        handleToast("Could not delete coach", "error");
       }
     } catch (err) {
       handleToast("Network error", "error");
@@ -104,9 +115,9 @@ export default function AdminCoaches() {
   return (
     <Box sx={containerStyle}>
       
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems="center" mb={6}>
-        <Box>
+        <Box textAlign={{ xs: 'center', md: 'left' }}>
           <Typography variant="h4" fontWeight={900} letterSpacing="-1.5px" color="#1e293b">Coach Management</Typography>
           <Typography variant="body2" color="text.secondary">Review and manage your academy coaching staff</Typography>
         </Box>
@@ -120,7 +131,7 @@ export default function AdminCoaches() {
         </Button>
       </Stack>
 
-      {/* SEARCH BAR */}
+      {/* SEARCH */}
       <Paper sx={searchPaperStyle}>
         <SearchIcon sx={{ color: 'text.secondary', mr: 1.5 }} />
         <TextField
@@ -133,53 +144,57 @@ export default function AdminCoaches() {
         />
       </Paper>
 
-      {/* COACHES LIST (DESKTOP) */}
+      {/* TABLE */}
       <Fade in timeout={600}>
         <Paper sx={tableWrapperStyle}>
-          <Table>
-            <TableHead sx={{ bgcolor: '#f8fafc' }}>
-              <TableRow>
-                <TableCell sx={thStyle}>COACH NAME</TableCell>
-                <TableCell sx={thStyle}>EMAIL ADDRESS</TableCell>
-                <TableCell sx={thStyle}>PHONE NUMBER</TableCell>
-                <TableCell sx={thStyle} align="right">ACTIONS</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.map(c => (
-                <TableRow key={c.id} sx={{ '&:hover': { bgcolor: '#fcfcfd' } }}>
-                  <TableCell sx={{ py: 3 }}>
-                    <Typography variant="body2" fontWeight={800} color="#1e293b">{c.name}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={600} color="text.secondary">{c.email}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={700} color="#3b82f6">{c.phone || "-"}</Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton size="small" onClick={() => openEdit(c)} sx={{ mr: 1, color: '#64748b' }}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" color="error" onClick={() => removeCoach(c.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}><CircularProgress /></Box>
+          ) : (
+            <Table>
+              <TableHead sx={{ bgcolor: '#f8fafc' }}>
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 8, color: 'text.secondary', fontWeight: 600 }}>
-                    No coaches found matching your search.
-                  </TableCell>
+                  <TableCell sx={thStyle}>COACH NAME</TableCell>
+                  <TableCell sx={thStyle}>EMAIL ADDRESS</TableCell>
+                  <TableCell sx={thStyle}>PHONE NUMBER</TableCell>
+                  <TableCell sx={thStyle} align="right">ACTIONS</TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {filtered.map(c => (
+                  <TableRow key={c.id} sx={{ '&:hover': { bgcolor: '#fcfcfd' } }}>
+                    <TableCell sx={{ py: 3 }}>
+                      <Typography variant="body2" fontWeight={800} color="#1e293b">{c.name}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600} color="text.secondary">{c.email}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={700} color="#3b82f6">{c.phone || "-"}</Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton size="small" onClick={() => openEdit(c)} sx={{ mr: 1, color: '#64748b' }}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => removeCoach(c.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 8, color: 'text.secondary', fontWeight: 600 }}>
+                      No coaches found matching your search.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </Paper>
       </Fade>
 
-      {/* ADD/EDIT DIALOG */}
+      {/* DIALOG */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 5 } }}>
         <DialogTitle sx={{ fontWeight: 900, pt: 4, px: 4 }}>
           {editingId ? "Modify Coach" : "Onboard Coach"}
@@ -187,22 +202,19 @@ export default function AdminCoaches() {
         <DialogContent sx={{ px: 4 }}>
           <Stack spacing={3} mt={2}>
             <TextField
-              fullWidth
-              label="Full Name"
+              fullWidth label="Full Name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               sx={inputStyle}
             />
             <TextField
-              fullWidth
-              label="Email Address"
+              fullWidth label="Email Address"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               sx={inputStyle}
             />
             <TextField
-              fullWidth
-              label="Phone Number"
+              fullWidth label="Phone Number"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               sx={inputStyle}
@@ -212,15 +224,13 @@ export default function AdminCoaches() {
         <DialogActions sx={{ p: 4 }}>
           <Button onClick={() => setOpen(false)} sx={{ fontWeight: 700, color: '#64748b' }}>Cancel</Button>
           <Button variant="contained" onClick={saveCoach} sx={{ ...primaryBtnStyle, px: 4 }}>
-            {editingId ? "Update Coach" : "Confirm Addition"}
+            {editingId ? "Update" : "Confirm Addition"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* TOAST NOTIFICATION */}
       <Snackbar 
-        open={toast.open} 
-        autoHideDuration={4000} 
+        open={toast.open} autoHideDuration={4000} 
         onClose={() => setToast({ ...toast, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
@@ -232,7 +242,7 @@ export default function AdminCoaches() {
   );
 }
 
-// --- REFINED STYLES ---
+// --- STYLES ---
 const containerStyle = { p: { xs: 2, md: 8 }, background: "#f8fafc", minHeight: "100vh" };
 const searchPaperStyle = { p: "12px 24px", display: 'flex', alignItems: 'center', borderRadius: 4, border: '1px solid #e2e8f0', boxShadow: 'none', mb: 4, bgcolor: 'white' };
 const tableWrapperStyle = { borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', bgcolor: 'white' };

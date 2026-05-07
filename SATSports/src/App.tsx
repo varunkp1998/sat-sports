@@ -1,110 +1,121 @@
-import React, { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import React, { Suspense, lazy } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+
+// CSS and Global Modules
 import "./index.css";
 import "jspdf-autotable";
+import { Box, Typography } from "@mui/material";
+// Static Components (Immediate Load)
+import Header from "./Header";
+import ProtectedRoute from "./ProtectedRoute";
 
-// ✅ DO NOT lazy load global components
-import Header from "./Header.tsx";
-import ProtectedRoute from "./ProtectedRoute.tsx";
+// ⚡ Public Pages
+const Home = lazy(() => import("./Home"));
+const About = lazy(() => import("./About"));
+const ProgramsPage = lazy(() => import("./ProgramsPage"));
+const NewsPage = lazy(() => import("./NewsPage"));
+const Contact = lazy(() => import("./Contact"));
+const Login = lazy(() => import("./Login"));
+const Signup = lazy(() => import("./Signup"));
 
-// ⚡ Lazy load only pages
-const PracticeTournaments = lazy(() => import("./PracticeTournaments.tsx"));
-const AdminLayout = lazy(() => import("./AdminLayout.tsx"));
-const PlayerPortal = lazy(() => import("./PlayerPortal.tsx"));
-const TournamentsPage = lazy(() => import("./TournamentsPage.tsx"));
-const TournamentDetails = lazy(() => import("./TournamentDetails.tsx"));
-const CoachAttendance = lazy(() => import("./CoachAttendance.tsx"));
-const PublicCourtBooking = lazy(() => import("./PublicCourtBooking.tsx"));
-const RegisterPlayer = lazy(() => import("./RegisterPlayer.tsx"));
-const Signup = lazy(() => import("./Signup.tsx"));
+// ⚡ Tournament & Booking
+const TournamentsPage = lazy(() => import("./TournamentsPage"));
+const TournamentDetails = lazy(() => import("./TournamentDetails"));
+const PublicCourtBooking = lazy(() => import("./PublicCourtBooking"));
 const PrivateBooking = lazy(() => import("./PrivateBooking"));
-const PlayerProfile = lazy(() => import("./PlayerProfile.tsx"));
-const Home = lazy(() => import("./Home.tsx"));
-const About = lazy(() => import("./About.tsx"));
-const ProgramsPage = lazy(() => import("./ProgramsPage.tsx"));
-const NewsPage = lazy(() => import("./NewsPage.tsx"));
-const Login = lazy(() => import("./Login.tsx"));
-const Contact = lazy(() => import("./Contact.tsx"));
+const RegisterPlayer = lazy(() => import("./RegisterPlayer"));
+
+// ⚡ Layouts
+const AdminLayout = lazy(() => import("./AdminLayout"));
 const PlayerLayout = lazy(() => import("./PlayerLayout"));
-const CoachLayout = lazy(() => import("./CoachLayout.tsx"));
-const CoachSessions = lazy(() => import("./CoachSessions"));
-const CoachLeave = lazy(() => import("./CoachLeave"));
-const CoachProfile = lazy(() => import("./CoachProfile"));
+const CoachLayout = lazy(() => import("./CoachLayout"));
+
+// ⚡ NEW ADMIN MODULES (Optimized)
+const AdminLivePresence = lazy(() => import("./AdminLivePresence"));
+const AdminLocations = lazy(() => import("./AdminLocations"));
+const AdminNews = lazy(() => import("./AdminNews"));
+const AdminPlayers = lazy(() => import("./AdminPlayers"));
+const AdminPrivateBookings = lazy(() => import("./AdminPrivateBooking"));
+const PlayerProfile = lazy(() => import("./PlayerProfile"));
+
+// ⚡ Coach Specific
 const CoachDashboard = lazy(() => import("./CoachDashboard"));
+const CoachSessions = lazy(() => import("./CoachSessions"));
+const CoachAttendance = lazy(() => import("./CoachAttendance"));
+const CoachLeave = lazy(() => import("./CoachLeave"));
 
-// ⚡ Loader
+// ⚡ UI Helpers
 const Loader = () => (
-  <div style={{ padding: 40, textAlign: "center" }}>Loading...</div>
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+    <Typography variant="overline" fontWeight={900} sx={{ letterSpacing: 2, opacity: 0.5 }}>
+      Synchronizing SAT Sports...
+    </Typography>
+  </Box>
 );
 
-// ✅ PUBLIC WRAPPER (ONLY for website pages)
-const PublicLayout = ({ children }: any) => (
-  <div className="container">{children}</div>
+const PublicLayout = ({ children }: { children: React.ReactNode }) => (
+  <div className="container" style={{ minHeight: "80vh" }}>{children}</div>
 );
-
-// 🚀 PREFETCH
-function Prefetcher() {
-  useEffect(() => {
-    import("./AdminLayout.tsx");
-    import("./TournamentsPage.tsx");
-    import("./PlayerPortal.tsx");
-  }, []);
-  return null;
-}
 
 export default function App() {
   return (
     <Router>
       <Header />
-      <Prefetcher />
-
+      
       <Suspense fallback={<Loader />}>
-        <main>
-          <Routes>
+        <Routes>
+          {/* --- PUBLIC ROUTES --- */}
+          <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+          <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
+          <Route path="/programs" element={<PublicLayout><ProgramsPage /></PublicLayout>} />
+          <Route path="/news" element={<PublicLayout><NewsPage /></PublicLayout>} />
+          <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
+          <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
+          <Route path="/signup" element={<PublicLayout><Signup /></PublicLayout>} />
+          
+          {/* --- TOURNAMENTS & BOOKING --- */}
+          <Route path="/tournaments" element={<PublicLayout><TournamentsPage /></PublicLayout>} />
+          <Route path="/tournaments/:id" element={<PublicLayout><TournamentDetails /></PublicLayout>} />
+          <Route path="/book-court" element={<PublicLayout><PublicCourtBooking /></PublicLayout>} />
+          <Route path="/book-private-session" element={<PublicLayout><PrivateBooking /></PublicLayout>} />
+          <Route path="/register-player" element={<PublicLayout><RegisterPlayer /></PublicLayout>} />
 
-            {/* --- PUBLIC ROUTES (WITH CONTAINER) --- */}
-            <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
-            <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
-            <Route path="/programs" element={<PublicLayout><ProgramsPage /></PublicLayout>} />
-            <Route path="/news" element={<PublicLayout><NewsPage /></PublicLayout>} />
-            <Route path="/tournaments" element={<PublicLayout><TournamentsPage /></PublicLayout>} />
-            <Route path="/tournaments/:id" element={<PublicLayout><TournamentDetails /></PublicLayout>} />
-            <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
-            <Route path="/book-court" element={<PublicLayout><PublicCourtBooking /></PublicLayout>} />
-            <Route path="/register-player" element={<PublicLayout><RegisterPlayer /></PublicLayout>} />
-            <Route path="/book-private-session" element={<PublicLayout><PrivateBooking /></PublicLayout>} />
-            <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
-            <Route path="/signup" element={<PublicLayout><Signup /></PublicLayout>} />
-            <Route path="/portal" element={<PublicLayout><PlayerPortal /></PublicLayout>} />
+          {/* --- COACH SECTION (Nested) --- */}
+          <Route path="/coach" element={<CoachLayout />}>
+            <Route index element={<CoachDashboard />} />
+            <Route path="sessions" element={<CoachSessions />} />
+            <Route path="sessions/:sessionId/attendance" element={<CoachAttendance />} />
+            <Route path="leave" element={<CoachLeave />} />
+          </Route>
 
-            {/* --- COACH (FULL WIDTH) --- */}
-            <Route path="/coach" element={<CoachLayout />}>
-              <Route index element={<CoachDashboard />} />
-              <Route path="sessions" element={<CoachSessions />} />
-              <Route path="sessions/:sessionId/attendance" element={<CoachAttendance />} />
-              <Route path="leave" element={<CoachLeave />} />
-              <Route path="profile" element={<CoachProfile />} />
-              <Route path="tournaments" element={<PracticeTournaments />} />
-            </Route>
+          {/* --- PLAYER SECTION (Nested) --- */}
+          <Route path="/player" element={<PlayerLayout />}>
+             {/* Add player nested routes here */}
+          </Route>
 
-            {/* --- PLAYER (FULL WIDTH) --- */}
-            <Route path="/player/*" element={<PlayerLayout />} />
+          {/* --- ADMIN SECTION (Unified & Nested) --- */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Index redirects to players or dashboard */}
+            <Route index element={<Navigate to="/admin/players" replace />} />
+            
+            <Route path="live-presence" element={<AdminLivePresence />} />
+            <Route path="locations" element={<AdminLocations />} />
+            <Route path="news" element={<AdminNews />} />
+            <Route path="players" element={<AdminPlayers />} />
+            <Route path="players/:id" element={<PlayerProfile />} />
+            <Route path="private-bookings" element={<AdminPrivateBookings />} />
+          </Route>
 
-            {/* --- ADMIN (FULL WIDTH FIXED) --- */}
-            <Route
-              path="/admin/*"
-              element={
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* --- SPECIAL ADMIN PAGE --- */}
-            <Route path="/admin/players/:id" element={<PlayerProfile />} />
-
-          </Routes>
-        </main>
+          {/* 404 Redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
 
         <Footer />
       </Suspense>
@@ -112,11 +123,12 @@ export default function App() {
   );
 }
 
-/* ---------- FOOTER ---------- */
 function Footer() {
   return (
-    <footer className="footer">
-      © {new Date().getFullYear()} SAT Sports PVT LTD
+    <footer style={{ textAlign: "center", padding: "3rem 0", opacity: 0.5 }}>
+      <Typography variant="caption" fontWeight={800}>
+        © {new Date().getFullYear()} SAT SPORTS PVT LTD • DATA SYSTEMS V2.0
+      </Typography>
     </footer>
   );
 }

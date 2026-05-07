@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box, Card, CardContent, Typography, TextField, Button,
@@ -9,11 +9,11 @@ import LockIcon from "@mui/icons-material/Lock";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import API_BASE from "./api";
 
-// --- ANIMATIONS ---
+// --- GPU ACCELERATED ANIMATIONS ---
 const bounce = keyframes`
-  0%, 100% { transform: translateY(0) scaleX(1); }
-  30% { transform: translateY(-80px) scaleX(0.8); }
-  70% { transform: translateY(0) scaleX(1.2); }
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  30% { transform: translateY(-60px) scale(0.9, 1.1); }
+  70% { transform: translateY(0) scale(1.1, 0.9); }
 `;
 
 const shadowPulse = keyframes`
@@ -21,13 +21,13 @@ const shadowPulse = keyframes`
   30% { transform: scale(0.5); opacity: 0.05; }
 `;
 
-// --- LOADER (MEMOIZED) ---
+// --- LOADER (MEMOIZED FOR ZERO RE-RENDERS) ---
 const TennisLoader = React.memo(({ message }: { message: string }) => (
   <Box sx={overlayStyle}>
     <Box display="flex" flexDirection="column" alignItems="center">
       <Box sx={ballStyle} />
       <Box sx={shadowStyle} />
-      <Typography sx={loaderTextStyle}>{message}</Typography>
+      <Typography sx={loaderTextStyle}>{message.toUpperCase()}</Typography>
     </Box>
   </Box>
 ));
@@ -35,235 +35,152 @@ const TennisLoader = React.memo(({ message }: { message: string }) => (
 export default function Login() {
   const navigate = useNavigate();
 
-  // STATE
+  // ATOMIC STATES
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
-  // FORGOT
   const [forgotMode, setForgotMode] = useState(false);
   const [otpStep, setOtpStep] = useState(1);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  // 🚀 KEYBOARD FIX (NO MEMORY LEAK)
+  // 🚀 EVENT LISTENER OPTIMIZATION
   useEffect(() => {
-    const listener = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (forgotMode) {
-          otpStep === 1 ? sendOtp() : resetPassword();
-        } else {
-          handleLogin();
-        }
+    const handleEnter = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && !loading) {
+        if (!forgotMode) handleLogin();
+        else otpStep === 1 ? sendOtp() : resetPassword();
       }
     };
+    window.addEventListener("keydown", handleEnter);
+    return () => window.removeEventListener("keydown", handleEnter);
+  }, [username, password, email, otp, newPassword, forgotMode, otpStep, loading]);
 
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, [forgotMode, otpStep]);
-
-  // 🚀 LOGIN OPTIMIZED
   const handleLogin = useCallback(async () => {
-    if (loading) return;
-    if (!username || !password) return setError("Please enter credentials");
-
+    if (!username || !password) return setError("CREDENTIALS REQUIRED");
     setLoading(true);
     setError("");
 
     try {
-      const controller = new AbortController();
-      setTimeout(() => controller.abort(), 8000);
-
       const res = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: username, password }),
-        signal: controller.signal
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
 
-      const payload = JSON.parse(atob(data.token.split(".")[1]));
+      // Decoding payload without external libs
+      const payload = JSON.parse(window.atob(data.token.split(".")[1]));
 
-      // ⚡ parallel storage
-      await Promise.all([
-        Promise.resolve(localStorage.setItem("token", data.token)),
-        Promise.resolve(localStorage.setItem("role", payload.role)),
-        Promise.resolve(localStorage.setItem("userId", String(payload.id)))
-      ]);
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("role", payload.role);
+      localStorage.setItem("userId", String(payload.id));
 
       setRedirecting(true);
-
       setTimeout(() => {
-        const paths: any = {
-          admin: "/admin",
-          coach: "/coach",
-          player: "/player"
-        };
-        navigate(paths[payload.role] || "/dashboard");
-      }, 1200);
-
+        const routes: Record<string, string> = { admin: "/admin", coach: "/coach", player: "/player" };
+        navigate(routes[payload.role] || "/dashboard");
+      }, 1000);
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      setError(err.message || "CONNECTION ERROR");
       setLoading(false);
     }
-  }, [username, password, loading, navigate]);
+  }, [username, password, navigate]);
 
-  // 🚀 OTP
+  // FORGOT PASSWORD LOGIC (Minified)
   const sendOtp = async () => {
-    if (loading) return;
-    if (!email) return setError("Enter your email");
-
     setLoading(true);
-    setError("");
-
     try {
-      await fetch(`${API_BASE}/api/auth/send-otp`, {
+      const res = await fetch(`${API_BASE}/api/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
       });
-
-      setOtpStep(2);
-    } catch {
-      setError("Failed to send OTP");
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) setOtpStep(2);
+      else setError("INVALID EMAIL");
+    } finally { setLoading(false); }
   };
 
   const resetPassword = async () => {
-    if (loading) return;
-
     setLoading(true);
-    setError("");
-
     try {
       const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp, newPassword })
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-
-      alert("Password reset successful ✅");
-      setForgotMode(false);
-      setOtpStep(1);
-
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) {
+        setForgotMode(false);
+        setOtpStep(1);
+        setError("");
+      } else throw new Error("RESET FAILED");
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   };
 
-  // 🚀 FULLSCREEN LOADER
-  if (redirecting) {
-    return <TennisLoader message="Synchronizing Training Profile..." />;
-  }
+  if (redirecting) return <TennisLoader message="Initializing Court Access..." />;
 
   return (
     <Box sx={containerStyle}>
-      <Fade in timeout={800}>
+      <Fade in timeout={500}>
         <Card sx={glassCardStyle}>
           <CardContent sx={{ p: 4 }}>
-
             <Box textAlign="center" mb={4}>
-              <Box sx={logoWrapperStyle}>
-                <img src="/logo.png" alt="logo" style={{ height: 45 }} />
-              </Box>
-
-              <Typography variant="h4" fontWeight={900} mt={2}>
-                {forgotMode ? "RECOVER" : "SIGN IN"}
-              </Typography>
-
-              <Typography variant="body2" sx={{ opacity: 0.6 }}>
-                SAT Sports Academy Portal
+              <Box component="img" src="/logo.png" sx={logoStyle} alt="SAT Sports" />
+              <Typography variant="h5" fontWeight={900} sx={{ letterSpacing: 1, mt: 2 }}>
+                {forgotMode ? "SECURITY RECOVERY" : "COURT LOGIN"}
               </Typography>
             </Box>
 
             {error && <Alert severity="error" sx={alertStyle}>{error}</Alert>}
 
             {!forgotMode ? (
-              <Stack spacing={2.5}>
+              <Stack spacing={2}>
                 <TextField
-                  autoComplete="email"
-                  placeholder="Email Address"
+                  placeholder="EMAIL"
+                  fullWidth
                   value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <EmailIcon sx={iconStyle}/>
-                      </InputAdornment>
-                    )
-                  }}
+                  onChange={(e) => setUsername(e.target.value)}
                   sx={inputStyle}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon sx={iconStyle} /></InputAdornment> }}
                 />
-
                 <TextField
-                  autoComplete="current-password"
+                  placeholder="PASSWORD"
                   type="password"
-                  placeholder="Password"
+                  fullWidth
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LockIcon sx={iconStyle}/>
-                      </InputAdornment>
-                    )
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
                   sx={inputStyle}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><LockIcon sx={iconStyle} /></InputAdornment> }}
                 />
-
-                <Button fullWidth disabled={loading} onClick={handleLogin} sx={primaryBtnStyle}>
-                  {loading ? <CircularProgress size={24} /> : "ACCESS PORTAL"}
+                <Button fullWidth onClick={handleLogin} disabled={loading} sx={primaryBtnStyle}>
+                  {loading ? <CircularProgress size={20} color="inherit" /> : "ENTER PORTAL"}
                 </Button>
-
-                <Box display="flex" justifyContent="space-between">
-                  <Typography sx={linkStyle} onClick={() => setForgotMode(true)}>
-                    Forgot Password?
-                  </Typography>
-                  <Typography sx={linkStyle} onClick={() => navigate("/signup")}>
-                    Create Account
-                  </Typography>
-                </Box>
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography onClick={() => setForgotMode(true)} sx={linkStyle}>Forgot Key?</Typography>
+                  <Typography onClick={() => navigate("/signup")} sx={linkStyle}>Join Academy</Typography>
+                </Stack>
               </Stack>
             ) : (
-              <Stack spacing={2.5}>
-                <TextField
-                  placeholder="Email Address"
-                  value={email}
-                  disabled={otpStep === 2}
-                  onChange={e => setEmail(e.target.value)}
-                  sx={inputStyle}
-                />
-
+              <Stack spacing={2}>
+                <TextField placeholder="REGISTERED EMAIL" fullWidth value={email} onChange={e => setEmail(e.target.value)} sx={inputStyle} />
                 {otpStep === 2 && (
                   <>
-                    <TextField placeholder="OTP Code" value={otp} onChange={e => setOtp(e.target.value)} sx={inputStyle}/>
-                    <TextField placeholder="New Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} sx={inputStyle}/>
+                    <TextField placeholder="OTP CODE" fullWidth value={otp} onChange={e => setOtp(e.target.value)} sx={inputStyle} />
+                    <TextField placeholder="NEW PASSWORD" type="password" fullWidth value={newPassword} onChange={e => setNewPassword(e.target.value)} sx={inputStyle} />
                   </>
                 )}
-
                 <Button fullWidth onClick={otpStep === 1 ? sendOtp : resetPassword} sx={primaryBtnStyle}>
-                  {loading ? <CircularProgress size={24}/> : otpStep === 1 ? "SEND CODE" : "UPDATE PASSWORD"}
+                  {loading ? <CircularProgress size={20} color="inherit" /> : otpStep === 1 ? "REQUEST OTP" : "SAVE NEW KEY"}
                 </Button>
-
-                <Button startIcon={<ArrowBackIcon />} onClick={() => setForgotMode(false)}>
-                  Back to Login
-                </Button>
+                <Button startIcon={<ArrowBackIcon />} onClick={() => setForgotMode(false)} sx={{ color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>Back</Button>
               </Stack>
             )}
-
           </CardContent>
         </Card>
       </Fade>
@@ -271,16 +188,17 @@ export default function Login() {
   );
 }
 
-// --- STYLES (UNCHANGED BUT CLEAN) ---
+// --- CONSTANT STYLES (OUTSIDE RENDER) ---
 const containerStyle = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#020617" };
-const glassCardStyle = { width: "100%", maxWidth: 400, borderRadius: 6, background: "rgba(15,23,42,0.9)" };
-const logoWrapperStyle = { width: 70, height: 70, mx: "auto" };
-const inputStyle = { "& .MuiOutlinedInput-root": { color: "white" } };
-const primaryBtnStyle = { py: 1.5, borderRadius: 3, fontWeight: 800 };
-const overlayStyle = { position: "fixed", inset: 0, display: "flex", justifyContent: "center", alignItems: "center", background: "#020617" };
-const ballStyle = { width: 50, height: 50, borderRadius: "50%", background: "#ccff00", animation: `${bounce} 0.8s infinite` };
-const shadowStyle = { width: 40, height: 8, borderRadius: "50%", background: "black", animation: `${shadowPulse} 0.8s infinite` };
-const loaderTextStyle = { mt: 3, color: "white" };
-const linkStyle = { cursor: "pointer", fontSize: 13 };
-const iconStyle = { color: "rgba(255,255,255,0.5)" };
-const alertStyle = { mb: 2 };
+const glassCardStyle = { width: "90%", maxWidth: 400, borderRadius: 5, background: "rgba(15,23,42,0.95)", border: "1px solid rgba(255,255,255,0.05)", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" };
+const logoStyle = { height: 50, width: "auto", mx: "auto", display: "block", filter: "drop-shadow(0 0 10px rgba(204, 255, 0, 0.2))" };
+const inputStyle = { "& .MuiOutlinedInput-root": { color: "white", bgcolor: "rgba(255,255,255,0.02)", borderRadius: 2, "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, "&:hover fieldset": { borderColor: "#ef4444" } } };
+const primaryBtnStyle = { py: 1.5, borderRadius: 2, fontWeight: 900, background: "linear-gradient(135deg, #f97316, #ef4444)", color: "white", "&:hover": { background: "#dc2626" } };
+const iconStyle = { color: "rgba(255,255,255,0.3)", fontSize: 20 };
+const linkStyle = { cursor: "pointer", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", "&:hover": { color: "#ef4444" } };
+const alertStyle = { bgcolor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", fontWeight: 700, borderRadius: 2 };
+
+const overlayStyle = { position: "fixed", inset: 0, zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center", background: "#020617" };
+const ballStyle = { width: 45, height: 45, borderRadius: "50%", background: "#ccff00", boxShadow: "inset -5px -5px 10px rgba(0,0,0,0.2)", animation: `${bounce} 0.6s infinite ease-in-out` };
+const shadowStyle = { width: 35, height: 6, mt: 1, borderRadius: "50%", background: "rgba(0,0,0,0.5)", animation: `${shadowPulse} 0.6s infinite ease-in-out` };
+const loaderTextStyle = { mt: 4, color: "#ccff00", fontWeight: 900, letterSpacing: 2, fontSize: 12 };

@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, type ReactNode } from "react"; // Added ReactNode
 import { Navigate } from "react-router-dom";
 import { Box, CircularProgress } from "@mui/material";
 import API_BASE from "./api";
 
 interface ProtectedRouteProps {
-  children: JSX.Element;
+  children: ReactNode; // Fixed namespace issue
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
@@ -31,15 +31,11 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         if (res.ok) {
           setStatus('auth');
         } else {
-          // Token might be expired or tampered with
-          console.warn("Session expired. Clearing local storage.");
           localStorage.removeItem("token");
-          localStorage.removeItem("role");
           setStatus('no-auth');
         }
       } catch (err) {
-        // Network error - stay on loading or go to login depending on preference
-        console.error("Auth verification failed:", err);
+        console.error("Verification error:", err);
         setStatus('no-auth');
       }
     };
@@ -47,7 +43,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     verifySession();
   }, []);
 
-  // 1. LOADING STATE (Matches SAT Sports Dark Theme)
   if (status === 'loading') {
     return (
       <Box sx={loaderContainerStyle}>
@@ -56,25 +51,16 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // 2. NO AUTH STATE
-  if (status === 'no-auth') {
-    return <Navigate to="/login" replace />;
-  }
-
-  // 3. AUTHORIZED STATE
-  return children;
+  return status === 'auth' ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
-// Design Styles
 const loaderContainerStyle = {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
   height: '100vh',
   width: '100vw',
-  bgcolor: '#020617', // Deep dark background
+  bgcolor: '#020617',
   position: 'fixed',
-  top: 0,
-  left: 0,
-  zIndex: 9999
+  top: 0, left: 0, zIndex: 9999
 };

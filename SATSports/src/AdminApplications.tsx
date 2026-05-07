@@ -6,23 +6,60 @@ import {
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
-import HourglassEmptyIcon from "@mui/material/SvgIcon"; // Or use any timer icon
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import API_BASE from "./api";
+
+// --- HELPERS (Defined outside to improve performance) ---
+
+const getStatusColor = (status: string) => {
+  const s = status?.toLowerCase();
+  if (s === 'approved') return '#10b981';
+  if (s === 'rejected') return '#e11d48';
+  return '#f59e0b'; // pending
+};
+
+const getStatusChipStyles = (status: string) => {
+  const s = status?.toLowerCase();
+  if (s === 'approved') return { bgcolor: '#f0fdf4', color: '#166534' };
+  if (s === 'rejected') return { bgcolor: '#fff1f2', color: '#991b1b' };
+  return { bgcolor: '#fff7ed', color: '#9a3412' }; // pending
+};
+
+const GridInfo = ({ age, program }: { age: number | string; program: string }) => (
+  <Stack direction="row" spacing={4}>
+    <Box>
+      <Typography variant="caption" fontWeight={700} color="text.secondary">AGE</Typography>
+      <Typography variant="body2" fontWeight={800}>{age || "N/A"}</Typography>
+    </Box>
+    <Box>
+      <Typography variant="caption" fontWeight={700} color="text.secondary">PREF. PROGRAM</Typography>
+      <Typography variant="body2" fontWeight={800} color="primary">{program || "GENERAL"}</Typography>
+    </Box>
+  </Stack>
+);
 
 export default function AdminApplications() {
   const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const load = () => {
+  const loadApplications = () => {
+    setLoading(true);
     fetch(`${API_BASE}/api/admin/applications`)
       .then((res) => res.json())
-      .then(setRows)
-      .catch((err) => console.error("Load failed", err));
+      .then((data) => {
+        setRows(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => console.error("Load failed", err))
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    loadApplications();
+  }, []);
 
   const handleAction = async (id: number, action: string) => {
     setProcessingId(id);
@@ -32,27 +69,29 @@ export default function AdminApplications() {
       });
       const data = await res.json();
       if (data.success) {
-        load();
+        loadApplications();
       } else {
         alert(data.message || "Action failed");
       }
     } catch (err) {
-      alert("Network error, please try again.");
+      alert("Network error. Please check your backend connection.");
     } finally {
       setProcessingId(null);
     }
   };
 
   const renderActions = (r: any) => {
-    if (r.status !== "pending") {
+    if (r.status?.toLowerCase() !== "pending") {
       return (
-        <Typography variant="caption" fontWeight={700} sx={{ color: 'text.secondary', letterSpacing: 1 }}>
+        <Typography variant="caption" fontWeight={900} sx={{ color: 'text.disabled', letterSpacing: 1 }}>
           PROCESSED
         </Typography>
       );
     }
 
-    if (processingId === r.id) return <CircularProgress size={24} thickness={5} sx={{ color: '#3b82f6' }} />;
+    if (processingId === r.id) {
+      return <CircularProgress size={20} thickness={6} sx={{ color: '#3b82f6' }} />;
+    }
 
     return (
       <Stack direction="row" spacing={1}>
@@ -78,44 +117,56 @@ export default function AdminApplications() {
     );
   };
 
+  if (loading && rows.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={containerStyle}>
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <Box mb={4}>
         <Typography variant="h4" fontWeight={900} letterSpacing="-1px">
           Application Queue
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Review and process new athlete registrations
+          Review new player registrations for the academy
         </Typography>
       </Box>
 
-      {/* QUICK STATS */}
+      {/* STATS SUMMARY */}
       <Stack direction="row" spacing={2} mb={4}>
         <Chip 
-          label={`${rows.filter(r => r.status === 'pending').length} PENDING`} 
+          icon={<HourglassEmptyIcon style={{ fontSize: 16, color: 'inherit' }} />}
+          label={`${rows.filter(r => r.status?.toLowerCase() === 'pending').length} PENDING`} 
           sx={{ fontWeight: 800, bgcolor: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5' }} 
         />
         <Chip 
-          label={`${rows.filter(r => r.status === 'approved').length} APPROVED`} 
+          label={`${rows.filter(r => r.status?.toLowerCase() === 'approved').length} APPROVED`} 
           sx={{ fontWeight: 800, bgcolor: '#f0fdf4', color: '#15803d', border: '1px solid #dcfce7' }} 
         />
       </Stack>
 
       {isMobile ? (
+        /* MOBILE VIEW */
         <Stack spacing={2}>
           {rows.map((r) => (
             <Fade in key={r.id}>
               <Card sx={{ ...mobileCardStyle, borderLeft: `6px solid ${getStatusColor(r.status)}` }}>
                 <CardContent sx={{ p: 3 }}>
                   <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                    <Avatar sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }}>{r.name[0]}</Avatar>
+                    <Avatar sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700 }}>
+                      {r.name ? r.name[0].toUpperCase() : "?"}
+                    </Avatar>
                     <Box sx={{ flex: 1 }}>
                       <Typography variant="subtitle1" fontWeight={800}>{r.name}</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{r.email}</Typography>
                     </Box>
                     <Chip 
-                      label={r.status.toUpperCase()} 
+                      label={r.status?.toUpperCase()} 
                       size="small" 
                       sx={{ fontWeight: 900, fontSize: '0.65rem', ...getStatusChipStyles(r.status) }} 
                     />
@@ -133,6 +184,7 @@ export default function AdminApplications() {
           ))}
         </Stack>
       ) : (
+        /* DESKTOP VIEW */
         <Paper sx={tablePaperStyle}>
           <Table>
             <TableHead sx={{ bgcolor: "#f8fafc" }}>
@@ -155,16 +207,16 @@ export default function AdminApplications() {
                     <Typography variant="body2" color="text.secondary">{r.email}</Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip label={r.age} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9' }} />
+                    <Chip label={r.age || "N/A"} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9' }} />
                   </TableCell>
                   <TableCell>
                     <Typography variant="caption" fontWeight={800} color="primary">
-                      {r.preferred_program || "NOT SPECIFIED"}
+                      {r.preferred_program?.toUpperCase() || "GENERAL"}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip 
-                      label={r.status.toUpperCase()} 
+                      label={r.status?.toUpperCase()} 
                       size="small" 
                       sx={{ fontWeight: 800, fontSize: '0.7rem', ...getStatusChipStyles(r.status) }} 
                     />
@@ -172,6 +224,13 @@ export default function AdminApplications() {
                   <TableCell align="right">{renderActions(r)}</TableCell>
                 </TableRow>
               ))}
+              {rows.length === 0 && !loading && (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 10, color: 'text.secondary' }}>
+                    No applications found in the queue.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </Paper>
@@ -180,20 +239,7 @@ export default function AdminApplications() {
   );
 }
 
-// --- SUB-COMPONENTS & STYLES ---
-
-const GridInfo = ({ age, program }: any) => (
-  <Stack direction="row" spacing={4}>
-    <Box>
-      <Typography variant="caption" fontWeight={700} color="text.secondary">AGE</Typography>
-      <Typography variant="body2" fontWeight={800}>{age}</Typography>
-    </Box>
-    <Box>
-      <Typography variant="caption" fontWeight={700} color="text.secondary">PREF. PROGRAM</Typography>
-      <Typography variant="body2" fontWeight={800} color="primary">{program || "N/A"}</Typography>
-    </Box>
-  </Stack>
-);
+// --- STYLES ---
 
 const containerStyle = { p: { xs: 2, md: 5 }, background: "#f8fafc", minHeight: "100vh" };
 
@@ -210,23 +256,11 @@ const mobileCardStyle = {
 const approveBtnStyle = { 
   borderRadius: 2, fontWeight: 800, textTransform: 'none', px: 2,
   background: 'linear-gradient(135deg, #10b981, #059669)',
-  '&:hover': { boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }
+  '&:hover': { background: '#059669', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }
 };
 
 const rejectBtnStyle = { 
   borderRadius: 2, fontWeight: 800, textTransform: 'none', px: 2,
   borderColor: '#e11d48', color: '#e11d48',
   '&:hover': { bgcolor: '#fff1f2', borderColor: '#e11d48' }
-};
-
-const getStatusColor = (status: string) => {
-  if (status === 'approved') return '#10b981';
-  if (status === 'rejected') return '#e11d48';
-  return '#f59e0b';
-};
-
-const getStatusChipStyles = (status: string) => {
-  if (status === 'approved') return { bgcolor: '#f0fdf4', color: '#166534' };
-  if (status === 'rejected') return { bgcolor: '#fff1f2', color: '#991b1b' };
-  return { bgcolor: '#fff7ed', color: '#9a3412' };
 };
