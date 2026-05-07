@@ -19,8 +19,10 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ✅ Correct Unified CORS Configuration
 const allowedOrigins = [
+  "https://sat-sports.vercel.app",
+  "https://www.sat-sports.in",
   "https://sat-sports.in",
-  "https://www.sat-sports.in"
+  "https://sat-sports.onrender.com"
 ];
 
 app.use(cors({
