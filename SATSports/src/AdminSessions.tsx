@@ -119,8 +119,20 @@ export default function AdminSessions() {
     }
   };
 
+  const handleDelete = async (sessionId: number) => {
+    if (!window.confirm("Delete this session?")) return;
+    try {
+      await fetch(`${API_BASE}/api/admin/sessions/${sessionId}`, { method: "DELETE" });
+      setToast({ open: true, msg: "Session deleted", type: "success" });
+      fetchData();
+    } catch {
+      setToast({ open: true, msg: "Delete failed", type: "error" });
+    }
+  };
+
   const filteredSessions = useMemo(() => 
-    sessions.filter(s => s.session_date === filterDate),
+    // BUG FIX: DB returns ISO strings like "2025-06-05T00:00:00.000Z"; normalize before comparing
+    sessions.filter(s => dayjs(s.session_date).format("YYYY-MM-DD") === filterDate),
     [sessions, filterDate]
   );
 
@@ -269,7 +281,16 @@ export default function AdminSessions() {
                     </TableCell>
                     <TableCell align="right">
                       <IconButton size="small" onClick={() => {
-                        setForm({ id: s.id, start: dayjs(s.start_time, "HH:mm:ss"), end: dayjs(s.end_time, "HH:mm:ss"), coachId: s.coach_id, locationId: s.location_id, programIds: s.program_ids || [] });
+                        // BUG FIX: program_ids from SQL JOIN aggregation may arrive as "1,2,3" string — parse safely
+                        const parsedProgramIds = Array.isArray(s.program_ids)
+                          ? s.program_ids.map(Number)
+                          : typeof s.program_ids === "string" && s.program_ids
+                            ? s.program_ids.split(",").map(Number)
+                            : [];
+                        setForm({ id: s.id, start: dayjs(s.start_time, "HH:mm:ss"), end: dayjs(s.end_time, "HH:mm:ss"), coachId: s.coach_id, locationId: s.location_id, programIds: parsedProgramIds });
+                        window.scrollTo(0,0);
+                      }}><EditIcon fontSize="inherit" /></IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDelete(s.id)}><DeleteIcon fontSize="inherit" /></IconButton>
                         window.scrollTo(0,0);
                       }}><EditIcon fontSize="inherit" /></IconButton>
                     </TableCell>

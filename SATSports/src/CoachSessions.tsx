@@ -32,6 +32,7 @@ export default function CoachSessions() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [showCamera, setShowCamera] = useState<{ sessionId: number; locationId: number } | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -78,7 +79,45 @@ export default function CoachSessions() {
 
   useEffect(() => { initData(); }, [initData]);
 
-  // 3. SECURE GEOLOCATION WRAPPER
+  // BUG FIX: Stop camera tracks on unmount to prevent stream leaks
+  useEffect(() => { return () => stopCamera(); }, [stopCamera]);
+
+  // BUG FIX: Was missing entirely — captures photo from stream and submits it to API
+  const handleCaptureAndSubmit = async () => {
+    if (!showCamera || !videoRef.current) return;
+    setProcessingId(showCamera.sessionId);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      canvas.getContext("2d")!.drawImage(videoRef.current, 0, 0);
+      
+      const blob = await new Promise<Blob>((res) => canvas.toBlob(b => res(b!), "image/jpeg", 0.85));
+      
+      const coords = await fetchLocation();
+      const formData = new FormData();
+      formData.append("coachId", coachIdRef.current!);
+      formData.append("sessionId", String(showCamera.sessionId));
+      formData.append("locationId", String(showCamera.locationId));
+      formData.append("lat", String(coords.lat));
+      formData.append("lng", String(coords.lng));
+      formData.append("photo", blob, "checkin.jpg");
+
+      const res = await fetch(`${API_BASE}/api/coach/checkin`, { method: "POST", body: formData });
+      if (res.ok) {
+        setCheckedInMap(prev => ({ ...prev, [showCamera.sessionId]: { ...prev[showCamera.sessionId], checkedIn: true } }));
+        setToastMsg("Checked in successfully");
+      } else {
+        setToastMsg("Check-in failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Photo capture failed", err);
+    } finally {
+      stopCamera();
+      setShowCamera(null);
+      setProcessingId(null);
+    }
+  };
   const fetchLocation = (): Promise<{ lat: number; lng: number }> => {
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
@@ -239,6 +278,62 @@ export default function CoachSessions() {
           </Box>
         )}
       </Container>
+
+      {/* BUG FIX: Camera modal was missing — photo check-in was silently abandoned */}
+      <AnimatePresence>
+        {showCamera && (
+          <MotionBox
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            sx={{
+              position: "fixed", inset: 0, zIndex: 1300,
+              bgcolor: "rgba(0,0,0,0.92)", display: "flex",
+              flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3
+            }}
+          >
+            <Typography variant="overline" sx={{ color: "#ef4444", fontWeight: 900, letterSpacing: 3 }}>
+              PHOTO VERIFICATION REQUIRED
+            </Typography>
+            <Box sx={{ borderRadius: 4, overflow: "hidden", border: "2px solid rgba(239,68,68,0.4)", maxWidth: 480, width: "100%" }}>
+              <video ref={videoRef} autoPlay playsInline style={{ width: "100%", display: "block" }} />
+            </Box>
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="contained"
+                onClick={handleCaptureAndSubmit}
+                disabled={!!processingId}
+                sx={{ bgcolor: "#ef4444", fontWeight: 900, px: 4, py: 1.5, borderRadius: 3, "&:hover": { bgcolor: "#dc2626" } }}
+              >
+                {processingId ? <CircularProgress size={20} color="inherit" /> : "CAPTURE & CHECK IN"}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => { stopCamera(); setShowCamera(null); }}
+                sx={{ borderColor: "rgba(255,255,255,0.2)", color: "white", fontWeight: 900, borderRadius: 3 }}
+              >
+                CANCEL
+              </Button>
+            </Stack>
+          </MotionBox>
+        )}
+      </AnimatePresence>
+
+      {/* Toast feedback */}
+      {toastMsg && (
+        <Fade in={!!toastMsg}>
+          <Box sx={{
+            position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+            bgcolor: toastMsg.includes("success") || toastMsg.includes("successfully") ? "#22c55e" : "#ef4444",
+            color: "white", px: 4, py: 1.5, borderRadius: 3, fontWeight: 900, zIndex: 1400,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.3)"
+          }}
+            onClick={() => setToastMsg(null)}
+          >
+            <Typography fontWeight={900} fontSize="0.85rem">{toastMsg}</Typography>
+          </Box>
+        </Fade>
+      )}
     </Box>
   );
 }
