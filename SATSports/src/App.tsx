@@ -54,7 +54,8 @@ const CoachDashboard = lazy(() => import("./CoachDashboard"));
 const CoachSessions = lazy(() => import("./CoachSessions"));
 const CoachAttendance = lazy(() => import("./CoachAttendance"));
 const CoachLeave = lazy(() => import("./CoachLeave"));
-
+const CoachProfile = lazy(() => import("./CoachProfile"));
+const CoachTournaments = lazy(() => import("./PracticeTournaments"));
 // ⚡ UI Helpers
 const Loader = () => (
   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
@@ -97,6 +98,8 @@ export default function App() {
             <Route path="sessions" element={<CoachSessions />} />
             <Route path="sessions/:sessionId/attendance" element={<CoachAttendance />} />
             <Route path="leave" element={<CoachLeave />} />
+            <Route path="profile" element={<CoachProfile />} />
+            <Route path="tournaments" element={<CoachTournaments />} />
           </Route>
 
           {/* --- PLAYER SECTION (Nested) --- */}
