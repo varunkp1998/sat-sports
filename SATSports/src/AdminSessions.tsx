@@ -291,8 +291,6 @@ export default function AdminSessions() {
                         window.scrollTo(0,0);
                       }}><EditIcon fontSize="inherit" /></IconButton>
                       <IconButton size="small" color="error" onClick={() => handleDelete(s.id)}><DeleteIcon fontSize="inherit" /></IconButton>
-                        window.scrollTo(0,0);
-                      }}><EditIcon fontSize="inherit" /></IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
