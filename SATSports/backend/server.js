@@ -920,26 +920,48 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 
 // --- STATUS API ---
 app.get("/api/coach/checkin/status", async (req, res) => {
-  const { coachId, sessionId } = req.query; // Remove 'date' dependency here
+  const { coachId, sessionId } = req.query;
 
   try {
+    const [[coach]] = await db.query(
+      "SELECT id FROM coaches WHERE user_id = ?",
+      [coachId]
+    );
+
+    if (!coach) {
+      return res.json({
+        checkedIn: false,
+        completed: false,
+        isLate: 0
+      });
+    }
+
     const [rows] = await db.query(
-      `SELECT checkout_time, is_late FROM coach_checkins 
-       WHERE coach_id = ? AND session_id = ? 
-       ORDER BY id DESC LIMIT 1`, // Just get the latest record for THIS session
-      [coachId, sessionId]
+      `SELECT checkout_time, is_late
+       FROM coach_checkins
+       WHERE coach_id = ?
+       AND session_id = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [coach.id, sessionId]
     );
 
     if (rows.length === 0) {
-      return res.json({ checkedIn: false, completed: false, isLate: 0 });
+      return res.json({
+        checkedIn: false,
+        completed: false,
+        isLate: 0
+      });
     }
 
     const record = rows[0];
+
     res.json({
       checkedIn: record.checkout_time === null,
       completed: record.checkout_time !== null,
       isLate: record.is_late || 0
     });
+
   } catch (err) {
     res.status(500).json({ error: "Sync failed" });
   }
@@ -949,29 +971,56 @@ app.post("/api/coach/checkout", async (req, res) => {
   const { coachId, sessionId } = req.body;
 
   try {
-    // Find the open check-in for this specific session
+    // Convert user_id -> coach.id
+    const [[coach]] = await db.query(
+      "SELECT id FROM coaches WHERE user_id = ?",
+      [coachId]
+    );
+
+    if (!coach) {
+      return res.status(404).json({
+        message: "Coach not found"
+      });
+    }
+
+    // Find active check-in
     const [active] = await db.query(
-      `SELECT id, checkin_time FROM coach_checkins 
-       WHERE coach_id = ? AND session_id = ? AND checkout_time IS NULL 
+      `SELECT id, checkin_time
+       FROM coach_checkins
+       WHERE coach_id = ?
+       AND session_id = ?
+       AND checkout_time IS NULL
+       ORDER BY id DESC
        LIMIT 1`,
-      [coachId, sessionId]
+      [coach.id, sessionId]
     );
 
     if (active.length === 0) {
-      return res.status(400).json({ message: "No active check-in found for this session." });
+      return res.status(400).json({
+        message: "No active check-in found for this session."
+      });
     }
 
+    // Checkout
     await db.query(
-      `UPDATE coach_checkins 
+      `UPDATE coach_checkins
        SET checkout_time = NOW(),
            work_minutes = TIMESTAMPDIFF(MINUTE, checkin_time, NOW())
        WHERE id = ?`,
       [active[0].id]
     );
 
-    res.json({ success: true });
+    res.json({
+      success: true,
+      coachId: coach.id,
+      sessionId
+    });
+
   } catch (err) {
-    res.status(500).json({ error: "Checkout failed" });
+    console.error("Checkout Error:", err);
+    res.status(500).json({
+      error: "Checkout failed"
+    });
   }
 });
 app.get("/api/admin/live-coaches", (req, res) => {
