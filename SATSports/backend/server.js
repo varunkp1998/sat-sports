@@ -920,12 +920,12 @@ app.delete("/api/admin/sessions/:id", async (req, res) => {
 
 // --- STATUS API ---
 app.get("/api/coach/checkin/status", async (req, res) => {
-  const { coachId, sessionId } = req.query;
-
   try {
+    const { coachId: userId, sessionId } = req.query;
+
     const [[coach]] = await db.query(
       "SELECT id FROM coaches WHERE user_id = ?",
-      [coachId]
+      [userId]
     );
 
     if (!coach) {
@@ -937,10 +937,10 @@ app.get("/api/coach/checkin/status", async (req, res) => {
     }
 
     const [rows] = await db.query(
-      `SELECT checkout_time, is_late
+      `SELECT checkout_time,is_late
        FROM coach_checkins
-       WHERE coach_id = ?
-       AND session_id = ?
+       WHERE coach_id=?
+       AND session_id=?
        ORDER BY id DESC
        LIMIT 1`,
       [coach.id, sessionId]
@@ -963,18 +963,21 @@ app.get("/api/coach/checkin/status", async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: "Sync failed" });
+    console.error(err);
+
+    res.status(500).json({
+      error: "Sync failed"
+    });
   }
 });
 // --- CHECKOUT API ---
 app.post("/api/coach/checkout", async (req, res) => {
-  const { coachId, sessionId } = req.body;
-
   try {
-    // Convert user_id -> coach.id
+    const { coachId: userId, sessionId } = req.body;
+
     const [[coach]] = await db.query(
       "SELECT id FROM coaches WHERE user_id = ?",
-      [coachId]
+      [userId]
     );
 
     if (!coach) {
@@ -983,12 +986,11 @@ app.post("/api/coach/checkout", async (req, res) => {
       });
     }
 
-    // Find active check-in
     const [active] = await db.query(
-      `SELECT id, checkin_time
+      `SELECT id,checkin_time
        FROM coach_checkins
-       WHERE coach_id = ?
-       AND session_id = ?
+       WHERE coach_id=?
+       AND session_id=?
        AND checkout_time IS NULL
        ORDER BY id DESC
        LIMIT 1`,
@@ -997,27 +999,30 @@ app.post("/api/coach/checkout", async (req, res) => {
 
     if (active.length === 0) {
       return res.status(400).json({
-        message: "No active check-in found for this session."
+        message: "No active check-in found"
       });
     }
 
-    // Checkout
     await db.query(
       `UPDATE coach_checkins
        SET checkout_time = NOW(),
-           work_minutes = TIMESTAMPDIFF(MINUTE, checkin_time, NOW())
-       WHERE id = ?`,
+           work_minutes =
+             TIMESTAMPDIFF(
+               MINUTE,
+               checkin_time,
+               NOW()
+             )
+       WHERE id=?`,
       [active[0].id]
     );
 
     res.json({
-      success: true,
-      coachId: coach.id,
-      sessionId
+      success: true
     });
 
   } catch (err) {
-    console.error("Checkout Error:", err);
+    console.error(err);
+
     res.status(500).json({
       error: "Checkout failed"
     });
@@ -1094,58 +1099,115 @@ app.get("/api/coach/sessions/:userId", async (req, res) => {
 });
 // --- Updated Check-in API with Cloudinary ---
 app.post("/api/coach/checkin", uploadCloud.single("photo"), async (req, res) => {
-  const connection = await db.getConnection(); // Use a connection for Transaction
+  const connection = await db.getConnection();
+
   try {
-    const { coachId, sessionId, locationId, lat, lng } = req.body;
+    const { coachId: userId, sessionId, locationId, lat, lng } = req.body;
     const verificationPhotoUrl = req.file ? req.file.path : null;
 
-    // 1. Validation Logic
-    if (!coachId || !sessionId || !locationId || !lat || !lng) {
-      return res.status(400).json({ message: "Missing coordinates or IDs" });
-    }
+    const [[coach]] = await db.query(
+      "SELECT id FROM coaches WHERE user_id = ?",
+      [userId]
+    );
 
-    // Determine Method (Explicitly)
-    const checkinMethod = verificationPhotoUrl ? 'photo' : 'gps';
-
-    await connection.beginTransaction();
-
-    // 2. Location Verification
-    const [locations] = await db.query("SELECT lat, lng FROM locations WHERE id = ?", [locationId]);
-    if (locations.length === 0) throw new Error("LOCATION_NOT_FOUND");
-    
-    const location = locations[0];
-    const distance = getDistance(parseFloat(lat), parseFloat(lng), parseFloat(location.lat), parseFloat(location.lng));
-
-    // Fallback trigger: If too far and no photo was provided
-    if (distance > 0.2 && !verificationPhotoUrl) {
-      await connection.rollback();
-      return res.status(403).json({ 
-        requiresPhoto: true, 
-        message: "Outside range. Photo required for manual verification." 
+    if (!coach) {
+      return res.status(404).json({
+        message: "Coach not found"
       });
     }
 
-    // 3. Late Check
-    const [sessions] = await db.query(`SELECT session_date, start_time FROM training_sessions WHERE id=?`, [sessionId]);
-    const now = dayjs(); // Using dayjs for cleaner date math
-    const sessionStart = dayjs(`${dayjs(sessions[0].session_date).format("YYYY-MM-DD")} ${sessions[0].start_time}`);
+    const actualCoachId = coach.id;
+
+    await connection.beginTransaction();
+
+    const [locations] = await db.query(
+      "SELECT lat,lng FROM locations WHERE id=?",
+      [locationId]
+    );
+
+    if (locations.length === 0) {
+      throw new Error("LOCATION_NOT_FOUND");
+    }
+
+    const location = locations[0];
+
+    const distance = getDistance(
+      parseFloat(lat),
+      parseFloat(lng),
+      parseFloat(location.lat),
+      parseFloat(location.lng)
+    );
+
+    if (distance > 0.2 && !verificationPhotoUrl) {
+      await connection.rollback();
+
+      return res.status(403).json({
+        requiresPhoto: true,
+        message: "Outside range. Photo required."
+      });
+    }
+
+    const [sessions] = await db.query(
+      `SELECT session_date,start_time
+       FROM training_sessions
+       WHERE id=?`,
+      [sessionId]
+    );
+
+    const now = dayjs();
+
+    const sessionStart = dayjs(
+      `${dayjs(sessions[0].session_date).format("YYYY-MM-DD")} ${sessions[0].start_time}`
+    );
+
     const isLate = now.isAfter(sessionStart) ? 1 : 0;
 
-    // 4. The Final INSERT (With Method)
     await db.query(
-      `INSERT IGNORE INTO coach_checkins 
-       (coach_id, session_id, location_id, lat, lng, checkin_time, is_late, verification_photo, method)
-       VALUES (?, ?, ?, ?, ?, CONVERT_TZ(NOW(), '+00:00', '+05:30'), ?, ?, ?)`,
-      [coachId, sessionId, locationId, lat, lng, isLate, verificationPhotoUrl, checkinMethod]
+      `INSERT INTO coach_checkins
+      (
+        coach_id,
+        session_id,
+        location_id,
+        lat,
+        lng,
+        checkin_time,
+        is_late,
+        verification_photo,
+        method
+      )
+      VALUES
+      (
+        ?,?,?,?,?,
+        CONVERT_TZ(NOW(),'+00:00','+05:30'),
+        ?,?,?
+      )`,
+      [
+        actualCoachId,
+        sessionId,
+        locationId,
+        lat,
+        lng,
+        isLate,
+        verificationPhotoUrl,
+        verificationPhotoUrl ? "photo" : "gps"
+      ]
     );
 
     await connection.commit();
-    res.json({ success: true, isLate, method: checkinMethod });
+
+    res.json({
+      success: true,
+      coachId: actualCoachId
+    });
 
   } catch (err) {
     await connection.rollback();
-    console.error("ROBUSTNESS ERROR:", err);
-    res.status(500).json({ message: "Check-in Failed", error: err.message });
+    console.error(err);
+
+    res.status(500).json({
+      message: "Check-in Failed"
+    });
+
   } finally {
     connection.release();
   }
