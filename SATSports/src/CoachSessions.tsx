@@ -25,10 +25,8 @@ interface Session {
 }
 
 export default function CoachSessions() {
-  const coachIdRef = useRef<string | null>(
-    localStorage.getItem("coachId")
-  );
-    const [sessions, setSessions] = useState<Session[]>([]);
+  const userIdRef = useRef<string | null>(localStorage.getItem("userId"));
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, CheckInState>>({});
   const [filterDate, setFilterDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [loading, setLoading] = useState(true);
@@ -49,19 +47,18 @@ export default function CoachSessions() {
 
   // 2. DATA ORCHESTRATION
   const initData = useCallback(async () => {
-    if (!coachIdRef.current) return;
+    if (!userIdRef.current) return;
     setLoading(true);
     try {
-      const sessionRes = await fetch(
-        `${API_BASE}/api/coach/sessions/${coachIdRef.current}`
-      );      const sessionData: Session[] = await sessionRes.json();
+      const sessionRes = await fetch(`${API_BASE}/api/coach/sessions/${userIdRef.current}`);
+      const sessionData: Session[] = await sessionRes.json();
       setSessions(Array.isArray(sessionData) ? sessionData : []);
 
       // Fetch statuses in a single pass
       const statusMap: Record<number, CheckInState> = {};
       await Promise.all(sessionData.map(async (s) => {
         try {
-          const res = await fetch(`${API_BASE}/api/coach/checkin/status?coachId=${coachIdRef.current}&sessionId=${s.id}`);
+          const res = await fetch(`${API_BASE}/api/coach/checkin/status?coachId=${userIdRef.current}&sessionId=${s.id}`);
           const data = await res.json();
           statusMap[s.id] = {
             checkedIn: !!data.checkedIn,
@@ -99,7 +96,7 @@ export default function CoachSessions() {
       
       const coords = await fetchLocation();
       const formData = new FormData();
-      formData.append("coachId", coachIdRef.current!);
+      formData.append("coachId", userIdRef.current!);
       formData.append("sessionId", String(showCamera.sessionId));
       formData.append("locationId", String(showCamera.locationId));
       formData.append("lat", String(coords.lat));
@@ -140,7 +137,7 @@ export default function CoachSessions() {
       if (type === 'IN') {
         const coords = await fetchLocation();
         const formData = new FormData();
-        formData.append("coachId", coachIdRef.current!);
+        formData.append("coachId", userIdRef.current!);
         formData.append("sessionId", String(sessionId));
         formData.append("locationId", String(locId));
         formData.append("lat", String(coords.lat));
@@ -161,7 +158,7 @@ export default function CoachSessions() {
         const res = await fetch(`${API_BASE}/api/coach/checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ coachId: coachIdRef.current, sessionId })
+          body: JSON.stringify({ coachId: userIdRef.current, sessionId })
         });
         if (res.ok) {
           setCheckedInMap(prev => ({ ...prev, [sessionId]: { ...prev[sessionId], completed: true, checkedIn: false } }));

@@ -1008,12 +1008,22 @@ app.post("/api/attendance", (req, res) => {
 
 // Generate or rotate QR token for a location
 
-app.get("/api/coach/sessions/:coachId", async (req, res) => {
+app.get("/api/coach/sessions/:userId", async (req, res) => {
   try {
-    const { coachId } = req.params;
+    const { userId } = req.params;
+
+    // Convert user_id -> coach.id
+    const [[coach]] = await db.query(
+      "SELECT id FROM coaches WHERE user_id = ?",
+      [userId]
+    );
+
+    if (!coach) {
+      return res.status(404).json({ error: "Coach not found" });
+    }
 
     const [rows] = await db.query(`
-      SELECT 
+      SELECT
         s.*,
         l.name AS locationName,
         GROUP_CONCAT(p.title) AS programTitles
@@ -1024,12 +1034,12 @@ app.get("/api/coach/sessions/:coachId", async (req, res) => {
       WHERE s.coach_id = ?
       GROUP BY s.id
       ORDER BY s.session_date DESC
-    `, [coachId]);
+    `, [coach.id]);
 
     res.json(rows);
 
   } catch (err) {
-    console.error(err);
+    console.error("Coach sessions error:", err);
     res.status(500).json({ error: "Failed to load sessions" });
   }
 });
