@@ -25,7 +25,7 @@ interface Session {
 }
 
 export default function CoachSessions() {
-  const coachIdRef = useRef<string | null>(localStorage.getItem("userId"));
+  const coachIdRef = useRef<string | null>(localStorage.getItem("Id"));
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, CheckInState>>({});
   const [filterDate, setFilterDate] = useState(dayjs().format("YYYY-MM-DD"));
