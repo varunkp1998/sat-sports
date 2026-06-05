@@ -25,8 +25,10 @@ interface Session {
 }
 
 export default function CoachSessions() {
-  const coachIdRef = useRef<string | null>(localStorage.getItem("Id"));
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const coachIdRef = useRef<string | null>(
+    localStorage.getItem("coachId")
+  );
+    const [sessions, setSessions] = useState<Session[]>([]);
   const [checkedInMap, setCheckedInMap] = useState<Record<number, CheckInState>>({});
   const [filterDate, setFilterDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [loading, setLoading] = useState(true);
@@ -50,8 +52,9 @@ export default function CoachSessions() {
     if (!coachIdRef.current) return;
     setLoading(true);
     try {
-      const sessionRes = await fetch(`${API_BASE}/api/coach/sessions/${coachIdRef.current}`);
-      const sessionData: Session[] = await sessionRes.json();
+      const sessionRes = await fetch(
+        `${API_BASE}/api/coach/sessions/${coachIdRef.current}`
+      );      const sessionData: Session[] = await sessionRes.json();
       setSessions(Array.isArray(sessionData) ? sessionData : []);
 
       // Fetch statuses in a single pass
